@@ -1,0 +1,51 @@
+{
+  "model_requested": "minimaxai/minimax-m3.1-flash",
+  "provider": "https://integrate.api.nvidia.com/v1/chat/completions",
+  "temperature": 1.0,
+  "candidate_count": 1,
+  "round": 1,
+  "index": 5,
+  "request_attempts": 4,
+  "api_errors": [
+    {
+      "attempt": 1,
+      "http": 504,
+      "body": ""
+    },
+    {
+      "attempt": 2,
+      "http": 504,
+      "body": ""
+    },
+    {
+      "attempt": 3,
+      "http": 504,
+      "body": ""
+    }
+  ],
+  "generation_seconds": 1250.6539763789624,
+  "response_text": "Below is a reward function that rewards the ant for moving fast in the direction its body is facing, while keeping it upright, running straight, and using smooth (low-cost) actions.\n\nKey ideas:\n- **Forward speed** is obtained by projecting the root linear velocity onto the horizontal component of the ant's body\u2011forward axis (computed from the root quaternion), so the reward is independent of the ant's initial yaw/world orientation.\n- **Upright/alive bonus** uses the world\u2011z component of the body up axis (falls off if the ant flips over).\n- **Regularizers**: squared action cost, squared joint velocity cost, and a lateral (side\u2011slip) velocity penalty to encourage straight running.\n\n```python\nfrom typing import Dict, Tuple\n\nimport torch\n\n\n@torch.jit.script\ndef compute_reward(root_states: torch.Tensor,\n                   dof_vel: torch.Tensor,\n                   actions: torch.Tensor) -> Tuple[torch.Tensor, Dict[str, torch.Tensor]]:\n    # ----------------- reward coefficients -----------------\n    forward_vel_coef: float = 1.0        # weight on forward speed (m/s)\n    min_forward_vel: float = -1.0        # clip: running backwards is penalized but bounded\n    alive_coef: float = 0.2              # bonus for staying upright\n    action_cost_coef: float = 0.01       # control effort penalty\n    dof_vel_cost_coef: float = 1.0e-4    # joint speed (energy) penalty\n    lateral_vel_cost_coef: float = 0.02  # side-slip penalty (keep running straight)\n\n    # ----------------- body frame axes in world frame -----------------\n    # Isaac Gym root-state quaternion layout: (w, x, y, z)\n    quat = root_states[:, 3:7]\n    w = quat[:, 0]\n    x = quat[:, 1]\n    y = quat[:, 2]\n    z = quat[:, 3]\n\n    # body forward axis (x) expressed in world coordinates\n    fwd_x = 1.0 - 2.0 * (y * y + z * z)\n    fwd_y = 2.0 * (x * y + w * z)\n    forward_xy = torch.stack((fwd_x, fwd_y), dim=-1)\n    forward_xy = forward_xy / torch.clamp(torch.norm(forward_xy, dim=-1, keepdim=True), min=1.0e-6)\n\n    # body up axis (z) expressed in world coordinates -> world-z component\n    up_z = 1.0 - 2.0 * (x * x + y * y)\n\n    # body lateral axis (y) projected on the ground plane\n    lateral_xy = torch.stack((-forward_xy[:, 1], forward_xy[:, 0]), dim=-1)\n\n    # ----------------- kinematics -----------------\n    vel_xy = root_states[:, 7:9]\n\n    forward_vel = torch.sum(vel_xy * forward_xy, dim=-1)\n    forward_vel = torch.clamp(forward_vel, min=min_forward_vel)\n\n    lateral_vel = torch.sum(vel_xy * lateral_xy, dim=-1)\n\n    # ----------------- reward components -----------------\n    forward_velocity_reward = forward_vel_coef * forward_vel\n    upright_alive_reward = alive_coef * torch.clamp(up_z, min=0.0, max=1.0)\n    action_cost = -action_cost_coef * torch.sum(actions * actions, dim=-1)\n    joint_velocity_cost = -dof_vel_cost_coef * torch.sum(dof_vel * dof_vel, dim=-1)\n    lateral_velocity_cost = -lateral_vel_cost_coef * lateral_vel * lateral_vel\n\n    total_reward = (forward_velocity_reward\n                    + upright_alive_reward\n                    + action_cost\n                    + joint_velocity_cost\n                    + lateral_velocity_cost)\n\n    components: Dict[str, torch.Tensor] = {\n        \"forward_velocity\": forward_velocity_reward,\n        \"upright_alive\": upright_alive_reward,\n        \"action_cost\": action_cost,\n        \"joint_velocity_cost\": joint_velocity_cost,\n        \"lateral_velocity_cost\": lateral_velocity_cost,\n    }\n\n    return total_reward, components\n```",
+  "model_used": "minimaxai/minimax-m3.1-flash",
+  "usage": {
+    "prompt_tokens": 1215,
+    "completion_tokens": 8398,
+    "total_tokens": 9613,
+    "prompt_tokens_details": {
+      "cached_tokens": 1152
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 7507
+    }
+  },
+  "finish_reason": "stop",
+  "validation": {
+    "valid": true,
+    "suffix": "GPTMDR1C5",
+    "environment_call": "compute_reward(self.root_states, self.dof_vel, self.actions)",
+    "inputs": [
+      "root_states",
+      "dof_vel",
+      "actions"
+    ]
+  }
+}

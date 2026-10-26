@@ -1,0 +1,66 @@
+{
+  "model_requested": "minimaxai/minimax-m3.1-flash",
+  "provider": "https://integrate.api.nvidia.com/v1/chat/completions",
+  "temperature": 1.0,
+  "candidate_count": 1,
+  "round": 1,
+  "index": 2,
+  "request_attempts": 7,
+  "api_errors": [
+    {
+      "attempt": 1,
+      "http": 504,
+      "body": ""
+    },
+    {
+      "attempt": 2,
+      "http": 504,
+      "body": ""
+    },
+    {
+      "attempt": 3,
+      "http": 504,
+      "body": ""
+    },
+    {
+      "attempt": 4,
+      "http": 504,
+      "body": ""
+    },
+    {
+      "attempt": 5,
+      "http": 504,
+      "body": ""
+    },
+    {
+      "attempt": 6,
+      "http": 504,
+      "body": ""
+    }
+  ],
+  "generation_seconds": 2358.117603197694,
+  "response_text": "```python\nfrom typing import Dict, Tuple\n\nimport torch\n\n\n@torch.jit.script\ndef compute_reward(\n    root_states: torch.Tensor,\n    actions: torch.Tensor,\n    up_vec: torch.Tensor,\n) -> Tuple[torch.Tensor, Dict[str, torch.Tensor]]:\n    \"\"\"\n    Reward for making the ant run forward (+x world frame) as fast as possible.\n\n    root_states : [pos(3), rot(4), lin_vel(3), ang_vel(3)] per environment\n    actions     : last applied action vector per environment\n    up_vec      : world-frame direction of the torso's up axis (used for a\n                  mild \"stay upright\" penalty).\n    \"\"\"\n    # ---------------- named hyper-parameters ----------------\n    forward_speed_coefficient: float = 1.0   # main dense speed reward\n    speed_bonus_coefficient: float = 0.25    # extra (saturating) fast-speed bonus\n    speed_temperature: float = 2.0           # temperature of the exp() speed shaping\n    lateral_drift_coefficient: float = 0.05  # discourage sideways drifting\n    control_cost_coefficient: float = 0.001  # small effort/smoothness penalty\n    posture_cost_coefficient: float = 0.2    # discourage tipping over\n    alive_bonus: float = 0.1                 # reward for remaining upright/alive\n\n    # ---------------- forward running speed ----------------\n    lin_vel = root_states[:, 7:10]           # world-frame linear velocity\n    forward_vel = lin_vel[:, 0]               # +x is the \"forward\" direction\n    lateral_vel = lin_vel[:, 1]\n\n    forward_speed_reward = forward_speed_coefficient * forward_vel\n\n    # Saturating bonus so that very fast running is still preferred, while\n    # keeping the reward numerically bounded for extreme speeds.\n    clamped_forward_vel = torch.clamp(forward_vel, min=-10.0, max=20.0)\n    speed_bonus = speed_bonus_coefficient * (\n        torch.exp(clamped_forward_vel / speed_temperature) - 1.0\n    )\n\n    # ---------------- regularizers ----------------\n    lateral_drift_cost = -lateral_drift_coefficient * torch.abs(lateral_vel)\n\n    control_cost = -control_cost_coefficient * torch.sum(torch.square(actions), dim=-1)\n\n    # up_vec[:, 2] == cos(tilt angle): 1.0 when perfectly upright.\n    up_z = torch.clamp(up_vec[:, 2], min=-1.0, max=1.0)\n    posture_cost = -posture_cost_coefficient * torch.clamp(1.0 - up_z, min=0.0, max=2.0)\n\n    alive_reward = torch.full_like(forward_vel, alive_bonus)\n\n    # ---------------- total ----------------\n    total_reward = (\n        forward_speed_reward\n        + speed_bonus\n        + lateral_drift_cost\n        + control_cost\n        + posture_cost\n        + alive_reward\n    )\n\n    components: Dict[str, torch.Tensor] = {\n        \"forward_speed_reward\": forward_speed_reward,\n        \"speed_bonus\": speed_bonus,\n        \"lateral_drift_cost\": lateral_drift_cost,\n        \"control_cost\": control_cost,\n        \"posture_cost\": posture_cost,\n        \"alive_bonus\": alive_reward,\n    }\n\n    return total_reward, components\n```",
+  "model_used": "minimaxai/minimax-m3.1-flash",
+  "usage": {
+    "prompt_tokens": 1215,
+    "completion_tokens": 5573,
+    "total_tokens": 6788,
+    "prompt_tokens_details": {
+      "cached_tokens": 128
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 4856
+    }
+  },
+  "finish_reason": "stop",
+  "validation": {
+    "valid": true,
+    "suffix": "GPTMDR1C2",
+    "environment_call": "compute_reward(self.root_states, self.actions, self.up_vec)",
+    "inputs": [
+      "root_states",
+      "actions",
+      "up_vec"
+    ]
+  }
+}

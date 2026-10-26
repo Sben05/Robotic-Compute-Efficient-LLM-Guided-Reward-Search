@@ -1,0 +1,37 @@
+{
+  "model_requested": "minimaxai/minimax-m3.1-flash",
+  "provider": "https://integrate.api.nvidia.com/v1/chat/completions",
+  "temperature": 1.0,
+  "candidate_count": 1,
+  "round": 1,
+  "index": 0,
+  "request_attempts": 1,
+  "api_errors": [],
+  "generation_seconds": 285.78683497197926,
+  "response_text": "```python\nfrom typing import Dict, Tuple\nimport torch\n\n\n@torch.jit.script\ndef compute_reward(root_states: torch.Tensor,\n                   targets: torch.Tensor,\n                   actions: torch.Tensor,\n                   dof_vel: torch.Tensor,\n                   dt: float) -> Tuple[torch.Tensor, Dict[str, torch.Tensor]]:\n    \"\"\"\n    Reward for making the ant run forward (towards its target) as fast as possible.\n\n    Components\n    ----------\n    forward_speed : tanh-saturated forward velocity (m/s) along the heading-to-target\n                    direction.  Dominant term, symmetric so that running backwards\n                    is explicitly discouraged.\n    upright      : world-z component of the torso up axis, keeps the ant on its legs\n                    instead of flipping (which would otherwise be a cheap way to\n                    \"move\" fast).\n    lateral_penalty : squared side-slip velocity (keeps the run straight).\n    spin_penalty : squared torso angular velocity (discourages tumbling/spinning).\n    action_cost : mean squared joint action (control effort / smoothness).\n    dof_vel_cost : mean squared joint velocity (penalty for jerky, high-frequency motion).\n    \"\"\"\n\n    # ------------------------- configuration -------------------------\n    speed_temperature = 2.0        # m/s  : softness of the forward-speed saturation\n    speed_weight = 1.0             # weight of the forward-speed term\n    upright_weight = 0.15          # weight of the stability term\n    lateral_cost_scale = 0.05      # penalty on side-slip speed\n    spin_cost_scale = 0.002        # penalty on torso angular velocity\n    action_cost_scale = 0.01       # penalty on control effort\n    dof_vel_cost_scale = 1.0e-4    # penalty on joint velocity\n\n    # ------------------------- state extraction ----------------------\n    pos = root_states[:, 0:3]\n    lin_vel = root_states[:, 7:10]\n    ang_vel = root_states[:, 10:13]\n    quat = root_states[:, 3:7]     # (w, x, y, z)\n\n    # desired forward direction: horizontal unit vector pointing at the target\n    to_target = targets - pos\n    to_target_h = torch.stack((to_target[:, 0], to_target[:, 1]), dim=1)\n    target_dist = torch.norm(to_target_h, dim=1)\n    forward = to_target_h / (target_dist.unsqueeze(1) + 1.0e-6)\n\n    # horizontal velocity expressed in the (forward, lateral) frame\n    vel_h = torch.stack((lin_vel[:, 0], lin_vel[:, 1]), dim=1)\n    forward_speed = torch.sum(vel_h * forward, dim=1)\n    lateral_speed = vel_h[:, 0] * forward[:, 1] - vel_h[:, 1] * forward[:, 0]\n\n    # world-z component of the torso \"up\" axis (from the root quaternion)\n    qx = quat[:, 1]\n    qy = quat[:, 2]\n    up_z = 1.0 - 2.0 * (qx * qx + qy * qy)\n\n    # ------------------------- reward components ----------------------\n    forward_speed_reward = torch.tanh(forward_speed / speed_temperature)\n    upright_reward = torch.clamp(up_z, min=0.0)\n\n    lateral_penalty = lateral_speed * lateral_speed\n    spin_penalty = torch.mean(ang_vel * ang_vel, dim=1)\n    action_penalty = torch.mean(actions * actions, dim=1)\n    dof_vel_penalty = torch.mean(dof_vel * dof_vel, dim=1)\n\n    # ------------------------- total reward --------------------------\n    total_reward = (speed_weight * forward_speed_reward\n                    + upright_weight * upright_reward\n                    - lateral_cost_scale * lateral_penalty\n                    - spin_cost_scale * spin_penalty\n                    - action_cost_scale * action_penalty\n                    - dof_vel_cost_scale * dof_vel_penalty)\n\n    components: Dict[str, torch.Tensor] = {\n        \"forward_speed\": forward_speed_reward,\n        \"upright\": upright_reward,\n        \"lateral_penalty\": lateral_penalty,\n        \"spin_penalty\": spin_penalty,\n        \"action_cost\": action_penalty,\n        \"dof_vel_cost\": dof_vel_penalty,\n    }\n\n    return total_reward, components\n```",
+  "model_used": "minimaxai/minimax-m3.1-flash",
+  "usage": {
+    "prompt_tokens": 1215,
+    "completion_tokens": 8327,
+    "total_tokens": 9542,
+    "prompt_tokens_details": {
+      "cached_tokens": 128
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 7399
+    }
+  },
+  "finish_reason": "stop",
+  "validation": {
+    "valid": true,
+    "suffix": "GPTMR1C0",
+    "environment_call": "compute_reward(self.root_states, self.targets, self.actions, self.dof_vel, self.dt)",
+    "inputs": [
+      "root_states",
+      "targets",
+      "actions",
+      "dof_vel",
+      "dt"
+    ]
+  }
+}

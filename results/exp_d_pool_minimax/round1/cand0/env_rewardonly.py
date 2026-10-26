@@ -1,0 +1,81 @@
+@torch.jit.script
+def compute_reward(root_states: torch.Tensor, actions: torch.Tensor) -> Tuple[torch.Tensor, Dict[str, torch.Tensor]]:
+    """
+    Reward for making the ant run forward (+x world axis) as fast as possible.
+
+    root_states layout (Isaac Gym):
+        [0:3]   torso position
+        [3:7]   torso orientation quaternion (w, x, y, z)
+        [7:10]  linear velocity (vx, vy, vz)
+        [10:13] angular velocity
+    """
+
+    # ------------------------------------------------------------------
+    # Main task term: forward (+x) running speed.
+    # Only forward motion is rewarded; moving backwards is penalized so
+    # the agent cannot "cheat" by flipping around.
+    # ------------------------------------------------------------------
+    forward_speed = root_states[:, 7]
+    forward_reward = torch.clamp_min(forward_speed, 0.0)
+    backward_penalty = torch.clamp_min(-forward_speed, 0.0)
+
+    # Small penalty for drifting sideways, which keeps the run straight.
+    lateral_drift = torch.abs(root_states[:, 8])
+
+    # ------------------------------------------------------------------
+    # Posture term: keep the torso upright (world z is up).
+    # The z component of the body "up" axis is cos(tilt angle) for a
+    # normalized quaternion, so it is +1 upright and -1 upside down.
+    # A smooth exponential bonus is used so that small tilts are cheap
+    # while large tilts are strongly discouraged.
+    # ------------------------------------------------------------------
+    quat = root_states[:, 3:7]
+    qx = quat[:, 1]
+    qy = quat[:, 2]
+    up_z = 1.0 - 2.0 * (qx * qx + qy * qy)
+
+    posture_temperature: float = 0.25
+    upright_reward = torch.exp((up_z - 1.0) / posture_temperature)
+    tilt_penalty = torch.clamp_min(-up_z, 0.0)
+
+    # ------------------------------------------------------------------
+    # Control cost: discourage jittery / saturated motor commands.
+    # ------------------------------------------------------------------
+    action_cost = torch.mean(actions * actions, dim=-1)
+
+    # ------------------------------------------------------------------
+    # Reward weights.
+    # ------------------------------------------------------------------
+    forward_weight: float = 1.0
+    backward_weight: float = 0.5
+    lateral_weight: float = 0.05
+    upright_weight: float = 0.25
+    tilt_weight: float = 0.1
+    action_weight: float = 0.01
+
+    forward_term = forward_weight * forward_reward
+    backward_term = -backward_weight * backward_penalty
+    lateral_term = -lateral_weight * lateral_drift
+    upright_term = upright_weight * upright_reward
+    tilt_term = -tilt_weight * tilt_penalty
+    action_term = -action_weight * action_cost
+
+    total_reward = (
+        forward_term
+        + backward_term
+        + lateral_term
+        + upright_term
+        + tilt_term
+        + action_term
+    )
+
+    components: Dict[str, torch.Tensor] = {
+        "forward_speed": forward_term,
+        "backward_penalty": backward_term,
+        "lateral_drift_penalty": lateral_term,
+        "upright_bonus": upright_term,
+        "tilt_penalty": tilt_term,
+        "action_penalty": action_term,
+    }
+
+    return total_reward, components

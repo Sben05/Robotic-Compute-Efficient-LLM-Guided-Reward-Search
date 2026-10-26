@@ -1,0 +1,35 @@
+{
+  "model_requested": "qwen3.8:27b",
+  "provider": "http://127.0.0.1:11434/v1/chat/completions",
+  "temperature": 1.0,
+  "candidate_count": 1,
+  "round": 1,
+  "index": 0,
+  "request_attempts": 1,
+  "api_errors": [],
+  "generation_seconds": 151.35382972285151,
+  "response_text": "```python\n@torch.jit.script\ndef compute_reward(\n    root_states: torch.Tensor,\n    targets: torch.Tensor,\n    dof_vel: torch.Tensor,\n    actions: torch.Tensor,\n    up_axis_idx: int,\n    dt: float,\n) -> Tuple[torch.Tensor, Dict[str, torch.Tensor]]:\n    # Extract relevant state components\n    velocity = root_states[:, 7:10]\n    torso_position = root_states[:, 0:3]\n    ang_velocity = root_states[:, 10:13]\n\n    # Forward direction: direction toward target, projected onto ground plane\n    to_target = targets - torso_position\n    to_target[:, up_axis_idx] = 0.0\n    to_target_norm = torch.norm(to_target, p=2, dim=-1, keepdim=True).clamp(min=1e-6)\n    forward_dir = to_target / to_target_norm\n\n    # Main reward: forward velocity component (drive ant to run forward fast)\n    forward_vel = (velocity * forward_dir).sum(dim=-1)\n    forward_reward = forward_vel\n\n    # Upright reward: keep the ant's torso elevated so it doesn't flip over\n    upright_reward = torso_position[:, up_axis_idx]\n\n    # Penalties to encourage smooth, stable locomotion\n    action_penalty = (actions * actions).sum(dim=-1)\n    ang_vel_penalty = (ang_velocity * ang_velocity).sum(dim=-1)\n    joint_vel_penalty = (dof_vel * dof_vel).sum(dim=-1)\n\n    # Weighted combination: forward speed dominates, with stability shaping\n    weight_forward = 10.0\n    weight_upright = 1.0\n    weight_action = 0.01\n    weight_ang_vel = 0.01\n    weight_joint_vel = 0.001\n\n    reward = (\n        weight_forward * forward_reward\n        + weight_upright * upright_reward\n        - weight_action * action_penalty\n        - weight_ang_vel * ang_vel_penalty\n        - weight_joint_vel * joint_vel_penalty\n    )\n\n    reward_components: Dict[str, torch.Tensor] = {\n        \"forward_reward\": forward_reward,\n        \"upright_reward\": upright_reward,\n        \"action_penalty\": action_penalty,\n        \"ang_vel_penalty\": ang_vel_penalty,\n        \"joint_vel_penalty\": joint_vel_penalty,\n    }\n\n    return reward, reward_components\n```\n\n**Design rationale:**\n\n1. **Forward velocity reward (dominant, \u00d710):** Projects the ant's linear velocity onto the direction toward the target (ground-plane only). This directly rewards \"running forward as fast as possible.\" The target direction is used because the environment defines `targets` as the goal location.\n\n2. **Upright reward (\u00d71):** Rewards keeping the torso height (z-axis) positive, preventing the ant from falling over. Without this, the policy could \"cheat\" by collapsing to get higher horizontal speed.\n\n3. **Action penalty (\u00d70.01):** Mildly discourages jerky, large control inputs to promote smooth locomotion.\n\n4. **Angular velocity penalty (\u00d70.01):** Discourages excessive spinning/tumbling, keeping motion stable.\n\n5. **Joint velocity penalty (\u00d70.001):** Very small regularization on joint speeds to avoid pathological oscillation.\n\nThe 10\u00d7 weight on forward speed ensures the primary objective (maximize forward velocity) is strongly reinforced, while the smaller shaping terms keep the learned behavior physically reasonable and stable.",
+  "model_used": "qwen3.8:27b",
+  "usage": {
+    "prompt_tokens": 1077,
+    "prompt_tokens_details": {
+      "cached_tokens": 0
+    },
+    "completion_tokens": 2764,
+    "total_tokens": 3841
+  },
+  "finish_reason": "stop",
+  "validation": {
+    "valid": true,
+    "suffix": "GPTQR1C0",
+    "environment_call": "compute_reward(self.root_states, self.targets, self.dof_vel, self.actions, self.up_axis_idx, self.dt)",
+    "inputs": [
+      "root_states",
+      "targets",
+      "dof_vel",
+      "actions",
+      "up_axis_idx",
+      "dt"
+    ]
+  }
+}

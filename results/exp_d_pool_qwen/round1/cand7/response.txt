@@ -1,0 +1,77 @@
+```python
+@torch.jit.script
+def compute_reward(
+    root_states: torch.Tensor,
+    targets: torch.Tensor,
+    up_vec: torch.Tensor,
+    actions: torch.Tensor,
+    dof_vel: torch.Tensor
+) -> Tuple[torch.Tensor, Dict[str, torch.Tensor]]:
+    temp_forward_vel: float = 5.0
+    temp_action: float = 10.0
+    temp_joint_vel: float = 50.0
+
+    torso_position = root_states[:, 0:3]
+    velocity = root_states[:, 7:10]
+    torso_height = torso_position[:, 2]
+
+    # Forward direction: project target direction onto xz plane
+    to_target = targets - torso_position
+    to_target[:, 2] = 0.0
+    to_target_norm = torch.norm(to_target, p=2, dim=-1, keepdim=True)
+    to_target_norm = torch.clamp(to_target_norm, min=1e-6)
+    forward_dir = to_target / to_target_norm
+
+    # Primary reward: forward velocity component (higher is better)
+    forward_vel = torch.sum(velocity * forward_dir, dim=-1)
+    forward_vel_reward = torch.tanh(forward_vel / temp_forward_vel) * temp_forward_vel
+
+    # Bonus: reward for actually being in contact / moving (not airborne)
+    # Use up_vec z-component: ant should be roughly upright
+    up_z = up_vec[:, 2]
+    upright_reward = torch.clamp(up_z, max=1.0)
+
+    # Height reward: keep ant at reasonable height (penalize falling)
+    height_reward = torch.clamp(torso_height, min=0.0, max=0.7) / 0.7
+
+    # Survival/alive bonus
+    alive_reward = torch.where(torso_height > 0.05, torch.ones_like(torso_height), torch.zeros_like(torso_height))
+
+    # Penalties
+    action_penalty = -torch.exp(-torch.sum(actions ** 2, dim=-1) / temp_action) * 0.1
+    joint_vel_penalty = -torch.exp(-torch.sum(dof_vel ** 2, dim=-1) / temp_joint_vel) * 0.05
+
+    total_reward = (
+        forward_vel_reward +
+        0.3 * upright_reward +
+        0.2 * height_reward +
+        0.1 * alive_reward +
+        action_penalty +
+        joint_vel_penalty
+    )
+
+    reward_components = {
+        "forward_vel": forward_vel_reward,
+        "upright": upright_reward,
+        "height": height_reward,
+        "alive": alive_reward,
+        "action_penalty": action_penalty,
+        "joint_vel_penalty": joint_vel_penalty,
+    }
+
+    return total_reward, reward_components
+```
+
+**Design rationale:**
+
+1. **Forward velocity (primary):** The most important term — projects the ant's linear velocity onto the target direction (xz-plane), rewarding forward motion. Uses `tanh` normalization with a temperature of 5.0 m/s to keep the reward well-behaved while still strongly rewarding high speeds.
+
+2. **Uprightness:** Encourages the ant's up-vector to stay aligned with world-up, preventing it from tipping over. This is a soft constraint (weight 0.3) so it doesn't override the speed objective.
+
+3. **Height:** Rewards maintaining reasonable torso height, preventing the ant from collapsing to the ground (weight 0.2).
+
+4. **Alive bonus:** A small binary reward for keeping the torso above a minimal height threshold, ensuring the ant doesn't "die" (weight 0.1).
+
+5. **Action penalty:** Exponential penalty on large actions to encourage smooth, energy-efficient control (prevents the agent from discovering degenerate high-frequency control solutions).
+
+6. **Joint velocity penalty:** Mild exponential penalty on excessive joint velocities for natural gait.
