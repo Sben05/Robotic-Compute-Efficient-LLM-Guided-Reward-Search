@@ -1,0 +1,35 @@
+{
+  "model_requested": "qwen3.8:27b",
+  "provider": "http://127.0.0.1:11434/v1/chat/completions",
+  "temperature": 1.0,
+  "candidate_count": 1,
+  "round": 1,
+  "index": 6,
+  "request_attempts": 1,
+  "api_errors": [],
+  "generation_seconds": 51.746999975293875,
+  "response_text": "```python\n@torch.jit.script\ndef compute_reward(\n    root_states: torch.Tensor,\n    targets: torch.Tensor,\n    actions: torch.Tensor,\n    dof_vel: torch.Tensor,\n    heading_vec: torch.Tensor,\n    dt: float,\n) -> Tuple[torch.Tensor, Dict[str, torch.Tensor]]:\n    # Extract kinematic quantities\n    torso_position = root_states[:, 0:3]\n    velocity = root_states[:, 7:10]\n\n    # --- Temperature / scaling hyper-parameters ---\n    up_temp = 2.0          # temperature for upright shaping\n    forward_temp = 10.0    # scaling for forward-velocity reward\n    action_coeff = 0.01    # action L2 penalty coefficient\n    joint_vel_coeff = 0.001  # joint-velocity L2 penalty coefficient\n\n    # 1) Forward-velocity reward: project world velocity onto the ant's heading\n    forward_vel = (velocity * heading_vec).sum(dim=-1)\n    forward_reward = forward_temp * forward_vel\n\n    # 2) Progress-toward-target reward (horizontal only)\n    to_target = targets - torso_position\n    to_target = to_target.clone()\n    to_target[:, 2] = 0.0\n    to_target_norm = torch.norm(to_target, p=2, dim=-1, keepdim=True).clamp(min=1e-6)\n    to_target_dir = to_target / to_target_norm\n    target_vel = (velocity * to_target_dir).sum(dim=-1)\n    target_reward = target_vel\n\n    # 3) Upright / alive reward: keep torso at a reasonable height\n    torso_up = torso_position[:, 2]\n    # Penalise heights significantly below 0.75 m (typical standing height)\n    deficit = torch.relu(0.75 - torso_up)\n    alive_reward = torch.exp(-up_temp * deficit) - 1.0  # in [-1, 0]; 0 when upright\n\n    # 4) Regularisation terms\n    action_penalty = action_coeff * (actions ** 2).sum(dim=-1)\n    joint_vel_penalty = joint_vel_coeff * (dof_vel ** 2).sum(dim=-1)\n\n    # Total reward\n    reward = forward_reward + target_reward + alive_reward - action_penalty - joint_vel_penalty\n\n    components = {\n        \"forward_reward\": forward_reward,\n        \"target_reward\": target_reward,\n        \"alive_reward\": alive_reward,\n        \"action_penalty\": action_penalty,\n        \"joint_vel_penalty\": joint_vel_penalty,\n    }\n\n    return reward, components\n```\n\n### Rationale\n\n| Component | Purpose |\n|---|---|\n| **forward_reward** | Projects the ant's 3-D velocity onto its heading vector, giving a positive signal only when the ant moves in the direction it faces. Scaled by `forward_temp` to dominate the reward. |\n| **target_reward** | Projects velocity onto the horizontal direction toward the spatial target, reinforcing net forward progress even if heading lags. |\n| **alive_reward** | A smooth (exp-temperatured) bonus that is 0 when the torso is at or above 0.75 m and approaches \u22121 when the ant falls. This keeps the ant upright without dominating the learning signal. |\n| **action_penalty** | L2 penalty on actions to discourage high-torque, jerky control. |\n| **joint_vel_penalty** | L2 penalty on joint velocities for smooth, energy-efficient locomotion. |\n\nAll tensor operations stay on the same device as the inputs, and the code uses only TorchScript-compatible constructs (no Python list comprehensions, no type casts, explicit tensor slicing).",
+  "model_used": "qwen3.8:27b",
+  "usage": {
+    "prompt_tokens": 1077,
+    "prompt_tokens_details": {
+      "cached_tokens": 1073
+    },
+    "completion_tokens": 2755,
+    "total_tokens": 3832
+  },
+  "finish_reason": "stop",
+  "validation": {
+    "valid": true,
+    "suffix": "GPTQDR1C6",
+    "environment_call": "compute_reward(self.root_states, self.targets, self.actions, self.dof_vel, self.heading_vec, self.dt)",
+    "inputs": [
+      "root_states",
+      "targets",
+      "actions",
+      "dof_vel",
+      "heading_vec",
+      "dt"
+    ]
+  }
+}

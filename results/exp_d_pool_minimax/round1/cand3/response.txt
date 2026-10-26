@@ -1,0 +1,66 @@
+```python
+from typing import Dict, Tuple
+import torch
+
+
+@torch.jit.script
+def compute_reward(
+    root_states: torch.Tensor,
+    dof_vel: torch.Tensor,
+    actions: torch.Tensor,
+) -> Tuple[torch.Tensor, Dict[str, torch.Tensor]]:
+    """
+    Reward the ant for moving quickly along the environment's forward (+X) axis.
+
+    Speed is gated by an uprightness term so the ant cannot obtain a large
+    reward by falling over or turning upside down. Small joint-action and
+    joint-velocity penalties discourage unnecessarily violent motion.
+    """
+
+    # Root-state layout: [position(3), quaternion(4), linear_velocity(3),
+    #                      angular_velocity(3)].
+    lin_vel_x = root_states[:, 7]
+    quat = root_states[:, 3:7]
+
+    qx = quat[:, 0]
+    qy = quat[:, 1]
+    qz = quat[:, 2]
+    qw = quat[:, 3]
+
+    # World-space Z component of the torso's local up axis.
+    # This is 1 when upright and -1 when upside down.
+    up_z = 1.0 - 2.0 * (qx * qx + qy * qy)
+
+    # Smooth uprightness in [0, 1].
+    uprightness = torch.clamp(0.5 + 0.5 * up_z, 0.0, 1.0)
+
+    # Raw forward running speed; negative values indicate backward motion.
+    forward_speed = lin_vel_x
+
+    # Only an upright ant receives the full speed reward.
+    gated_forward_speed = forward_speed * uprightness
+
+    # Mild regularization to promote an efficient, stable gait.
+    action_cost = torch.mean(actions * actions, dim=-1)
+    dof_velocity_cost = torch.mean(dof_vel * dof_vel, dim=-1)
+
+    upright_bonus = 0.25 * uprightness
+    action_penalty = -0.01 * action_cost
+    dof_velocity_penalty = -1.0e-6 * dof_velocity_cost
+
+    reward = (
+        gated_forward_speed
+        + upright_bonus
+        + action_penalty
+        + dof_velocity_penalty
+    )
+
+    components = {
+        "forward_speed": gated_forward_speed,
+        "upright_bonus": upright_bonus,
+        "action_penalty": action_penalty,
+        "dof_velocity_penalty": dof_velocity_penalty,
+    }
+
+    return reward, components
+```

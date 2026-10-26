@@ -1,0 +1,35 @@
+{
+  "model_requested": "minimaxai/minimax-m3.1-flash",
+  "provider": "https://integrate.api.nvidia.com/v1/chat/completions",
+  "temperature": 1.0,
+  "candidate_count": 1,
+  "round": 1,
+  "index": 2,
+  "request_attempts": 1,
+  "api_errors": [],
+  "generation_seconds": 236.3303192667663,
+  "response_text": "```python\nfrom typing import Dict, Tuple\n\nimport torch\n\n\n@torch.jit.script\ndef compute_reward(root_states: torch.Tensor,\n                   actions: torch.Tensor,\n                   dof_vel: torch.Tensor) -> Tuple[torch.Tensor, Dict[str, torch.Tensor]]:\n    \"\"\"\n    Reward for making the ant run forward (+x world frame) as fast as possible.\n\n    root_states : (num_envs, 13) -> [pos(3), quat(w,x,y,z)(4), lin_vel(3), ang_vel(3)]\n    actions     : (num_envs, num_actions) last applied joint torques\n    dof_vel     : (num_envs, num_dofs) joint velocities\n\n    The main term is a saturating reward on the forward (+x) linear velocity.\n    Small regularization terms (control effort, body tilt, vertical bouncing,\n    body spinning, joint speed) discourage degenerate \"fast but unstable\"\n    solutions (e.g. flipping over and sliding) that make the gait unrepeatable.\n    \"\"\"\n\n    # ---------------- named local constants ----------------\n    speed_temperature = 2.0        # m/s, scale of the tanh speed reward\n    control_weight = 0.05          # mean squared action penalty\n    tilt_weight = 0.10             # penalty for leaning/rolling over\n    backward_heading_weight = 0.05 # penalty for pointing the body away from +x\n    vertical_velocity_weight = 0.02# penalty for bouncing up/down\n    angular_velocity_weight = 0.02 # penalty for spinning/rocking the torso\n    dof_velocity_weight = 0.005    # penalty for excessive joint speed\n\n    # ---------------- state decomposition ----------------\n    lin_vel = root_states[:, 7:10]\n    ang_vel = root_states[:, 10:13]\n    quat = root_states[:, 3:7]\n\n    # ---------------- forward speed reward ----------------\n    forward_vel = lin_vel[:, 0]\n    forward_vel = torch.where(torch.isfinite(forward_vel),\n                              forward_vel,\n                              torch.zeros_like(forward_vel))\n    # smooth, saturating reward: ~0.76 at 2 m/s, ~0.96 at 4 m/s, negative when running backwards\n    forward_reward = torch.tanh(forward_vel / speed_temperature)\n\n    # ---------------- body orientation ----------------\n    quat_norm = quat / (torch.sqrt(torch.sum(quat * quat, dim=-1, keepdim=True)) + 1.0e-8)\n    qw = quat_norm[:, 0]\n    qx = quat_norm[:, 1]\n    qy = quat_norm[:, 2]\n    qz = quat_norm[:, 3]\n\n    # world-space z component of the torso \"up\" axis (1 when perfectly upright)\n    up_z = 1.0 - 2.0 * (qx * qx + qy * qy)\n    tilt = torch.clamp(1.0 - up_z, min=0.0)\n\n    # world-space x component of the torso forward axis (negative => facing backwards)\n    forward_axis_x = 1.0 - 2.0 * (qy * qy + qz * qz)\n    backward_heading = torch.clamp(-forward_axis_x, min=0.0)\n\n    # ---------------- regularization costs ----------------\n    vertical_vel = lin_vel[:, 2]\n    control_cost = torch.mean(actions * actions, dim=-1)\n    angular_velocity_cost = torch.mean(ang_vel * ang_vel, dim=-1)\n    dof_velocity_cost = torch.mean(dof_vel * dof_vel, dim=-1)\n\n    # ---------------- signed reward components ----------------\n    c_forward = forward_reward\n    c_control = -control_weight * control_cost\n    c_tilt = -tilt_weight * tilt\n    c_backward_heading = -backward_heading_weight * backward_heading\n    c_vertical = -vertical_velocity_weight * vertical_vel * vertical_vel\n    c_angular = -angular_velocity_weight * angular_velocity_cost\n    c_dof_vel = -dof_velocity_weight * dof_velocity_cost\n\n    reward = (c_forward + c_control + c_tilt + c_backward_heading +\n              c_vertical + c_angular + c_dof_vel)\n\n    components: Dict[str, torch.Tensor] = {\n        \"forward_speed\": c_forward,\n        \"control_cost\": c_control,\n        \"tilt_cost\": c_tilt,\n        \"backward_heading_cost\": c_backward_heading,\n        \"vertical_velocity_cost\": c_vertical,\n        \"angular_velocity_cost\": c_angular,\n        \"dof_velocity_cost\": c_dof_vel,\n    }\n    return reward, components\n```",
+  "model_used": "minimaxai/minimax-m3.1-flash",
+  "usage": {
+    "prompt_tokens": 1215,
+    "completion_tokens": 8504,
+    "total_tokens": 9719,
+    "prompt_tokens_details": {
+      "cached_tokens": 1152
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 7505
+    }
+  },
+  "finish_reason": "stop",
+  "validation": {
+    "valid": true,
+    "suffix": "GPTMR1C2",
+    "environment_call": "compute_reward(self.root_states, self.actions, self.dof_vel)",
+    "inputs": [
+      "root_states",
+      "actions",
+      "dof_vel"
+    ]
+  }
+}

@@ -1,0 +1,36 @@
+{
+  "model_requested": "qwen3.8:27b",
+  "provider": "http://127.0.0.1:11434/v1/chat/completions",
+  "temperature": 1.0,
+  "candidate_count": 1,
+  "round": 1,
+  "index": 5,
+  "request_attempts": 1,
+  "api_errors": [],
+  "generation_seconds": 51.81481291912496,
+  "response_text": "```python\n@torch.jit.script\ndef compute_reward(\n    root_states: torch.Tensor,\n    targets: torch.Tensor,\n    dof_vel: torch.Tensor,\n    dof_pos: torch.Tensor,\n    actions: torch.Tensor,\n    up_vec: torch.Tensor,\n    heading_vec: torch.Tensor\n) -> Tuple[torch.Tensor, Dict[str, torch.Tensor]]:\n    # Extract linear velocity of the torso\n    velocity = root_states[:, 7:10]\n    torso_position = root_states[:, 0:3]\n\n    # Compute forward direction (toward target on ground plane)\n    to_target = targets - torso_position\n    to_target[:, 2] = 0.0  # zero out vertical component\n    to_target_norm = torch.clamp(torch.norm(to_target, p=2, dim=-1, keepdim=True), min=1e-6)\n    forward_direction = to_target / to_target_norm\n\n    # Project velocity onto forward direction -> forward speed\n    forward_speed = torch.sum(velocity * forward_direction, dim=-1)\n\n    # Upright score: z-component of the ant's up vector (1.0 when fully upright)\n    up_score = up_vec[:, 2]\n\n    # Temperature parameters for reward shaping\n    speed_temp: float = 1.0\n    up_temp: float = 20.0\n    action_temp: float = 0.001\n    joint_vel_temp: float = 0.001\n\n    # Primary reward: forward speed (linear, positive for forward motion)\n    speed_reward = forward_speed * speed_temp\n\n    # Upright reward: exponentially scaled so staying upright is strongly rewarded\n    up_reward = torch.exp(up_score * up_temp) - 1.0\n\n    # Penalties for large actions and joint velocities (encourage smooth, efficient motion)\n    action_penalty = -action_temp * torch.sum(actions * actions, dim=-1)\n    joint_vel_penalty = -joint_vel_temp * torch.sum(dof_vel * dof_vel, dim=-1)\n\n    # Total reward\n    reward = speed_reward + up_reward + action_penalty + joint_vel_penalty\n\n    reward_dict: Dict[str, torch.Tensor] = {\n        \"speed_reward\": speed_reward,\n        \"up_reward\": up_reward,\n        \"action_penalty\": action_penalty,\n        \"joint_vel_penalty\": joint_vel_penalty,\n    }\n\n    return reward, reward_dict\n```\n\n**Design rationale:**\n\n1. **`speed_reward`** \u2013 The core objective. Projects the torso's linear velocity onto the direction toward the target (ground-plane only). Moving forward yields positive reward; moving backward or sideways yields little or no reward. This directly encourages \"run forward as fast as possible.\"\n\n2. **`up_reward`** \u2013 An exponential shaping term (`exp(up_score * temp) - 1`) that gives a large positive reward when the ant's local up-axis aligns with the world up-axis (z \u2248 1) and drops sharply when the ant falls over. This keeps the ant upright so it can actually keep running.\n\n3. **`action_penalty`** \u2013 A small quadratic penalty on the action magnitude discourages thrashing and promotes smooth, energy-efficient locomotion.\n\n4. **`joint_vel_penalty`** \u2013 A small quadratic penalty on joint velocities further regularizes the policy, preventing oscillatory joint motions that burn energy without contributing to forward speed.\n\nThe combination strongly rewards fast forward motion while the upright term acts as a \"stay alive\" constraint, and the two small penalties keep the learned gait smooth and natural.",
+  "model_used": "qwen3.8:27b",
+  "usage": {
+    "prompt_tokens": 1077,
+    "prompt_tokens_details": {
+      "cached_tokens": 1073
+    },
+    "completion_tokens": 2779,
+    "total_tokens": 3856
+  },
+  "finish_reason": "stop",
+  "validation": {
+    "valid": true,
+    "suffix": "GPTQDR1C5",
+    "environment_call": "compute_reward(self.root_states, self.targets, self.dof_vel, self.dof_pos, self.actions, self.up_vec, self.heading_vec)",
+    "inputs": [
+      "root_states",
+      "targets",
+      "dof_vel",
+      "dof_pos",
+      "actions",
+      "up_vec",
+      "heading_vec"
+    ]
+  }
+}

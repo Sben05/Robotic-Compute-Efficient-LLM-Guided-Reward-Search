@@ -1,0 +1,128 @@
+Invalid candidate; not trained: TorchScript compilation failed:
+Traceback (most recent call last):
+  File "/gpfs/home/hww8475/MSThesis/eureka_ab.py", line 190, in build_candidate
+    spec.loader.exec_module(importlib.util.module_from_spec(spec))
+  File "<frozen importlib._bootstrap_external>", line 843, in exec_module
+  File "<frozen importlib._bootstrap>", line 219, in _call_with_frames_removed
+  File "/gpfs/home/hww8475/MSThesis/results/exp_d_pool_qwen/round1/cand3/_torchscript_check.py", line 6, in <module>
+    def compute_reward(
+  File "/gpfs/home/hww8475/MSThesis/.env/lib/python3.8/site-packages/torch/jit/_script.py", line 1341, in script
+    fn = torch._C._jit_script_compile(
+RuntimeError: 
+Arguments for call are not valid.
+The following variants are available:
+  
+  aten::norm.Scalar(Tensor self, Scalar p=2) -> Tensor:
+  Keyword argument dim unknown.
+  
+  aten::norm.ScalarOpt_dim(Tensor self, Scalar? p, int[1] dim, bool keepdim=False) -> Tensor:
+  Argument p not provided.
+  
+  aten::norm.names_ScalarOpt_dim(Tensor self, Scalar? p, str[1] dim, bool keepdim=False) -> Tensor:
+  Argument p not provided.
+  
+  aten::norm.ScalarOpt_dim_dtype(Tensor self, Scalar? p, int[1] dim, bool keepdim, *, ScalarType dtype) -> Tensor:
+  Argument p not provided.
+  
+  aten::norm.dtype_out(Tensor self, Scalar? p, int[1] dim, bool keepdim, *, ScalarType dtype, Tensor(a!) out) -> Tensor(a!):
+  Argument p not provided.
+  
+  aten::norm.out(Tensor self, Scalar? p, int[1] dim, bool keepdim=False, *, Tensor(a!) out) -> Tensor(a!):
+  Argument p not provided.
+  
+  aten::norm.ScalarOpt_dtype(Tensor self, Scalar? p, *, ScalarType dtype) -> Tensor:
+  Argument p not provided.
+  
+  aten::norm.ScalarOpt_dtype_out(Tensor self, Scalar? p, *, ScalarType dtype, Tensor(a!) out) -> Tensor(a!):
+  Argument p not provided.
+  
+  aten::norm.Scalar_out(Tensor self, Scalar p=2, *, Tensor(a!) out) -> Tensor(a!):
+  Argument out not provided.
+  
+  aten::norm.names_ScalarOpt_dim_dtype(Tensor self, Scalar? p, str[1] dim, bool keepdim, *, ScalarType dtype) -> Tensor:
+  Argument p not provided.
+  
+  aten::norm.names_dtype_out(Tensor self, Scalar? p, str[1] dim, bool keepdim, *, ScalarType dtype, Tensor(a!) out) -> Tensor(a!):
+  Argument p not provided.
+  
+  aten::norm.names_out(Tensor self, Scalar? p, str[1] dim, bool keepdim=False, *, Tensor(a!) out) -> Tensor(a!):
+  Argument p not provided.
+
+The original call is:
+  File "/gpfs/home/hww8475/MSThesis/results/exp_d_pool_qwen/round1/cand3/_torchscript_check.py", line 19
+    to_target = targets - torso_pos  # (num_envs, 3)
+    to_target = torch.cat([to_target[:, 0:1], to_target[:, 1:2], torch.zeros_like(to_target[:, 2:3])], dim=-1)
+    to_target_norm = to_target.norm(dim=-1, keepdim=True).clamp(min=1e-6)
+                     ~~~~~~~~~~~~~~ <--- HERE
+    forward_dir = to_target / to_target_norm  # (num_envs, 3)
+
+
+{
+  "trained": true,
+  "exit_code": 0,
+  "training_seconds": 2019.9154286384583,
+  "seed": 0,
+  "concurrent_runs_on_gpu": 5,
+  "num_envs": 4096,
+  "max_iterations": 3000,
+  "traceback": "",
+  "iterations_logged": 3000,
+  "peak_task_score": 2.94612979888916,
+  "final_task_score": 2.94612979888916,
+  "peak_iteration": 3000,
+  "checkpoint": "policy-2026-10-26_06-59-08/runs/AntGPTQDR1C4-2026-10-26_06-59-14/nn/last_AntGPTQDR1C4_ep_3000.pth",
+  "checkpoint_epoch": 3000,
+  "environment_steps": 196608000
+}
+{
+  "trained": true,
+  "exit_code": 0,
+  "training_seconds": 2268.678155183792,
+  "seed": 0,
+  "concurrent_runs_on_gpu": 5,
+  "num_envs": 4096,
+  "max_iterations": 3000,
+  "traceback": "",
+  "iterations_logged": 3000,
+  "peak_task_score": 7.021379470825195,
+  "final_task_score": 6.927186012268066,
+  "peak_iteration": 2867,
+  "checkpoint": "policy-2026-10-26_06-59-08/runs/AntGPTQDR1C0-2026-10-26_06-59-14/nn/last_AntGPTQDR1C0_ep_3000.pth",
+  "checkpoint_epoch": 3000,
+  "environment_steps": 196608000
+}
+{
+  "trained": true,
+  "exit_code": 0,
+  "training_seconds": 2277.8874826431274,
+  "seed": 0,
+  "concurrent_runs_on_gpu": 5,
+  "num_envs": 4096,
+  "max_iterations": 3000,
+  "traceback": "",
+  "iterations_logged": 3000,
+  "peak_task_score": 7.2363691329956055,
+  "final_task_score": 7.103830337524414,
+  "peak_iteration": 2987,
+  "checkpoint": "policy-2026-10-26_06-59-08/runs/AntGPTQDR1C1-2026-10-26_06-59-14/nn/last_AntGPTQDR1C1_ep_3000.pth",
+  "checkpoint_epoch": 3000,
+  "environment_steps": 196608000
+}
+{
+  "trained": true,
+  "exit_code": 0,
+  "training_seconds": 2309.910411596298,
+  "seed": 0,
+  "concurrent_runs_on_gpu": 5,
+  "num_envs": 4096,
+  "max_iterations": 3000,
+  "traceback": "",
+  "iterations_logged": 3000,
+  "peak_task_score": 0.08128833770751953,
+  "final_task_score": -0.1598043441772461,
+  "peak_iteration": 35,
+  "checkpoint": "policy-2026-10-26_06-59-08/runs/AntGPTQDR1C2-2026-10-26_06-59-14/nn/last_AntGPTQDR1C2_ep_3000.pth",
+  "checkpoint_epoch": 3000,
+  "environment_steps": 196608000
+}
+pack exit codes: {'round1/cand0': 0, 'round1/cand1': 0, 'round1/cand2': 0, 'round1/cand3': 0, 'round1/cand4': 0}

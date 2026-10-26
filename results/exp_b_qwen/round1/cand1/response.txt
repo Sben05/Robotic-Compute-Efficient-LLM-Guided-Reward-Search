@@ -1,0 +1,59 @@
+```python
+@torch.jit.script
+def compute_reward(
+    root_states: torch.Tensor,
+    targets: torch.Tensor,
+    heading_vec: torch.Tensor,
+    actions: torch.Tensor
+) -> Tuple[torch.Tensor, Dict[str, torch.Tensor]]:
+    # Extract relevant state components
+    torso_position = root_states[:, 0:3]
+    velocity = root_states[:, 7:10]
+    ang_velocity = root_states[:, 10:13]
+
+    # Forward direction: horizontal component of direction to target
+    to_target = targets - torso_position
+    # Zero out the vertical (z) component for forward direction
+    forward_dir_2d = to_target[:, 0:2]
+    forward_dir_2d_norm = torch.norm(forward_dir_2d, p=2, dim=-1, keepdim=True)
+    forward_dir_2d_norm = torch.clamp(forward_dir_2d_norm, min=1e-6)
+    forward_dir_2d = forward_dir_2d / forward_dir_2d_norm
+
+    # Forward velocity: projection of velocity onto forward direction (horizontal plane)
+    vel_2d = velocity[:, 0:2]
+    forward_vel = torch.sum(vel_2d * forward_dir_2d, dim=-1)
+
+    # Uprightness: encourage staying upright (torso height along z-axis)
+    torso_height = torso_position[:, 2]
+    upright_reward = torso_height - 0.5  # Baseline height for ant is ~0.5
+
+    # Action penalty: discourage large joint torques
+    action_penalty = -0.001 * torch.sum(actions * actions, dim=-1)
+
+    # Angular velocity penalty: discourage excessive spinning
+    angvel_penalty = -0.01 * torch.sum(ang_velocity * ang_velocity, dim=-1)
+
+    # Total reward: dominated by forward velocity
+    reward = forward_vel + 0.5 * upright_reward + action_penalty + angvel_penalty
+
+    reward_components: Dict[str, torch.Tensor] = {
+        "forward_vel": forward_vel,
+        "upright": 0.5 * upright_reward,
+        "action_penalty": action_penalty,
+        "angvel_penalty": angvel_penalty,
+    }
+
+    return reward, reward_components
+```
+
+**Explanation of the reward design:**
+
+1. **Forward velocity (primary reward):** Projects the ant's linear velocity onto the horizontal direction toward the target. This directly rewards moving forward faster. Moving backward naturally yields a negative reward.
+
+2. **Uprightness bonus:** Encourages the ant to maintain a reasonable torso height (above ~0.5m) so it doesn't simply tip over to "move." The baseline of 0.5 ensures the ant must keep its body up.
+
+3. **Action penalty:** A small quadratic penalty on action magnitudes to prevent the agent from flailing wildly and to promote smooth, efficient locomotion.
+
+4. **Angular velocity penalty:** Discourages excessive tumbling/spinning, encouraging stable forward running.
+
+The forward velocity term dominates the reward, making "run forward as fast as possible" the primary optimization objective.

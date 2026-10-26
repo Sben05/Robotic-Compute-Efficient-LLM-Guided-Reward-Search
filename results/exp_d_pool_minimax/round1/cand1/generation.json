@@ -1,0 +1,82 @@
+{
+  "model_requested": "minimaxai/minimax-m3.1-flash",
+  "provider": "https://integrate.api.nvidia.com/v1/chat/completions",
+  "temperature": 1.0,
+  "candidate_count": 1,
+  "round": 1,
+  "index": 1,
+  "request_attempts": 10,
+  "api_errors": [
+    {
+      "attempt": 1,
+      "http": 504,
+      "body": ""
+    },
+    {
+      "attempt": 2,
+      "http": 504,
+      "body": ""
+    },
+    {
+      "attempt": 3,
+      "http": 504,
+      "body": ""
+    },
+    {
+      "attempt": 4,
+      "http": 504,
+      "body": ""
+    },
+    {
+      "attempt": 5,
+      "http": 504,
+      "body": ""
+    },
+    {
+      "attempt": 6,
+      "http": 504,
+      "body": ""
+    },
+    {
+      "attempt": 7,
+      "http": 504,
+      "body": ""
+    },
+    {
+      "attempt": 8,
+      "http": 504,
+      "body": ""
+    },
+    {
+      "attempt": 9,
+      "http": 504,
+      "body": ""
+    }
+  ],
+  "generation_seconds": 3520.2595665920526,
+  "response_text": "```python\nfrom typing import Tuple, Dict\nimport torch\n\n\n@torch.jit.script\ndef compute_reward(\n    root_states: torch.Tensor,\n    actions: torch.Tensor,\n    up_vec: torch.Tensor,\n    heading_vec: torch.Tensor,\n) -> Tuple[torch.Tensor, Dict[str, torch.Tensor]]:\n    \"\"\"\n    Reward for making the ant run forward (toward the target) as fast as possible.\n\n    Root-state layout (Isaac Gym): [pos(3), quat(4), lin_vel(3), ang_vel(3), ...]\n    heading_vec: horizontal unit vector pointing from the torso toward the target\n                 (i.e. the task's \"forward\" direction).\n    up_vec:     torso up-direction projected on the world horizontal basis (world up = +z).\n    \"\"\"\n\n    # ---- Primary term: forward running speed (m/s along the forward/heading direction) ----\n    lin_vel = root_states[:, 7:10]\n    forward_speed = torch.sum(lin_vel * heading_vec, dim=-1)\n    speed_reward = forward_speed\n\n    # ---- Posture term: keep the torso upright so the agent does not fall and flip over ----\n    upright = torch.clamp(up_vec[:, 2], -1.0, 1.0)\n    upright_reward = 0.5 * upright\n\n    # ---- Survival bonus: small constant to discourage early termination / collapsing ----\n    alive_reward = 0.1 * torch.ones_like(forward_speed)\n\n    # ---- Control effort penalty: discourages wild, high-energy motions that destabilize ----\n    action_penalty = -0.01 * torch.sum(actions * actions, dim=-1)\n\n    total_reward = speed_reward + upright_reward + alive_reward + action_penalty\n\n    components: Dict[str, torch.Tensor] = {\n        \"forward_speed\": speed_reward,\n        \"upright\": upright_reward,\n        \"alive\": alive_reward,\n        \"action_penalty\": action_penalty,\n    }\n    return total_reward, components\n```\n\n**Design notes**\n- The dominant term is the torso velocity projected onto `heading_vec` (the horizontal direction toward the target, which is the ant's forward direction in this task). It is monotone in forward speed, so maximizing it directly maximizes running speed, and moving backwards yields a negative reward.\n- A modest upright bonus (`up_vec[:, 2]`) keeps the ant from learning to \"run\" by flipping or diving, which would increase instantaneous velocity but destroy long-term speed.\n- A small alive bonus reduces the incentive to terminate early, while a mild quadratic action penalty prevents erratic, unstable gaits without dominating the speed term.\n- All inputs (`root_states`, `actions`, `up_vec`, `heading_vec`) are environment attributes, and the computation is fully vectorized over the parallel environments.",
+  "model_used": "minimaxai/minimax-m3.1-flash",
+  "usage": {
+    "prompt_tokens": 1215,
+    "completion_tokens": 4784,
+    "total_tokens": 5999,
+    "prompt_tokens_details": {
+      "cached_tokens": 128
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 4200
+    }
+  },
+  "finish_reason": "stop",
+  "validation": {
+    "valid": true,
+    "suffix": "GPTMDR1C1",
+    "environment_call": "compute_reward(self.root_states, self.actions, self.up_vec, self.heading_vec)",
+    "inputs": [
+      "root_states",
+      "actions",
+      "up_vec",
+      "heading_vec"
+    ]
+  }
+}

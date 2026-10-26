@@ -1,0 +1,72 @@
+## Analysis of Policy Feedback
+
+**forward_reward (-0.02 → 8.10):** The primary reward is working — the ant learned to run forward at ~7-8 m/s. However, it appears to have plateaus around 7.5-8 m/s. With a purely linear reward, each additional unit of speed gives the same marginal incentive, so the agent settles at a comfortable gait speed rather than pushing for maximum velocity.
+
+**height_reward (~-0.38, near-constant):** After initial learning, this is essentially a fixed offset. The ant maintains height ~0.36-0.45 (target was 0.8). It's not being actively optimized — it's just a constant. The target height of 0.8 may be too high for a running ant (natural running height is lower, ~0.4-0.5).
+
+**action_penalty (~-0.01):** Negligible. Working as intended as a tiny regularizer.
+
+**episode_lengths (46 → ~800):** The ant survives most episodes. The min of 46 means some failures occur (likely early in training or occasional falls).
+
+**Key issue:** The ant has found a stable but sub-maximal gait. The linear reward provides no extra incentive to push beyond ~7-8 m/s. We need a **super-linear (quadratic) speed bonus** to break through this local optimum, plus adjust the height target to a more natural running height.
+
+```python
+@torch.jit.script
+def compute_reward(root_states: torch.Tensor, targets: torch.Tensor, actions: torch.Tensor, up_axis_idx: int) -> Tuple[torch.Tensor, Dict[str, torch.Tensor]]:
+    torso_position = root_states[:, 0:3]
+    velocity = root_states[:, 7:10]
+
+    # Unit direction to target (2D)
+    to_target = targets - torso_position
+    to_target = to_target.clone()
+    to_target[:, 2] = 0.0
+
+    target_norm = torch.norm(to_target, p=2, dim=-1, keepdim=True)
+    target_norm = torch.clamp(target_norm, min=1e-6)
+    target_dir = to_target / target_norm
+
+    # Forward velocity (primary signal)
+    forward_vel = torch.sum(velocity * target_dir, dim=-1)
+
+    # Quadratic speed bonus: super-linear incentive to go faster
+    # At 7 m/s: 0.04 * 49 = 1.96; at 10 m/s: 0.04 * 100 = 4.0
+    quadratic_speed_temperature = 0.04
+    speed_bonus = quadratic_speed_temperature * forward_vel * forward_vel
+
+    # Height maintenance: target ~0.5 m (natural ant running crouch)
+    height = torso_position[:, up_axis_idx]
+    height_target = 0.5
+    height_reward = -torch.abs(height - height_target)
+
+    # Small angular velocity penalty to encourage stable, efficient gait
+    ang_vel = root_states[:, 10:13]
+    ang_vel_penalty = -0.01 * torch.sum(ang_vel * ang_vel, dim=-1)
+
+    # Action regularization
+    action_penalty_temperature = 0.001
+    action_penalty = action_penalty_temperature * torch.sum(actions * actions, dim=-1)
+
+    # Total reward
+    forward_reward = forward_vel
+    reward = forward_reward + speed_bonus + 1.0 * height_reward + ang_vel_penalty - action_penalty
+
+    components: Dict[str, torch.Tensor] = {
+        "forward_reward": forward_reward,
+        "speed_bonus": speed_bonus,
+        "height_reward": height_reward,
+        "ang_vel_penalty": ang_vel_penalty,
+        "action_penalty": action_penalty,
+    }
+
+    return reward, components
+```
+
+**Key changes from the previous version:**
+
+1. **Added quadratic speed bonus (`0.04 * forward_vel²`):** This is the critical addition. At 7 m/s it adds ~1.96, at 10 m/s it adds ~4.0. This super-linear scaling means the marginal reward increases with speed, breaking through the linear plateau and incentivizing the agent to push for higher velocities.
+
+2. **Adjusted height target to 0.5 m:** The ant's natural running crouch is lower than 0.8 m. The previous target of 0.8 created a constant negative bias. At 0.5 m, the reward will be closer to zero when the ant is in a natural running posture, reducing the constant offset noise.
+
+3. **Added angular velocity penalty:** A small penalty on angular velocity encourages a stable, controlled gait rather than wild flailing. This helps the ant maintain forward momentum efficiently.
+
+4. **Kept linear forward velocity as the base reward:** This ensures the direction and sign of the reward is always correct (positive for forward, negative for backward).
