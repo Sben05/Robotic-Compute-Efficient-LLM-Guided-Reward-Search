@@ -4,6 +4,8 @@ MS CS thesis code reproducing the Ant task of [Eureka](https://github.com/eureka
 (`Eureka/`, upstream commit `9eee428`, unmodified) and testing early screening of LLM-generated rewards.
 Everything runs on Northwestern Quest (A100, Isaac Gym Preview 4); nothing trains on this Mac.
 
+Results write-up: [`REPORT.md`](REPORT.md).
+
 ## Files
 
 | File | Purpose |

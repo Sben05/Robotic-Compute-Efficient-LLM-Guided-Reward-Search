@@ -482,7 +482,7 @@ def analyze():
     ax.axvline(500, color="#8a8984", lw=1, ls=":")
     ax.text(510, ax.get_ylim()[0], " screening\n checkpoint", color="#52514e", fontsize=8, va="bottom")
     ax.set(xlabel="PPO iteration", ylabel="Task score (consecutive_successes)",
-           title="Ant, seed 0: human reward vs %s Mini-Eureka candidates" % MODEL)
+           title="Ant, seed 0: human reward vs MiniMax M3.1 Flash candidates")
     ax.grid(alpha=0.25)
     for side in ("top", "right"):
         ax.spines[side].set_visible(False)
