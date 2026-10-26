@@ -33,12 +33,9 @@ HUMAN = ROOT / "results/exp_a_human_3000"
 #  minimax: MiniMax M3.1 Flash on NVIDIA NIM's free endpoint (OpenAI chat API, 40 RPM);
 #           key in ~/.config/msthesis/nvidia_api_key_minimax (mode 600, never logged).
 #           EUREKA_ENDPOINT=vercel routes the same model through Vercel AI Gateway (vercel_ai_gateway_key).
-#  qwen:    Qwen3.8-27B (Apache-2.0, Q4) served by Ollama inside the Slurm job (see ollama.sbatch); no key.
 ARMS = {
     "minimax": {"model": "minimaxai/minimax-m3.1-flash", "url": "https://integrate.api.nvidia.com/v1/chat/completions",
                 "key_file": "nvidia_api_key_minimax", "min_interval": 2, "tag": "M", "timeout": 420},
-    "qwen": {"model": "qwen3.8:27b", "url": "http://127.0.0.1:11434/v1/chat/completions",
-             "key_file": None, "min_interval": 0, "tag": "Q", "timeout": 1800},
 }
 LLM = os.environ.get("EUREKA_LLM", "minimax")
 ARM = ARMS[LLM]
