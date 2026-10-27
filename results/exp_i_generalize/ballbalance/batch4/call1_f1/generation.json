@@ -1,0 +1,49 @@
+{
+  "task_spec": {
+    "task": "BallBalance",
+    "env": "ball_balance",
+    "num_envs": null
+  },
+  "task": "ballbalance",
+  "arm": "batch4",
+  "call": 1,
+  "function": 1,
+  "model_used": "minimax/minimax-m3.1-flash",
+  "usage": {
+    "prompt_tokens": 887,
+    "completion_tokens": 21261,
+    "total_tokens": 22148,
+    "cost": 0.012774765,
+    "is_byok": false,
+    "prompt_tokens_details": {
+      "cached_tokens": 851,
+      "audio_tokens": 0,
+      "video_tokens": 0
+    },
+    "cost_details": {
+      "upstream_inference_cost": null,
+      "upstream_inference_prompt_cost": 0,
+      "upstream_inference_completions_cost": 0
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 17639,
+      "image_tokens": 0
+    },
+    "cache_creation_input_tokens": 0,
+    "market_cost": 0.012774765,
+    "gateway_cost": 0.012774765
+  },
+  "finish_reason": "stop",
+  "functions_in_reply": 4,
+  "generation_seconds": 142.399250375,
+  "response_text": "```python\n\nimport torch\nfrom typing import Dict, Tuple\n\n\n@torch.jit.script\ndef compute_reward(ball_positions: torch.Tensor,\n                     ball_linvels: torch.Tensor) -> Tuple[torch.Tensor, Dict[str, torch.Tensor]]:\n    \"\"\"\n    Shaped (exponential) reward -- \"keep the ball quiet and on the table\".\n\n    Three dense, bounded components:\n      * centring : the ball stays above the middle of the table,\n      * height   : the ball stays at (or above) table-top height,\n      * stillness: the ball is not rolling / bouncing,\n    plus a hard penalty as soon as the ball has clearly left the table (near the floor).\n\n    The height term is one sided (only penalised when the ball is *below* the target\n    height) so that a slightly mis-calibrated table height only adds a constant offset\n    and never rewards throwing the ball into the air.\n    \"\"\"\n    # ------------------- tunables (constants, not env inputs) -------------------\n    table_center_x: float = 0.0      # the table is spawned at the world origin\n    table_center_y: float = 0.0\n    target_ball_z: float = 0.85       # ball centre height when it rests on the table\n    floor_z: float = 0.30             # below this the ball is certainly off the table\n    sigma_xy: float = 0.40            # temperature of the centring term\n    sigma_z: float = 0.15             # temperature of the height term\n    sigma_v: float = 0.50             # temperature of the velocity term\n    w_center: float = 1.0\n    w_height: float = 1.0\n    w_still: float = 1.0\n    w_fall: float = 3.0\n    # -----------------------------------------------------------------------------\n\n    px = ball_positions[:, 0]\n    py = ball_positions[:, 1]\n    pz = ball_positions[:, 2]\n    vx = ball_linvels[:, 0]\n    vy = ball_linvels[:, 1]\n    vz = ball_linvels[:, 2]\n\n    dx = px - table_center_x\n    dy = py - table_center_y\n\n    r_center = torch.exp(-(dx * dx + dy * dy) / (2.0 * sigma_xy * sigma_xy))\n\n    dz = torch.clamp(target_ball_z - pz, min=0.0)\n    r_height = torch.exp(-(dz * dz) / (2.0 * sigma_z * sigma_z))\n\n    r_still = torch.exp(-(vx * vx + vy * vy + vz * vz) / (2.0 * sigma_v * sigma_v))\n\n    fall = torch.clamp((floor_z - pz) / floor_z, min=0.0, max=1.0)\n    r_fall = -w_fall * fall\n\n    reward = w_center * r_center + w_height * r_height + w_still * r_still + r_fall\n\n    components: Dict[str, torch.Tensor] = {}\n    components[\"center\"] = r_center\n    components[\"height\"] = r_height\n    components[\"still\"] = r_still\n    components[\"fall\"] = r_fall\n    return reward, components\n\n```",
+  "validation": {
+    "valid": true,
+    "suffix": "GPTMIballbalancebatch4call1f1",
+    "environment_call": "compute_reward(self.ball_positions, self.ball_linvels)",
+    "inputs": [
+      "ball_positions",
+      "ball_linvels"
+    ]
+  }
+}

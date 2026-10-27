@@ -1,0 +1,44 @@
+{
+  "task_spec": {
+    "task": "Humanoid",
+    "env": "humanoid",
+    "num_envs": null
+  },
+  "task": "humanoid",
+  "arm": "indep",
+  "call": 5,
+  "function": null,
+  "model_used": "minimax/minimax-m3.1-flash",
+  "usage": {
+    "prompt_tokens": 1303,
+    "completion_tokens": 18726,
+    "total_tokens": 20029,
+    "cost": 0.01125528,
+    "is_byok": false,
+    "prompt_tokens_details": {
+      "cached_tokens": 1302,
+      "audio_tokens": 0,
+      "video_tokens": 0
+    },
+    "cost_details": {
+      "upstream_inference_cost": null,
+      "upstream_inference_prompt_cost": 0,
+      "upstream_inference_completions_cost": 0
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 18237,
+      "image_tokens": 0
+    },
+    "cache_creation_input_tokens": 0,
+    "market_cost": 0.01125528,
+    "gateway_cost": 0.01125528
+  },
+  "finish_reason": "stop",
+  "functions_in_reply": 1,
+  "generation_seconds": 212.677409292,
+  "response_text": "```python\nfrom typing import Dict, Tuple\nimport torch\n\n@torch.jit.script\ndef compute_reward(\n    root_states: torch.Tensor,\n    heading_vec: torch.Tensor,\n    up_vec: torch.Tensor,\n    actions: torch.Tensor,\n    dt: float,\n) -> Tuple[torch.Tensor, Dict[str, torch.Tensor]]:\n    # Root-state linear velocity is stored in columns 7:10.\n    planar_velocity = root_states[:, 7:9]\n    planar_speed = torch.norm(planar_velocity, dim=-1)\n\n    # Signed velocity along the environment's desired running direction.\n    planar_heading = heading_vec[:, 0:2]\n    heading_length = torch.norm(planar_heading, dim=-1)\n    unit_heading = planar_heading / torch.clamp(heading_length, min=1.0e-6)\n    forward_speed = torch.sum(planar_velocity * unit_heading, dim=-1)\n\n    # The vertical component of the environment's up vector measures posture.\n    upright = torch.clamp(up_vec[:, 2], min=0.0, max=1.0)\n\n    # Gate locomotion reward by posture so falling and sliding do not earn speed.\n    running_speed_component = 2.0 * forward_speed * upright * dt\n    planar_speed_component = 0.25 * planar_speed * upright * dt\n    backward_speed_component = (\n        -0.5 * torch.clamp(-forward_speed, min=0.0) * dt\n    )\n    upright_component = 0.25 * upright * dt\n\n    # Small effort penalty discourages unnecessary control effort without\n    // materially reducing the incentive to run quickly.\n    action_effort_component = (\n        -0.001 * torch.sum(torch.square(actions), dim=-1) * dt\n    )\n\n    total_reward = (\n        running_speed_component\n        + planar_speed_component\n        + backward_speed_component\n        + upright_component\n        + action_effort_component\n    )\n\n    components: Dict[str, torch.Tensor] = {\n        \"running_speed\": running_speed_component,\n        \"planar_speed\": planar_speed_component,\n        \"backward_speed\": backward_speed_component,\n        \"upright\": upright_component,\n        \"action_effort\": action_effort_component,\n    }\n\n    return total_reward, components\n```",
+  "validation": {
+    "valid": false,
+    "error": "Upstream cannot parse function signature: SyntaxError('invalid syntax', ('<unknown>', 30, 5, '    // materially reducing the incentive to run quickly.\\n'))"
+  }
+}

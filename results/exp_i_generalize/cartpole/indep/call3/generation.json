@@ -1,0 +1,49 @@
+{
+  "task_spec": {
+    "task": "Cartpole",
+    "env": "cartpole",
+    "num_envs": null
+  },
+  "task": "cartpole",
+  "arm": "indep",
+  "call": 3,
+  "function": null,
+  "model_used": "minimax/minimax-m3.1-flash",
+  "usage": {
+    "prompt_tokens": 754,
+    "completion_tokens": 3472,
+    "total_tokens": 4226,
+    "cost": 0.00212718,
+    "is_byok": false,
+    "prompt_tokens_details": {
+      "cached_tokens": 512,
+      "audio_tokens": 0,
+      "video_tokens": 0
+    },
+    "cost_details": {
+      "upstream_inference_cost": null,
+      "upstream_inference_prompt_cost": 0,
+      "upstream_inference_completions_cost": 0
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 2837,
+      "image_tokens": 0
+    },
+    "cache_creation_input_tokens": 0,
+    "market_cost": 0.00212718,
+    "gateway_cost": 0.00212718
+  },
+  "finish_reason": "stop",
+  "functions_in_reply": 1,
+  "generation_seconds": 17.259379583,
+  "response_text": "```python\nfrom typing import Dict, Tuple\nimport torch\n\n\n@torch.jit.script\ndef compute_reward(dof_pos: torch.Tensor, dof_vel: torch.Tensor) -> Tuple[torch.Tensor, Dict[str, torch.Tensor]]:\n    \"\"\"\n    Reward for balancing a pole on a cart.\n\n    Assumptions (matching the observation layout):\n      dof_pos[:, 0] : cart position       dof_vel[:, 0] : cart linear velocity\n      dof_pos[:, 1] : pole joint angle    dof_vel[:, 1] : pole angular velocity\n    A pole angle of 0 rad corresponds to the upright configuration.\n\n    The reward is dense and shaped:\n      + smooth upright bonus (peaks at pole_angle = 0)\n      - |pole angle| penalty (strong gradient back toward vertical)\n      - cart position / velocity penalties (keeps the cart near the center and still)\n      - pole angular velocity penalty (discovers damping)\n    \"\"\"\n\n    # ---------------- hyper-parameters ----------------\n    angle_temperature: float = 0.25   # rad^2, sharpness of the upright bonus\n    pole_angle_weight: float = 0.5    # weight on |pole angle|\n    cart_pos_weight: float = 0.1      # weight on cart position^2\n    cart_vel_weight: float = 0.05     # weight on cart velocity^2\n    pole_vel_weight: float = 0.02     # weight on pole angular velocity^2\n\n    # ---------------- state extraction ----------------\n    # .squeeze(-1) makes the code work with [N, D] or [N, D, 1] DOF tensors.\n    cart_pos = dof_pos[:, 0].squeeze(-1)\n    pole_angle = dof_pos[:, 1].squeeze(-1)\n    cart_vel = dof_vel[:, 0].squeeze(-1)\n    pole_vel = dof_vel[:, 1].squeeze(-1)\n\n    # ---------------- reward components ----------------\n    angle_error_sq = torch.square(pole_angle)\n    upright_bonus = torch.exp(-angle_error_sq / angle_temperature)\n\n    pole_angle_penalty = pole_angle_weight * torch.abs(pole_angle)\n    cart_position_penalty = cart_pos_weight * torch.square(cart_pos)\n    cart_velocity_penalty = cart_vel_weight * torch.square(cart_vel)\n    pole_velocity_penalty = pole_vel_weight * torch.square(pole_vel)\n\n    total_reward = (\n        upright_bonus\n        - pole_angle_penalty\n        - cart_position_penalty\n        - cart_velocity_penalty\n        - pole_velocity_penalty\n    )\n\n    components: Dict[str, torch.Tensor] = {\n        \"upright_bonus\": upright_bonus,\n        \"pole_angle_penalty\": -pole_angle_penalty,\n        \"cart_position_penalty\": -cart_position_penalty,\n        \"cart_velocity_penalty\": -cart_velocity_penalty,\n        \"pole_velocity_penalty\": -pole_velocity_penalty,\n    }\n\n    return total_reward, components\n```",
+  "validation": {
+    "valid": true,
+    "suffix": "GPTMIcartpoleindepcall3",
+    "environment_call": "compute_reward(self.dof_pos, self.dof_vel)",
+    "inputs": [
+      "dof_pos",
+      "dof_vel"
+    ]
+  }
+}

@@ -1,0 +1,51 @@
+{
+  "task_spec": {
+    "task": "BallBalance",
+    "env": "ball_balance",
+    "num_envs": null
+  },
+  "task": "ballbalance",
+  "arm": "batch4",
+  "call": 0,
+  "function": 4,
+  "model_used": "minimax/minimax-m3.1-flash",
+  "usage": {
+    "prompt_tokens": 887,
+    "completion_tokens": 32001,
+    "total_tokens": 32888,
+    "cost": 0.019255755,
+    "is_byok": false,
+    "prompt_tokens_details": {
+      "cached_tokens": 577,
+      "audio_tokens": 0,
+      "video_tokens": 0
+    },
+    "cost_details": {
+      "upstream_inference_cost": null,
+      "upstream_inference_prompt_cost": 0,
+      "upstream_inference_completions_cost": 0
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 28687,
+      "image_tokens": 0
+    },
+    "cache_creation_input_tokens": 0,
+    "market_cost": 0.019255755,
+    "gateway_cost": 0.019255755
+  },
+  "finish_reason": "stop",
+  "functions_in_reply": 4,
+  "generation_seconds": 214.54535312500002,
+  "response_text": "```python\n\nfrom typing import Dict, Tuple\n\nimport torch\n\n\n@torch.jit.script\ndef compute_reward(\n    ball_positions: torch.Tensor,\n    ball_linvels: torch.Tensor,\n    sensor_forces: torch.Tensor,\n    dof_velocities: torch.Tensor,\n) -> Tuple[torch.Tensor, Dict[str, torch.Tensor]]:\n    \"\"\"Keep the ball on the table top (contact x height alive bonus + shaping).\"\"\"\n    force_scale: float = 5.0        # [N]   contact force scale\n    level_scale: float = 0.08       # [m]   ball height deviation scale\n    vel_scale: float = 0.35         # [m/s] ball speed scale\n    joint_scale: float = 4.0        # [rad/s] joint speed scale\n\n    w_alive: float = 2.0\n    w_level: float = 1.0\n    w_calm: float = 1.5\n    w_fall: float = 2.0\n    w_effort: float = 0.02\n\n    ball_z = ball_positions[:, 2]\n    vel = ball_linvels\n    n_env = ball_z.shape[0]\n\n    # ---- contact between ball and table --------------------------------\n    f_norm = torch.norm(sensor_forces, dim=-1)\n    f_sum = torch.sum(f_norm, dim=-1)\n    contact = torch.clamp(torch.tanh(f_sum / force_scale), min=0.0, max=1.0)\n\n    # ---- height of the ball relative to the table level ----------------\n    z_sorted = torch.sort(ball_z).values\n    z_ref = z_sorted[n_env // 2]\n    drop = torch.clamp(z_ref - ball_z, min=0.0)\n    a_drop = drop / level_scale\n    level = 1.0 - torch.clamp(a_drop, min=0.0, max=1.0)\n\n    # ---- alive: touching the table AND still at table level -------------\n    alive = contact * level\n\n    # ---- the ball should be calm (small kinetic energy) ----------------\n    speed = torch.norm(vel, dim=-1)\n    a_v = speed / vel_scale\n    r_calm = torch.exp(-(a_v * a_v))\n\n    # ---- penalise downward motion --------------------------------------\n    fall_speed = torch.clamp(-vel[:, 2], min=0.0)\n    a_f = fall_speed / vel_scale\n    r_fallv = -torch.clamp(a_f, min=0.0, max=1.0)\n\n    # ---- control effort -------------------------------------------------\n    v_sq = torch.sum(dof_velocities * dof_velocities, dim=-1)\n    a_j = v_sq / (joint_scale * joint_scale)\n    r_effort = -a_j\n\n    total = (\n        w_alive * alive\n        + w_level * level\n        + w_calm * r_calm\n        + w_fall * r_fallv\n        + w_effort * r_effort\n    )\n\n    components: Dict[str, torch.Tensor] = {\n        \"alive\": w_alive * alive,\n        \"table_level\": w_level * level,\n        \"calm\": w_calm * r_calm,\n        \"fall_velocity\": w_fall * r_fallv,\n        \"effort\": w_effort * r_effort,\n    }\n    return total, components\n\n```",
+  "validation": {
+    "valid": true,
+    "suffix": "GPTMIballbalancebatch4call0f4",
+    "environment_call": "compute_reward(self.ball_positions, self.ball_linvels, self.sensor_forces, self.dof_velocities)",
+    "inputs": [
+      "ball_positions",
+      "ball_linvels",
+      "sensor_forces",
+      "dof_velocities"
+    ]
+  }
+}

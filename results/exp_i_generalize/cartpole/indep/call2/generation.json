@@ -1,0 +1,49 @@
+{
+  "task_spec": {
+    "task": "Cartpole",
+    "env": "cartpole",
+    "num_envs": null
+  },
+  "task": "cartpole",
+  "arm": "indep",
+  "call": 2,
+  "function": null,
+  "model_used": "minimax/minimax-m3.1-flash",
+  "usage": {
+    "prompt_tokens": 778,
+    "completion_tokens": 3596,
+    "total_tokens": 4374,
+    "cost": 0.0022743,
+    "is_byok": false,
+    "prompt_tokens_details": {
+      "cached_tokens": 0,
+      "audio_tokens": 0,
+      "video_tokens": 0
+    },
+    "cost_details": {
+      "upstream_inference_cost": null,
+      "upstream_inference_prompt_cost": 0,
+      "upstream_inference_completions_cost": 0
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 3130,
+      "image_tokens": 0
+    },
+    "cache_creation_input_tokens": 0,
+    "market_cost": 0.0022743,
+    "gateway_cost": 0.0022743
+  },
+  "finish_reason": "stop",
+  "functions_in_reply": 1,
+  "generation_seconds": 20.078746458,
+  "response_text": "```python\nfrom typing import Dict, Tuple\nimport torch\n\n\n@torch.jit.script\ndef compute_reward(\n    dof_pos: torch.Tensor,\n    dof_vel: torch.Tensor,\n) -> Tuple[torch.Tensor, Dict[str, torch.Tensor]]:\n    # Cart and pole state from the environment's DOF buffers.\n    cart_position = dof_pos[:, 0]\n    pole_angle = dof_pos[:, 1]\n    cart_velocity = dof_vel[:, 0]\n    pole_velocity = dof_vel[:, 1]\n\n    # Separate temperatures provide smooth shaping for each component.\n    upright_temperature: float = 0.25\n    pole_velocity_temperature: float = 0.5\n    cart_position_temperature: float = 1.0\n    cart_velocity_temperature: float = 1.0\n\n    # Smooth rewards: each is largest when the corresponding state is ideal.\n    upright_reward = torch.exp(\n        -pole_angle.pow(2) / upright_temperature\n    )\n    pole_velocity_reward = torch.exp(\n        -pole_velocity.pow(2) / pole_velocity_temperature\n    )\n    cart_position_reward = torch.exp(\n        -cart_position.pow(2) / cart_position_temperature\n    )\n    cart_velocity_reward = torch.exp(\n        -cart_velocity.pow(2) / cart_velocity_temperature\n    )\n\n    # Uprightness is the primary objective; the other terms discourage\n    # excessive pole motion, cart drift, and excessive cart movement.\n    upright_component = 2.0 * upright_reward\n    pole_velocity_component = 0.25 * pole_velocity_reward\n    cart_position_component = 0.1 * cart_position_reward\n    cart_velocity_component = 0.1 * cart_velocity_reward\n    alive_component = torch.ones_like(upright_reward)\n\n    reward = (\n        alive_component\n        + upright_component\n        + pole_velocity_component\n        + cart_position_component\n        + cart_velocity_component\n    )\n\n    components: Dict[str, torch.Tensor] = {\n        \"alive\": alive_component,\n        \"upright\": upright_component,\n        \"pole_velocity\": pole_velocity_component,\n        \"cart_position\": cart_position_component,\n        \"cart_velocity\": cart_velocity_component,\n    }\n\n    return reward, components\n```",
+  "validation": {
+    "valid": true,
+    "suffix": "GPTMIcartpoleindepcall2",
+    "environment_call": "compute_reward(self.dof_pos, self.dof_vel)",
+    "inputs": [
+      "dof_pos",
+      "dof_vel"
+    ]
+  }
+}

@@ -1,0 +1,51 @@
+{
+  "task_spec": {
+    "task": "BallBalance",
+    "env": "ball_balance",
+    "num_envs": null
+  },
+  "task": "ballbalance",
+  "arm": "batch4",
+  "call": 1,
+  "function": 3,
+  "model_used": "minimax/minimax-m3.1-flash",
+  "usage": {
+    "prompt_tokens": 887,
+    "completion_tokens": 21261,
+    "total_tokens": 22148,
+    "cost": 0.012774765,
+    "is_byok": false,
+    "prompt_tokens_details": {
+      "cached_tokens": 851,
+      "audio_tokens": 0,
+      "video_tokens": 0
+    },
+    "cost_details": {
+      "upstream_inference_cost": null,
+      "upstream_inference_prompt_cost": 0,
+      "upstream_inference_completions_cost": 0
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 17639,
+      "image_tokens": 0
+    },
+    "cache_creation_input_tokens": 0,
+    "market_cost": 0.012774765,
+    "gateway_cost": 0.012774765
+  },
+  "finish_reason": "stop",
+  "functions_in_reply": 4,
+  "generation_seconds": 142.399250375,
+  "response_text": "```python\n\nimport torch\nfrom typing import Dict, Tuple\n\n\n@torch.jit.script\ndef compute_reward(ball_positions: torch.Tensor,\n                     ball_linvels: torch.Tensor,\n                     sensor_forces: torch.Tensor,\n                     sensor_torques: torch.Tensor) -> Tuple[torch.Tensor, Dict[str, torch.Tensor]]:\n    \"\"\"\n    Contact / sensor based reward.\n\n    The F/T sensor mounted on the table measures the load that is transmitted by the\n    ball.  While the ball is supported by the table this load is clearly non-zero,\n    when the ball leaves the table the load disappears.  The agent is therefore paid\n    for keeping the ball in contact with the table, for keeping it at rest and over\n    the middle of the table, and for moving the table gently (small joint torques).\n    \"\"\"\n    # ------------------- tunables (constants, not env inputs) -------------------\n    sigma_force: float = 1.0           # temperature of the contact (load) term [N]\n    sigma_v: float = 0.50              # temperature of the ball velocity term\n    sigma_xy: float = 0.40             # temperature of the centring term\n    sigma_torque: float = 2.0          # temperature of the table torque term\n    w_contact: float = 1.5\n    w_still: float = 1.0\n    w_center: float = 0.5\n    w_smooth: float = 0.3\n    floor_z: float = 0.30\n    w_fall: float = 3.0\n    eps: float = 1e-8\n    # -----------------------------------------------------------------------------\n\n    px = ball_positions[:, 0]\n    py = ball_positions[:, 1]\n    pz = ball_positions[:, 2]\n    vx = ball_linvels[:, 0]\n    vy = ball_linvels[:, 1]\n    vz = ball_linvels[:, 2]\n\n    # --- contact load measured by the force sensor (first sensor, 3 components) ---\n    f = sensor_forces[:, 0, :]\n    fx = f[:, 0]\n    fy = f[:, 1]\n    fz = f[:, 2]\n    f_mag = torch.sqrt(fx * fx + fy * fy + fz * fz + eps)\n    r_contact = 1.0 - torch.exp(-f_mag / sigma_force)\n\n    # --- joint torques: penalise aggressive tilting of the table ---\n    t = sensor_torques[:, 0, :]\n    tx = t[:, 0]\n    ty = t[:, 1]\n    tz = t[:, 2]\n    t_mag = torch.sqrt(tx * tx + ty * ty + tz * tz + eps)\n    r_smooth = torch.exp(-t_mag / sigma_torque)\n\n    # --- ball dynamics ---\n    r_still = torch.exp(-(vx * vx + vy * vy + vz * vz) / (2.0 * sigma_v * sigma_v))\n    r_center = torch.exp(-(px * px + py * py) / (2.0 * sigma_xy * sigma_xy))\n\n    fall = torch.clamp((floor_z - pz) / floor_z, min=0.0, max=1.0)\n    r_fall = -w_fall * fall\n\n    reward = (w_contact * r_contact + w_still * r_still + w_center * r_center\n              + w_smooth * r_smooth + r_fall)\n\n    components: Dict[str, torch.Tensor] = {}\n    components[\"contact\"] = r_contact\n    components[\"still\"] = r_still\n    components[\"center\"] = r_center\n    components[\"smooth\"] = r_smooth\n    components[\"fall\"] = r_fall\n    return reward, components\n\n```",
+  "validation": {
+    "valid": true,
+    "suffix": "GPTMIballbalancebatch4call1f3",
+    "environment_call": "compute_reward(self.ball_positions, self.ball_linvels, self.sensor_forces, self.sensor_torques)",
+    "inputs": [
+      "ball_positions",
+      "ball_linvels",
+      "sensor_forces",
+      "sensor_torques"
+    ]
+  }
+}

@@ -1,0 +1,50 @@
+{
+  "task_spec": {
+    "task": "BallBalance",
+    "env": "ball_balance",
+    "num_envs": null
+  },
+  "task": "ballbalance",
+  "arm": "indep",
+  "call": 5,
+  "function": null,
+  "model_used": "minimax/minimax-m3.1-flash",
+  "usage": {
+    "prompt_tokens": 835,
+    "completion_tokens": 12588,
+    "total_tokens": 13423,
+    "cost": 0.00766077,
+    "is_byok": false,
+    "prompt_tokens_details": {
+      "cached_tokens": 128,
+      "audio_tokens": 0,
+      "video_tokens": 0
+    },
+    "cost_details": {
+      "upstream_inference_cost": null,
+      "upstream_inference_prompt_cost": 0,
+      "upstream_inference_completions_cost": 0
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 12235,
+      "reasoning_tokens_estimated": true,
+      "image_tokens": 0
+    },
+    "cache_creation_input_tokens": 0,
+    "market_cost": 0.00766077,
+    "gateway_cost": 0.00766077
+  },
+  "finish_reason": "stop",
+  "functions_in_reply": 1,
+  "generation_seconds": 97.185614208,
+  "response_text": "```python\nfrom typing import Dict, Tuple\n\nimport torch\n\n\n@torch.jit.script\ndef compute_reward(\n    ball_positions: torch.Tensor,\n    ball_linvels: torch.Tensor,\n) -> Tuple[torch.Tensor, Dict[str, torch.Tensor]]:\n    \"\"\"\n    Reward a stable ball resting near the center of the table.\n\n    ball_positions and ball_linvels must be expressed in the table's\n    coordinate frame, with the table center at x = y = 0.\n\n    The geometry constants below must match the environment. If ball_positions\n    are already relative to the table top, set table_top_height to 0.0.\n    \"\"\"\n    table_top_height: float = 0.50   # Table surface height in the observation frame.\n    table_half_width: float = 0.50   # Distance from the table center to an edge.\n    ball_radius: float = 0.03\n\n    rest_height: float = table_top_height + ball_radius\n\n    # Reward the ball being at its resting height above the table.\n    height_temperature: float = 0.12\n    height_error = torch.abs(ball_positions[:, 2] - rest_height)\n    height_score = torch.exp(-height_error / height_temperature)\n\n    # Reward keeping the ball away from the table edges.\n    center_temperature: float = 0.30\n    horizontal_distance = torch.sqrt(\n        ball_positions[:, 0] * ball_positions[:, 0]\n        + ball_positions[:, 1] * ball_positions[:, 1]\n        + 1.0e-8\n    )\n    normalized_distance = horizontal_distance / table_half_width\n    center_score = torch.exp(\n        -(normalized_distance * normalized_distance) / center_temperature\n    )\n\n    # Penalize fast motion: a balanced ball should move slowly.\n    velocity_temperature: float = 0.40\n    ball_speed = torch.sqrt(\n        torch.sum(ball_linvels * ball_linvels, dim=1) + 1.0e-8\n    )\n    stability_score = torch.exp(-ball_speed / velocity_temperature)\n\n    # Detect a ball that has dropped below the table. The grace distance\n    # allows small bounces without immediately terminating the reward.\n    drop_grace_distance: float = 0.15\n    fall_distance = torch.clamp(\n        rest_height - drop_grace_distance - ball_positions[:, 2],\n        min=0.0,\n    )\n    fall_indicator = torch.clamp(\n        fall_distance / drop_grace_distance,\n        min=0.0,\n        max=1.0,\n    )\n    alive_score = 1.0 - fall_indicator\n\n    # Downward motion gives an early signal that the ball is leaving the table.\n    downward_speed = torch.clamp(-ball_linvels[:, 2], min=0.0)\n\n    height_component = 2.0 * height_score\n    centering_component = 1.5 * center_score\n    stability_component = 0.5 * stability_score\n    alive_component = 1.0 * alive_score\n    fall_component = -4.0 * fall_indicator\n    downward_velocity_component = -0.5 * downward_speed\n\n    total_reward = (\n        height_component\n        + centering_component\n        + stability_component\n        + alive_component\n        + fall_component\n        + downward_velocity_component\n    )\n\n    components: Dict[str, torch.Tensor] = {\n        \"height_alignment\": height_component,\n        \"table_centering\": centering_component,\n        \"velocity_stability\": stability_component,\n        \"alive_bonus\": alive_component,\n        \"fall_penalty\": fall_component,\n        \"downward_velocity_penalty\": downward_velocity_component,\n    }\n\n    return total_reward, components\n```",
+  "validation": {
+    "valid": true,
+    "suffix": "GPTMIballbalanceindepcall5",
+    "environment_call": "compute_reward(self.ball_positions, self.ball_linvels)",
+    "inputs": [
+      "ball_positions",
+      "ball_linvels"
+    ]
+  }
+}
