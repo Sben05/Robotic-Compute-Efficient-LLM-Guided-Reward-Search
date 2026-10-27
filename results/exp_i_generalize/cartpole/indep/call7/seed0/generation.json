@@ -1,0 +1,49 @@
+{
+  "task_spec": {
+    "task": "Cartpole",
+    "env": "cartpole",
+    "num_envs": null
+  },
+  "task": "cartpole",
+  "arm": "indep",
+  "call": 7,
+  "function": null,
+  "model_used": "minimax/minimax-m3.1-flash",
+  "usage": {
+    "prompt_tokens": 778,
+    "completion_tokens": 2277,
+    "total_tokens": 3055,
+    "cost": 0.00146562,
+    "is_byok": false,
+    "prompt_tokens_details": {
+      "cached_tokens": 128,
+      "audio_tokens": 0,
+      "video_tokens": 0
+    },
+    "cost_details": {
+      "upstream_inference_cost": null,
+      "upstream_inference_prompt_cost": 0,
+      "upstream_inference_completions_cost": 0
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 1835,
+      "image_tokens": 0
+    },
+    "cache_creation_input_tokens": 0,
+    "market_cost": 0.00146562,
+    "gateway_cost": 0.00146562
+  },
+  "finish_reason": "stop",
+  "functions_in_reply": 1,
+  "generation_seconds": 23.236783084,
+  "response_text": "```python\nfrom typing import Dict, Tuple\n\nimport torch\n\n\n@torch.jit.script\ndef compute_reward(\n    dof_pos: torch.Tensor,\n    dof_vel: torch.Tensor,\n) -> Tuple[torch.Tensor, Dict[str, torch.Tensor]]:\n    # Cart DOF: 0; pole hinge DOF: 1.\n    cart_pos = dof_pos[:, 0]\n    cart_vel = dof_vel[:, 0]\n    pole_angle = dof_pos[:, 1]\n    pole_vel = dof_vel[:, 1]\n\n    # Separate temperatures allow each shaped component to be tuned independently.\n    upright_temperature: float = 0.5\n    angular_velocity_temperature: float = 0.5\n    cart_position_temperature: float = 2.0\n    cart_velocity_temperature: float = 2.0\n\n    # Strongly reward keeping the pole near the vertical (zero-angle) position.\n    upright_reward = torch.exp(-pole_angle.square() / upright_temperature)\n\n    # Damp excessive pole motion and discourage unnecessary cart motion.\n    angular_damping_reward = torch.exp(\n        -pole_vel.square() / angular_velocity_temperature\n    )\n    cart_center_reward = torch.exp(\n        -cart_pos.square() / cart_position_temperature\n    )\n    cart_stillness_reward = torch.exp(\n        -cart_vel.square() / cart_velocity_temperature\n    )\n\n    # A small constant bonus favors remaining balanced for longer.\n    alive_bonus = torch.ones_like(upright_reward)\n\n    total_reward = (\n        2.0 * upright_reward\n        + 0.25 * angular_damping_reward\n        + 0.10 * cart_center_reward\n        + 0.05 * cart_stillness_reward\n        + 0.10 * alive_bonus\n    )\n\n    components = {\n        \"upright_reward\": upright_reward,\n        \"angular_damping_reward\": angular_damping_reward,\n        \"cart_center_reward\": cart_center_reward,\n        \"cart_stillness_reward\": cart_stillness_reward,\n        \"alive_bonus\": alive_bonus,\n    }\n\n    return total_reward, components\n```",
+  "validation": {
+    "valid": true,
+    "suffix": "GPTMIcartpoleindepcall7",
+    "environment_call": "compute_reward(self.dof_pos, self.dof_vel)",
+    "inputs": [
+      "dof_pos",
+      "dof_vel"
+    ]
+  }
+}

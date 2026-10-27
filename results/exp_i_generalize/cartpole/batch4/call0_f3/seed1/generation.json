@@ -1,0 +1,49 @@
+{
+  "task_spec": {
+    "task": "Cartpole",
+    "env": "cartpole",
+    "num_envs": null
+  },
+  "task": "cartpole",
+  "arm": "batch4",
+  "call": 0,
+  "function": 3,
+  "model_used": "minimax/minimax-m3.1-flash",
+  "usage": {
+    "prompt_tokens": 806,
+    "completion_tokens": 5996,
+    "total_tokens": 6802,
+    "cost": 0.003693255,
+    "is_byok": false,
+    "prompt_tokens_details": {
+      "cached_tokens": 187,
+      "audio_tokens": 0,
+      "video_tokens": 0
+    },
+    "cost_details": {
+      "upstream_inference_cost": null,
+      "upstream_inference_prompt_cost": 0,
+      "upstream_inference_completions_cost": 0
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 3913,
+      "image_tokens": 0
+    },
+    "cache_creation_input_tokens": 0,
+    "market_cost": 0.003693255,
+    "gateway_cost": 0.003693255
+  },
+  "finish_reason": "stop",
+  "functions_in_reply": 4,
+  "generation_seconds": 36.591375541999994,
+  "response_text": "```python\n\nimport torch\nfrom typing import Dict, Tuple\n\n\n@torch.jit.script\ndef compute_reward(dof_pos: torch.Tensor, dof_vel: torch.Tensor) -> Tuple[torch.Tensor, Dict[str, torch.Tensor]]:\n    \"\"\"Sparse upright bonus with hinge-style failure penalties.\n\n    A large step reward is given only while the pole is genuinely upright\n    (inside a small angle tolerance). Additional terms penalise falling over,\n    excessive pole/cart speed and drifting away from the track centre.\n    \"\"\"\n    cart_pos = dof_pos[:, 0].reshape(-1)\n    pole_angle = dof_pos[:, 1].reshape(-1)\n    cart_vel = dof_vel[:, 0].reshape(-1)\n    pole_vel = dof_vel[:, 1].reshape(-1)\n\n    # --- thresholds / temperatures ---\n    upright_tol: float = 0.087        # ~5 degrees\n    fail_angle: float = 0.35          # pole is falling\n    vel_tol: float = 1.0\n    cart_limit: float = 1.0\n    vel_temp: float = 1.0\n    pos_temp: float = 2.0\n\n    abs_angle = torch.abs(pole_angle)\n    abs_pole_vel = torch.abs(pole_vel)\n    abs_cart_vel = torch.abs(cart_vel)\n    abs_cart_pos = torch.abs(cart_pos)\n\n    ones = torch.ones_like(abs_angle)\n    zeros = torch.zeros_like(abs_angle)\n\n    upright_hold = torch.where(abs_angle < upright_tol, ones, zeros)\n    falling = torch.where(abs_angle > fail_angle, ones, zeros)\n\n    vel_penalty = torch.exp(-torch.square(abs_pole_vel - vel_tol) / vel_temp) * 0.0 \\\n        + torch.clamp(abs_pole_vel - vel_tol, min=0.0) \\\n        + torch.clamp(abs_cart_vel - vel_tol, min=0.0)\n    pos_penalty = torch.clamp(abs_cart_pos - cart_limit, min=0.0)\n\n    upright_bonus: float = 1.5\n    fall_penalty: float = 1.0\n    vel_penalty_weight: float = 0.1\n    pos_penalty_weight: float = 0.2\n    alive_bonus: float = 0.1\n\n    reward = (upright_bonus * upright_hold\n              + alive_bonus\n              - fall_penalty * falling\n              - vel_penalty_weight * vel_penalty\n              - pos_penalty_weight * pos_penalty)\n\n    components = {\n        \"upright_hold\": upright_bonus * upright_hold,\n        \"falling\": -fall_penalty * falling,\n        \"velocity_penalty\": -vel_penalty_weight * vel_penalty,\n        \"position_penalty\": -pos_penalty_weight * pos_penalty,\n        \"alive\": torch.ones_like(abs_angle) * alive_bonus,\n    }\n    return reward, components\n\n```",
+  "validation": {
+    "valid": true,
+    "suffix": "GPTMIcartpolebatch4call0f3",
+    "environment_call": "compute_reward(self.dof_pos, self.dof_vel)",
+    "inputs": [
+      "dof_pos",
+      "dof_vel"
+    ]
+  }
+}

@@ -1,0 +1,48 @@
+{
+  "task_spec": {
+    "task": "Cartpole",
+    "env": "cartpole",
+    "num_envs": null
+  },
+  "task": "cartpole",
+  "arm": "batch4",
+  "call": 1,
+  "function": 3,
+  "model_used": "minimax/minimax-m3.1-flash",
+  "usage": {
+    "prompt_tokens": 806,
+    "completion_tokens": 4783,
+    "total_tokens": 5589,
+    "cost": 0.002965455,
+    "is_byok": false,
+    "prompt_tokens_details": {
+      "cached_tokens": 187,
+      "audio_tokens": 0,
+      "video_tokens": 0
+    },
+    "cost_details": {
+      "upstream_inference_cost": null,
+      "upstream_inference_prompt_cost": 0,
+      "upstream_inference_completions_cost": 0
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 2404,
+      "image_tokens": 0
+    },
+    "cache_creation_input_tokens": 0,
+    "market_cost": 0.002965455,
+    "gateway_cost": 0.002965455
+  },
+  "finish_reason": "stop",
+  "functions_in_reply": 4,
+  "generation_seconds": 27.596352375,
+  "response_text": "```python\n\nimport torch\nfrom typing import Dict, Tuple\n\n@torch.jit.script\ndef compute_reward(obs_buf: torch.Tensor) -> Tuple[torch.Tensor, Dict[str, torch.Tensor]]:\n    \"\"\"\n    Multiplicative (gated) reward: uprightness is only rewarded when the pole\n    is also calm; strong penalties for a fallen pole and for wild cart motion.\n    obs_buf columns: [cart_pos, cart_vel, pole_angle, pole_vel]\n    \"\"\"\n    cart_pos = obs_buf[:, 0]\n    cart_vel = obs_buf[:, 1]\n    pole_angle = obs_buf[:, 2]\n    pole_vel = obs_buf[:, 3]\n\n    # --- temperatures / gates ---\n    angle_temp = 8.0\n    gate_temp = 1.0\n    centering_temp = 2.0\n    fall_angle_limit = 0.5\n\n    # --- weights ---\n    w_upright = 3.0\n    w_gate = 1.0\n    w_centering = 0.5\n    w_fall = 2.0\n    w_cart_vel = 0.5\n\n    # exponential uprightness\n    upright_reward = torch.exp(-angle_temp * torch.abs(pole_angle))\n\n    # stability gate: near-zero angular velocity required to collect full reward\n    stability_gate = torch.exp(-gate_temp * torch.abs(pole_vel))\n\n    # gated upright term (upright AND steady)\n    gated_reward = upright_reward * stability_gate\n\n    # keeping the cart near the middle of the track\n    centering_reward = torch.exp(-centering_temp * torch.abs(cart_pos))\n\n    # penalty for excessive cart velocity\n    cart_vel_penalty = -w_cart_vel * torch.clamp(torch.abs(cart_vel) - 1.0, 0.0, 1.0)\n\n    # penalty for the pole tipping over\n    fall_penalty = -w_fall * torch.clamp((torch.abs(pole_angle) - fall_angle_limit) / fall_angle_limit, 0.0, 1.0)\n\n    total_reward = (w_upright * gated_reward\n                    + w_gate * stability_gate\n                    + w_centering * centering_reward\n                    + cart_vel_penalty\n                    + fall_penalty)\n\n    components: Dict[str, torch.Tensor] = {\n        \"upright_reward\": upright_reward,\n        \"stability_gate\": stability_gate,\n        \"gated_reward\": gated_reward,\n        \"centering_reward\": centering_reward,\n        \"cart_vel_penalty\": cart_vel_penalty,\n        \"fall_penalty\": fall_penalty,\n    }\n    return total_reward, components\n\n```",
+  "validation": {
+    "valid": true,
+    "suffix": "GPTMIcartpolebatch4call1f3",
+    "environment_call": "compute_reward(self.obs_buf)",
+    "inputs": [
+      "obs_buf"
+    ]
+  }
+}

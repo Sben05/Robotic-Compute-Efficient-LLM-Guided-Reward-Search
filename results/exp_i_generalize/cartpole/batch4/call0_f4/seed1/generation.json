@@ -1,0 +1,49 @@
+{
+  "task_spec": {
+    "task": "Cartpole",
+    "env": "cartpole",
+    "num_envs": null
+  },
+  "task": "cartpole",
+  "arm": "batch4",
+  "call": 0,
+  "function": 4,
+  "model_used": "minimax/minimax-m3.1-flash",
+  "usage": {
+    "prompt_tokens": 806,
+    "completion_tokens": 5996,
+    "total_tokens": 6802,
+    "cost": 0.003693255,
+    "is_byok": false,
+    "prompt_tokens_details": {
+      "cached_tokens": 187,
+      "audio_tokens": 0,
+      "video_tokens": 0
+    },
+    "cost_details": {
+      "upstream_inference_cost": null,
+      "upstream_inference_prompt_cost": 0,
+      "upstream_inference_completions_cost": 0
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 3913,
+      "image_tokens": 0
+    },
+    "cache_creation_input_tokens": 0,
+    "market_cost": 0.003693255,
+    "gateway_cost": 0.003693255
+  },
+  "finish_reason": "stop",
+  "functions_in_reply": 4,
+  "generation_seconds": 36.591375541999994,
+  "response_text": "```python\n\nimport torch\nfrom typing import Dict, Tuple\n\n\n@torch.jit.script\ndef compute_reward(dof_pos: torch.Tensor, dof_vel: torch.Tensor) -> Tuple[torch.Tensor, Dict[str, torch.Tensor]]:\n    \"\"\"Quadratic-cost (energy style) reward normalised with an exponential.\n\n    The total cost sums weighted squared deviations of pole angle, pole angular\n    velocity, cart position and cart velocity; the reward is exp(-cost / temp),\n    which is smoothly normalised into (0, 1].\n    \"\"\"\n    cart_pos = dof_pos[:, 0].reshape(-1)\n    pole_angle = dof_pos[:, 1].reshape(-1)\n    cart_vel = dof_vel[:, 0].reshape(-1)\n    pole_vel = dof_vel[:, 1].reshape(-1)\n\n    # --- temperature / weights ---\n    cost_temp: float = 0.5\n    w_angle: float = 4.0\n    w_pole_vel: float = 0.5\n    w_cart_pos: float = 0.5\n    w_cart_vel: float = 0.1\n\n    angle_cost = w_angle * torch.square(pole_angle)\n    pole_vel_cost = w_pole_vel * torch.square(pole_vel)\n    cart_pos_cost = w_cart_pos * torch.square(cart_pos)\n    cart_vel_cost = w_cart_vel * torch.square(cart_vel)\n\n    total_cost = angle_cost + pole_vel_cost + cart_pos_cost + cart_vel_cost\n\n    upright_temp: float = 0.5\n    upright = torch.exp(-torch.square(pole_angle) / upright_temp)\n\n    reward = torch.exp(-total_cost / cost_temp)\n\n    components = {\n        \"angle_cost\": -angle_cost,\n        \"pole_vel_cost\": -pole_vel_cost,\n        \"cart_pos_cost\": -cart_pos_cost,\n        \"cart_vel_cost\": -cart_vel_cost,\n        \"upright\": upright,\n        \"total_reward\": reward,\n    }\n    return reward, components\n\n```",
+  "validation": {
+    "valid": true,
+    "suffix": "GPTMIcartpolebatch4call0f4",
+    "environment_call": "compute_reward(self.dof_pos, self.dof_vel)",
+    "inputs": [
+      "dof_pos",
+      "dof_vel"
+    ]
+  }
+}

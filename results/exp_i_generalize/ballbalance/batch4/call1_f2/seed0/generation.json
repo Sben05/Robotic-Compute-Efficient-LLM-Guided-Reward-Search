@@ -1,0 +1,49 @@
+{
+  "task_spec": {
+    "task": "BallBalance",
+    "env": "ball_balance",
+    "num_envs": null
+  },
+  "task": "ballbalance",
+  "arm": "batch4",
+  "call": 1,
+  "function": 2,
+  "model_used": "minimax/minimax-m3.1-flash",
+  "usage": {
+    "prompt_tokens": 887,
+    "completion_tokens": 21261,
+    "total_tokens": 22148,
+    "cost": 0.012774765,
+    "is_byok": false,
+    "prompt_tokens_details": {
+      "cached_tokens": 851,
+      "audio_tokens": 0,
+      "video_tokens": 0
+    },
+    "cost_details": {
+      "upstream_inference_cost": null,
+      "upstream_inference_prompt_cost": 0,
+      "upstream_inference_completions_cost": 0
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 17639,
+      "image_tokens": 0
+    },
+    "cache_creation_input_tokens": 0,
+    "market_cost": 0.012774765,
+    "gateway_cost": 0.012774765
+  },
+  "finish_reason": "stop",
+  "functions_in_reply": 4,
+  "generation_seconds": 142.399250375,
+  "response_text": "```python\n\nimport torch\nfrom typing import Dict, Tuple\n\n\n@torch.jit.script\ndef compute_reward(ball_positions: torch.Tensor,\n                     ball_linvels: torch.Tensor) -> Tuple[torch.Tensor, Dict[str, torch.Tensor]]:\n    \"\"\"\n    Classic quadratic-penalty reward (Isaac-Gym style) with an alive bonus.\n\n    Only very little height information is used (a single low \"floor\" threshold), so the\n    reward is robust to an inaccurate knowledge of the table height: as long as the ball\n    is on the table the agent gets its alive bonus and only has to suppress the motion\n    of the ball; if the ball rolls off and hits the ground a large penalty is paid.\n    \"\"\"\n    # ------------------- tunables (constants, not env inputs) -------------------\n    table_center_x: float = 0.0\n    table_center_y: float = 0.0\n    target_ball_z: float = 0.85       # nominal resting height of the ball\n    floor_z: float = 0.30             # ball below this -> it has left the table\n    w_alive: float = 1.0\n    w_speed: float = 1.0              # horizontal kinetic energy\n    w_vz: float = 0.5                 # vertical kinetic energy\n    w_center: float = 0.5             # distance to the middle of the table\n    w_height: float = 0.2             # deviation from the nominal table height\n    w_fall: float = 10.0\n    v_sq_max: float = 25.0            # clipping keeps the penalty bounded\n    # -----------------------------------------------------------------------------\n\n    px = ball_positions[:, 0]\n    py = ball_positions[:, 1]\n    pz = ball_positions[:, 2]\n    vx = ball_linvels[:, 0]\n    vy = ball_linvels[:, 1]\n    vz = ball_linvels[:, 2]\n\n    dx = px - table_center_x\n    dy = py - table_center_y\n\n    v_sq = torch.clamp(vx * vx + vy * vy, min=0.0, max=v_sq_max)\n    r_speed = -w_speed * v_sq\n\n    vz_sq = torch.clamp(vz * vz, min=0.0, max=v_sq_max)\n    r_vz = -w_vz * vz_sq\n\n    r_center = -w_center * (dx * dx + dy * dy)\n\n    dz = pz - target_ball_z\n    r_height = -w_height * dz * dz\n\n    fall = torch.clamp((floor_z - pz) / floor_z, min=0.0, max=1.0)\n    r_fall = -w_fall * fall\n\n    reward = w_alive + r_speed + r_vz + r_center + r_height + r_fall\n\n    components: Dict[str, torch.Tensor] = {}\n    components[\"alive\"] = torch.full_like(pz, w_alive)\n    components[\"speed\"] = r_speed\n    components[\"vz\"] = r_vz\n    components[\"center\"] = r_center\n    components[\"height\"] = r_height\n    components[\"fall\"] = r_fall\n    return reward, components\n\n```",
+  "validation": {
+    "valid": true,
+    "suffix": "GPTMIballbalancebatch4call1f2",
+    "environment_call": "compute_reward(self.ball_positions, self.ball_linvels)",
+    "inputs": [
+      "ball_positions",
+      "ball_linvels"
+    ]
+  }
+}
