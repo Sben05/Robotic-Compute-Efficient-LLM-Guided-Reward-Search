@@ -26,6 +26,14 @@ for H1 was then picked by the pre-registered criterion (`results/pruning/best_ru
 - Per held-out seed (VoI / fixed@500): seed 4 0.997/0.940, seed 5 0.996/0.994, seed 7 0.991/0.962, seed 8 0.999/0.999,
   seed 9 1.000/0.963. VoI is never worse; fixed@500 loses most on seeds where two rewards are close at iteration 500.
 
+- Clean check (the rule was chosen on seeds 4-5, so seeds 7-9 alone are the untouched test): VoI 0.997 vs fixed@500 0.975,
+  +0.022 [0.000, 0.039], p = 0.036 (105 sets). PID ties VoI on these seeds (0.997, winner 83%).
+- Closest published method, ORSO (Zhang et al., ICLR 2025: bandit allocation of fixed training chunks, judged on the current
+  task score), rebuilt from the paper and added post hoc (tuned on training seeds only, same criterion): D3RB variant 0.990
+  retained at 0.475 compute (winner 78%), Exp3 0.980 at 0.617. Paired on the same sets: VoI − ORSO = +0.0067 [0.0014,
+  0.0127], p = 0.012, with 5% less compute; PID − ORSO = +0.001 [−0.010, +0.011], with 6% less compute.
+  `results/pruning/orso_baseline.json`.
+
 ## 2. Every frozen rule on the same held-out sets [held-out, n = 175 sets, 5 seeds]
 
 | Rule (frozen config) | Compute | Retained [95% CI] | Winner picked | Mean peak vs human (same seed) |

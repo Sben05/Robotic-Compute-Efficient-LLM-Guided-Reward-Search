@@ -24,8 +24,11 @@ PPO, which is the expensive part. The thesis asks two things:
 | H4 | zero-token edit recovers the refinement gain | 7.57 → 9.04 (+1.47) | 4 vs 4 seeds | 0.025 | 0.075 | not significant after correction |
 | H5 | best reward found (p3) beats the human reward | +0.86 points | 6 seeds, paired | 0.073 | 0.128 | not significant |
 
-H1 also holds against a fixed checkpoint of equal compute (+0.015 [0.002, 0.031], p = 0.0099), and it was confirmed in one
-live run (seed 6: 32% of the compute, decisions identical to replay).
+H1 also holds against a fixed checkpoint of equal compute (+0.015 [0.002, 0.031], p = 0.0099), on the cleanest seeds alone
+(7-9, never used to choose the rule: +0.022 [0.000, 0.039], p = 0.036), and in one live run (seed 6: 32% of the compute,
+decisions identical to replay). Against the closest published method, ORSO (ICLR 2025; rebuilt from the paper, added after
+the held-out results were known, tuned on training seeds only), VoI keeps +0.7% more of the best reward (p = 0.012) with 5%
+less compute, and PID ties it with 6% less compute.
 
 ## Other findings (exploratory, with uncertainty)
 
@@ -34,7 +37,8 @@ live run (seed 6: 32% of the compute, decisions identical to replay).
 - **Winner's curse is large**: the original search's headline reward (10.93) averages 9.15 on 8 other seeds. The human reward
   ranges 7.9-10.6 across seeds. Single-seed comparisons of strong rewards are mostly noise.
 - **Generation strategies** (Ant): strategy hints made rewards worse and 5× costlier; "think briefly" made them much worse.
-- **Other LLMs**: Gemini 2.5 Flash and Qwen-3-32B wrote clearly weaker Ant rewards than MiniMax; batching was again cheaper.
+- **Other LLMs**: Gemini 2.5 Flash and Qwen-3-32B wrote weaker Ant rewards than MiniMax on average, yet Qwen's best reward
+  reached 11.32 (single seed), the best of the project; batching was again cheaper for both.
 - **Generalisation**: Cartpole and BallBalance are too easy (every reward hits the ceiling); on Humanoid all LLM rewards were
   far below the human reward and the Ant-tuned VoI forecaster did not transfer (0.81 retained), while PID-style rules did (0.97).
 - **Generate vs train** [simulation]: at measured prices (one LLM call ≈ 60-230 PPO iterations of A100 time) adaptive

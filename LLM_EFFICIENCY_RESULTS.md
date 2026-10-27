@@ -37,8 +37,7 @@ better (1.00 vs 0.90), Cartpole both at the ceiling, Humanoid batch worse (0.12 
 | E one per call, "think briefly" | 4 | 4 | 11,270 | 0.0069 | 4.33 / 4.30 | 1.00 / 0.17 | 0.17 |
 
 The 6 best trial rewards (all from batched arms B and C) resumed to 3,000 iterations [actual, resume protocol]:
-11.11, 10.42, 10.14, 9.28, 8.82, 8.50. **`B_batch4/call2_f1` (11.11) is the best single-seed reward measured in this
-project** (human reward 10.48 on the same seed).
+11.11, 10.42, 10.14, 9.28, 8.82, 8.50. `B_batch4/call2_f1` (11.11) is MiniMax's best single-seed reward (human reward 10.48 on the same seed); see §3 for Qwen's 11.32.
 
 Failed hypotheses: strategy hints (D) made rewards worse and 5× more expensive per valid reward (2 replies hit the 32k-token
 cap); asking for brief reasoning (E) produced much weaker rewards; naming four diverse strategies (C) reduced validity
@@ -56,9 +55,20 @@ Gemini 2.5 Flash and Qwen-3-32B were used (substitution recorded in STATS_PLAN.m
 | Qwen-3-32B, one per call | 8 | 8 | 6,074 | 0.0038 | 7.16 | 2.50 |
 | Qwen-3-32B, four per call | 2 | 7 of 8 | 1,833 | 0.0011 | 4.07 | 2.32 |
 
-Batching is again cheaper per valid reward for both models (1.2× Gemini, 3.3× Qwen), but both models write clearly weaker
-Ant rewards than MiniMax (best 5.2 and 7.2 vs 8.4 at 500 its), and for both the best reward came from the one-per-call arm.
-The top 4 per model resumed to 3,000: see `results/final/explore_e2_other_llms_ant.json` (filled in when the last batch ends).
+Batching is again cheaper per valid reward for both models (1.2× Gemini, 3.3× Qwen). At the 500-iteration screen both models'
+rewards are weaker on average than MiniMax's (best 5.2 and 7.2 vs 8.4; medians 1.3-2.5 vs ~4.5-5.5), and for both the best
+reward came from the one-per-call arm.
+
+Top 4 per model (by 500-it score) resumed to 3,000 iterations [actual, seed 0, resume protocol]:
+
+| Model | one per call | four per call |
+| --- | --- | --- |
+| Gemini 2.5 Flash | 6.90, 3.18 | 6.07, 4.42 |
+| Qwen-3-32B | **11.32**, 9.81, 6.74 | 5.41 |
+
+**Qwen-3-32B's best reward (11.32) is the highest single-seed reward measured in the project**, above MiniMax's best (11.11)
+and the human reward (10.48 on seed 0). One seed only, so treat it as a lead, not a result: a weaker model on average can still
+produce the single best reward, which again argues for screening many candidates cheaply.
 
 ## 4. A zero-token edit instead of an LLM refinement call (H4, not significant after correction) [actual]
 
