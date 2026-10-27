@@ -1,6 +1,9 @@
-"""PREPARED, NOT RUN. Controlled real-LLM comparison for batching / diversity / reasoning limits. Writes request payloads and a
-worst-case budget; spends nothing unless --run is passed together with --max-usd and a key file. Baseline arm A reuses the 9 existing
-independent round-1 samples (usage logged), so it costs 0 new calls.
+"""Controlled real-LLM comparison for batching / diversity / reasoning limits. Writes request payloads and a worst-case budget;
+spends nothing unless --run is passed together with --max-usd and a key file. Baseline arm A reuses the existing independent
+round-1 samples (usage logged), so it costs 0 new calls.
+STATUS: RUN ONCE with --run --max-usd 0.44 on 2026-10-27 ~00:15 UTC from the Mac, after explicit user approval (22 calls, $0.262 by
+token pricing; per-call log in results/llm_efficiency/trial_plan/run.log, replies in result_<arm>_<i>.json). Do not rerun: the
+script skips calls whose result file exists, so a rerun costs nothing, but new arms need new approval.
 
   python llm_trial_plan.py                          # dry run: writes results/llm_efficiency/trial_plan/*.json, prints worst-case cost
   python llm_trial_plan.py --run --max-usd 0.25 --key-file ~/.config/msthesis/vercel_ai_gateway_key   # only after approval

@@ -1,0 +1,181 @@
+{
+ "label": "parameters frozen on TRAIN curves only, before seeds 4-5 existed",
+ "N": 4,
+ "criterion": "min compute s.t. mean retained >= 0.98 (else max retained)",
+ "train_curves": 65,
+ "train_worlds": 570,
+ "train_seeds": [
+  0,
+  1,
+  2,
+  3
+ ],
+ "test_seeds": [
+  4,
+  5
+ ],
+ "frozen": {
+  "Bayesian pruning": {
+   "config": "P(best)<0.1 t0=500",
+   "train": {
+    "compute": 0.4470906432748538,
+    "saved": 0.5529093567251462,
+    "retained": 0.9863531564181481,
+    "hit": 0.7701754385964912,
+    "false_prune_rate": 0.3473684210526316,
+    "n_worlds": 570
+   }
+  },
+  "MPC (receding horizon)": {
+   "config": "MPC lam=1.0 t0=500",
+   "train": {
+    "compute": 0.41274853801169586,
+    "saved": 0.5872514619883041,
+    "retained": 0.9829329142783246,
+    "hit": 0.7403508771929824,
+    "false_prune_rate": 0.3549707602339181,
+    "n_worlds": 570
+   }
+  },
+  "PID (P)": {
+   "config": "P ki=0 kd=0 th=0.25",
+   "train": {
+    "compute": 0.4980994152046783,
+    "saved": 0.5019005847953217,
+    "retained": 0.984107857984645,
+    "hit": 0.7543859649122807,
+    "false_prune_rate": 0.347953216374269,
+    "n_worlds": 570
+   }
+  },
+  "PID (PD)": {
+   "config": "PD ki=0 kd=1 th=0.4",
+   "train": {
+    "compute": 0.40722222222222226,
+    "saved": 0.5927777777777777,
+    "retained": 0.9814155698528391,
+    "hit": 0.743859649122807,
+    "false_prune_rate": 0.35555555555555557,
+    "n_worlds": 570
+   }
+  },
+  "PID (PI)": {
+   "config": "PI ki=1 kd=0 th=0.25",
+   "train": {
+    "compute": 0.44597953216374264,
+    "saved": 0.5540204678362574,
+    "retained": 0.9832633160603825,
+    "hit": 0.7508771929824561,
+    "false_prune_rate": 0.3502923976608187,
+    "n_worlds": 570
+   }
+  },
+  "PID (PID)": {
+   "config": "PID ki=1 kd=1 th=0.4",
+   "train": {
+    "compute": 0.39228070175438595,
+    "saved": 0.6077192982456141,
+    "retained": 0.9803830260004269,
+    "hit": 0.7421052631578947,
+    "false_prune_rate": 0.3567251461988304,
+    "n_worlds": 570
+   }
+  },
+  "Thompson BAI (TTTS)": {
+   "config": "TTTS delta=0.2 budget=0.5",
+   "train": {
+    "compute": 0.42350877192982456,
+    "saved": 0.5764912280701755,
+    "retained": 0.9819174098756516,
+    "hit": 0.7491228070175439,
+    "false_prune_rate": 0.3499413833528722,
+    "n_worlds": 570
+   }
+  },
+  "VoI (expected improvement)": {
+   "config": "VoI lam=1.0 t0=250",
+   "train": {
+    "compute": 0.40388888888888885,
+    "saved": 0.5961111111111111,
+    "retained": 0.9831678423421891,
+    "hit": 0.7578947368421053,
+    "false_prune_rate": 0.3508771929824561,
+    "n_worlds": 570
+   }
+  },
+  "fixed checkpoint": {
+   "config": "fixed@1000 keep-1",
+   "train": {
+    "compute": 0.5,
+    "saved": 0.5,
+    "retained": 0.9803126606911323,
+    "hit": 0.6947368421052632,
+    "false_prune_rate": 0.3567251461988304,
+    "n_worlds": 570
+   }
+  },
+  "human-reference threshold": {
+   "config": "ref rho=0.8 t0=500",
+   "train": {
+    "compute": 0.5170467836257311,
+    "saved": 0.4829532163742689,
+    "retained": 0.9870348628021555,
+    "hit": 0.7719298245614035,
+    "false_prune_rate": 0.34678362573099414,
+    "n_worlds": 570
+   }
+  },
+  "hyperband": {
+   "config": "HB (100, 250, 500)",
+   "train": {
+    "compute": 0.5192251461988304,
+    "saved": 0.4807748538011696,
+    "retained": 0.9847986489260148,
+    "hit": 0.7736842105263158,
+    "false_prune_rate": 0.31127272727272726,
+    "n_worlds": 570
+   }
+  },
+  "hyperband (paper)": {
+   "config": "HB-paper eta=3",
+   "train": {
+    "compute": 3.055499999999999,
+    "saved": -2.055499999999999,
+    "retained": 1.0,
+    "hit": 1.0,
+    "false_prune_rate": 0.0,
+    "n_worlds": 570
+   }
+  },
+  "ratio-bound racing": {
+   "config": "bound q=0.75 t0=100",
+   "train": {
+    "compute": 0.49552631578947365,
+    "saved": 0.5044736842105264,
+    "retained": 0.9875160171564562,
+    "hit": 0.775438596491228,
+    "false_prune_rate": 0.34678362573099414,
+    "n_worlds": 570
+   }
+  },
+  "successive halving": {
+   "config": "SH t0=500 eta=3",
+   "train": {
+    "compute": 0.4583333333333333,
+    "saved": 0.5416666666666667,
+    "retained": 0.9821826063035164,
+    "hit": 0.7333333333333333,
+    "false_prune_rate": 0.35789473684210527,
+    "n_worlds": 570
+   }
+  }
+ },
+ "reference_fixed500_train": {
+  "compute": 0.375,
+  "saved": 0.625,
+  "retained": 0.9611670100385928,
+  "hit": 0.5684210526315789,
+  "false_prune_rate": 0.39239766081871347,
+  "n_worlds": 570
+ }
+}
