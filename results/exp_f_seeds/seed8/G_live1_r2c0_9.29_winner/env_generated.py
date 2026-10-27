@@ -1,0 +1,468 @@
+
+import numpy as np
+import os
+import torch
+
+from isaacgym import gymtorch
+from isaacgym import gymapi
+from isaacgym.gymtorch import *
+
+from isaacgymenvs.utils.torch_jit_utils import *
+from isaacgymenvs.tasks.base.vec_task import VecTask
+
+
+class AntGPTMLT1R2C0(VecTask):
+
+    def __init__(self, cfg, rl_device, sim_device, graphics_device_id, headless, virtual_screen_capture, force_render):
+
+        self.cfg = cfg
+
+        self.max_episode_length = self.cfg["env"]["episodeLength"]
+
+        self.randomization_params = self.cfg["task"]["randomization_params"]
+        self.randomize = self.cfg["task"]["randomize"]
+        self.dof_vel_scale = self.cfg["env"]["dofVelocityScale"]
+        self.contact_force_scale = self.cfg["env"]["contactForceScale"]
+        self.power_scale = self.cfg["env"]["powerScale"]
+        self.heading_weight = self.cfg["env"]["headingWeight"]
+        self.up_weight = self.cfg["env"]["upWeight"]
+        self.actions_cost_scale = self.cfg["env"]["actionsCost"]
+        self.energy_cost_scale = self.cfg["env"]["energyCost"]
+        self.joints_at_limit_cost_scale = self.cfg["env"]["jointsAtLimitCost"]
+        self.death_cost = self.cfg["env"]["deathCost"]
+        self.termination_height = self.cfg["env"]["terminationHeight"]
+
+        self.debug_viz = self.cfg["env"]["enableDebugVis"]
+        self.plane_static_friction = self.cfg["env"]["plane"]["staticFriction"]
+        self.plane_dynamic_friction = self.cfg["env"]["plane"]["dynamicFriction"]
+        self.plane_restitution = self.cfg["env"]["plane"]["restitution"]
+
+        self.cfg["env"]["numObservations"] = 60
+        self.cfg["env"]["numActions"] = 8
+
+        super().__init__(config=self.cfg, rl_device=rl_device, sim_device=sim_device, graphics_device_id=graphics_device_id, headless=headless, virtual_screen_capture=virtual_screen_capture, force_render=force_render)
+
+        if self.viewer != None:
+            cam_pos = gymapi.Vec3(50.0, 25.0, 2.4)
+            cam_target = gymapi.Vec3(45.0, 25.0, 0.0)
+            self.gym.viewer_camera_look_at(self.viewer, None, cam_pos, cam_target)
+
+        actor_root_state = self.gym.acquire_actor_root_state_tensor(self.sim)
+        dof_state_tensor = self.gym.acquire_dof_state_tensor(self.sim)
+        sensor_tensor = self.gym.acquire_force_sensor_tensor(self.sim)
+
+        sensors_per_env = 4
+        self.vec_sensor_tensor = gymtorch.wrap_tensor(sensor_tensor).view(self.num_envs, sensors_per_env * 6)
+
+        self.gym.refresh_dof_state_tensor(self.sim)
+        self.gym.refresh_actor_root_state_tensor(self.sim)
+
+        self.root_states = gymtorch.wrap_tensor(actor_root_state)
+        self.initial_root_states = self.root_states.clone()
+        self.initial_root_states[:, 7:13] = 0  # set lin_vel and ang_vel to 0
+
+        self.dof_state = gymtorch.wrap_tensor(dof_state_tensor)
+        self.dof_pos = self.dof_state.view(self.num_envs, self.num_dof, 2)[..., 0]
+        self.dof_vel = self.dof_state.view(self.num_envs, self.num_dof, 2)[..., 1]
+        self.initial_dof_pos = torch.zeros_like(self.dof_pos, device=self.device, dtype=torch.float)
+        zero_tensor = torch.tensor([0.0], device=self.device)
+        self.initial_dof_pos = torch.where(self.dof_limits_lower > zero_tensor, self.dof_limits_lower,
+                                           torch.where(self.dof_limits_upper < zero_tensor, self.dof_limits_upper, self.initial_dof_pos))
+        self.initial_dof_vel = torch.zeros_like(self.dof_vel, device=self.device, dtype=torch.float)
+
+        self.up_vec = to_torch(get_axis_params(1., self.up_axis_idx), device=self.device).repeat((self.num_envs, 1))
+        self.heading_vec = to_torch([1, 0, 0], device=self.device).repeat((self.num_envs, 1))
+        self.inv_start_rot = quat_conjugate(self.start_rotation).repeat((self.num_envs, 1))
+
+        self.basis_vec0 = self.heading_vec.clone()
+        self.basis_vec1 = self.up_vec.clone()
+
+        self.targets = to_torch([1000, 0, 0], device=self.device).repeat((self.num_envs, 1))
+        self.target_dirs = to_torch([1, 0, 0], device=self.device).repeat((self.num_envs, 1))
+        self.dt = self.cfg["sim"]["dt"]
+        self.potentials = to_torch([-1000./self.dt], device=self.device).repeat(self.num_envs)
+        self.prev_potentials = self.potentials.clone()
+        
+        self.consecutive_successes = torch.zeros(1, dtype=torch.float, device=self.device)
+
+    def create_sim(self):
+        self.up_axis_idx = 2 # index of up axis: Y=1, Z=2
+        self.sim = super().create_sim(self.device_id, self.graphics_device_id, self.physics_engine, self.sim_params)
+
+        self._create_ground_plane()
+        print(f'num envs {self.num_envs} env spacing {self.cfg["env"]["envSpacing"]}')
+        self._create_envs(self.num_envs, self.cfg["env"]['envSpacing'], int(np.sqrt(self.num_envs)))
+
+        if self.randomize:
+            self.apply_randomizations(self.randomization_params)
+
+    def _create_ground_plane(self):
+        plane_params = gymapi.PlaneParams()
+        plane_params.normal = gymapi.Vec3(0.0, 0.0, 1.0)
+        plane_params.static_friction = self.plane_static_friction
+        plane_params.dynamic_friction = self.plane_dynamic_friction
+        self.gym.add_ground(self.sim, plane_params)
+
+    def _create_envs(self, num_envs, spacing, num_per_row):
+        lower = gymapi.Vec3(-spacing, -spacing, 0.0)
+        upper = gymapi.Vec3(spacing, spacing, spacing)
+
+        asset_root = os.path.join(os.path.dirname(os.path.abspath(__file__)), '../../assets')
+        asset_file = "mjcf/nv_ant.xml"
+
+        if "asset" in self.cfg["env"]:
+            asset_file = self.cfg["env"]["asset"].get("assetFileName", asset_file)
+
+        asset_path = os.path.join(asset_root, asset_file)
+        asset_root = os.path.dirname(asset_path)
+        asset_file = os.path.basename(asset_path)
+
+        asset_options = gymapi.AssetOptions()
+        asset_options.default_dof_drive_mode = gymapi.DOF_MODE_NONE
+        asset_options.angular_damping = 0.0
+
+        ant_asset = self.gym.load_asset(self.sim, asset_root, asset_file, asset_options)
+        self.num_dof = self.gym.get_asset_dof_count(ant_asset)
+        self.num_bodies = self.gym.get_asset_rigid_body_count(ant_asset)
+
+        actuator_props = self.gym.get_asset_actuator_properties(ant_asset)
+        motor_efforts = [prop.motor_effort for prop in actuator_props]
+        self.joint_gears = to_torch(motor_efforts, device=self.device)
+
+        start_pose = gymapi.Transform()
+        start_pose.p = gymapi.Vec3(*get_axis_params(0.44, self.up_axis_idx))
+
+        self.start_rotation = torch.tensor([start_pose.r.x, start_pose.r.y, start_pose.r.z, start_pose.r.w], device=self.device)
+
+        self.torso_index = 0
+        self.num_bodies = self.gym.get_asset_rigid_body_count(ant_asset)
+        body_names = [self.gym.get_asset_rigid_body_name(ant_asset, i) for i in range(self.num_bodies)]
+        extremity_names = [s for s in body_names if "foot" in s]
+        self.extremities_index = torch.zeros(len(extremity_names), dtype=torch.long, device=self.device)
+
+        extremity_indices = [self.gym.find_asset_rigid_body_index(ant_asset, name) for name in extremity_names]
+        sensor_pose = gymapi.Transform()
+        for body_idx in extremity_indices:
+            self.gym.create_asset_force_sensor(ant_asset, body_idx, sensor_pose)
+
+        self.ant_handles = []
+        self.envs = []
+        self.dof_limits_lower = []
+        self.dof_limits_upper = []
+
+        for i in range(self.num_envs):
+            env_ptr = self.gym.create_env(
+                self.sim, lower, upper, num_per_row
+            )
+            ant_handle = self.gym.create_actor(env_ptr, ant_asset, start_pose, "ant", i, 1, 0)
+
+            for j in range(self.num_bodies):
+                self.gym.set_rigid_body_color(
+                    env_ptr, ant_handle, j, gymapi.MESH_VISUAL, gymapi.Vec3(0.97, 0.38, 0.06))
+
+            self.envs.append(env_ptr)
+            self.ant_handles.append(ant_handle)
+
+        dof_prop = self.gym.get_actor_dof_properties(env_ptr, ant_handle)
+        for j in range(self.num_dof):
+            if dof_prop['lower'][j] > dof_prop['upper'][j]:
+                self.dof_limits_lower.append(dof_prop['upper'][j])
+                self.dof_limits_upper.append(dof_prop['lower'][j])
+            else:
+                self.dof_limits_lower.append(dof_prop['lower'][j])
+                self.dof_limits_upper.append(dof_prop['upper'][j])
+
+        self.dof_limits_lower = to_torch(self.dof_limits_lower, device=self.device)
+        self.dof_limits_upper = to_torch(self.dof_limits_upper, device=self.device)
+
+        for i in range(len(extremity_names)):
+            self.extremities_index[i] = self.gym.find_actor_rigid_body_handle(self.envs[0], self.ant_handles[0], extremity_names[i])
+
+    def compute_reward(self, actions):
+        self.rew_buf[:], self.rew_dict = compute_reward(self.root_states, self.dof_vel, self.actions)
+        self.extras['gpt_reward'] = self.rew_buf.mean()
+        for rew_state in self.rew_dict: self.extras[rew_state] = self.rew_dict[rew_state].mean()
+        self.gt_rew_buf, self.reset_buf[:], self.consecutive_successes[:] = compute_success(
+            self.obs_buf,
+            self.reset_buf,
+            self.consecutive_successes,
+            self.progress_buf,
+            self.actions,
+            self.up_weight,
+            self.heading_weight,
+            self.potentials,
+            self.prev_potentials,
+            self.actions_cost_scale,
+            self.energy_cost_scale,
+            self.joints_at_limit_cost_scale,
+            self.termination_height,
+            self.death_cost,
+            self.max_episode_length
+        )
+        self.extras['gt_reward'] = self.gt_rew_buf.mean()
+        self.extras['consecutive_successes'] = self.consecutive_successes.mean()
+
+    def compute_observations(self):
+        self.gym.refresh_dof_state_tensor(self.sim)
+        self.gym.refresh_actor_root_state_tensor(self.sim)
+        self.gym.refresh_force_sensor_tensor(self.sim)
+
+        self.obs_buf[:], self.potentials[:], self.prev_potentials[:], self.up_vec[:], self.heading_vec[:] = compute_ant_observations(
+            self.obs_buf, self.root_states, self.targets, self.potentials,
+            self.inv_start_rot, self.dof_pos, self.dof_vel,
+            self.dof_limits_lower, self.dof_limits_upper, self.dof_vel_scale,
+            self.vec_sensor_tensor, self.actions, self.dt, self.contact_force_scale,
+            self.basis_vec0, self.basis_vec1, self.up_axis_idx)
+
+    def reset_idx(self, env_ids):
+        if self.randomize:
+            self.apply_randomizations(self.randomization_params)
+
+        positions = torch_rand_float(-0.2, 0.2, (len(env_ids), self.num_dof), device=self.device)
+        velocities = torch_rand_float(-0.1, 0.1, (len(env_ids), self.num_dof), device=self.device)
+
+        self.dof_pos[env_ids] = tensor_clamp(self.initial_dof_pos[env_ids] + positions, self.dof_limits_lower, self.dof_limits_upper)
+        self.dof_vel[env_ids] = velocities
+
+        env_ids_int32 = env_ids.to(dtype=torch.int32)
+
+        self.gym.set_actor_root_state_tensor_indexed(self.sim,
+                                                     gymtorch.unwrap_tensor(self.initial_root_states),
+                                                     gymtorch.unwrap_tensor(env_ids_int32), len(env_ids_int32))
+
+        self.gym.set_dof_state_tensor_indexed(self.sim,
+                                              gymtorch.unwrap_tensor(self.dof_state),
+                                              gymtorch.unwrap_tensor(env_ids_int32), len(env_ids_int32))
+
+        to_target = self.targets[env_ids] - self.initial_root_states[env_ids, 0:3]
+        to_target[:, 2] = 0.0
+        self.prev_potentials[env_ids] = -torch.norm(to_target, p=2, dim=-1) / self.dt
+        self.potentials[env_ids] = self.prev_potentials[env_ids].clone()
+
+        self.progress_buf[env_ids] = 0
+        self.reset_buf[env_ids] = 0
+
+    def pre_physics_step(self, actions):
+        self.actions = actions.clone().to(self.device)
+        forces = self.actions * self.joint_gears * self.power_scale
+        force_tensor = gymtorch.unwrap_tensor(forces)
+        self.gym.set_dof_actuation_force_tensor(self.sim, force_tensor)
+
+    def post_physics_step(self):
+        self.progress_buf += 1
+        self.randomize_buf += 1
+
+        env_ids = self.reset_buf.nonzero(as_tuple=False).flatten()
+        if len(env_ids) > 0:
+            self.reset_idx(env_ids)
+
+        self.compute_observations()
+        self.compute_reward(self.actions)
+
+        if self.viewer and self.debug_viz:
+            self.gym.clear_lines(self.viewer)
+            self.gym.refresh_actor_root_state_tensor(self.sim)
+
+            points = []
+            colors = []
+            for i in range(self.num_envs):
+                origin = self.gym.get_env_origin(self.envs[i])
+                pose = self.root_states[:, 0:3][i].cpu().numpy()
+                glob_pos = gymapi.Vec3(origin.x + pose[0], origin.y + pose[1], origin.z + pose[2])
+                points.append([glob_pos.x, glob_pos.y, glob_pos.z, glob_pos.x + 4 * self.heading_vec[i, 0].cpu().numpy(),
+                               glob_pos.y + 4 * self.heading_vec[i, 1].cpu().numpy(),
+                               glob_pos.z + 4 * self.heading_vec[i, 2].cpu().numpy()])
+                colors.append([0.97, 0.1, 0.06])
+                points.append([glob_pos.x, glob_pos.y, glob_pos.z, glob_pos.x + 4 * self.up_vec[i, 0].cpu().numpy(), glob_pos.y + 4 * self.up_vec[i, 1].cpu().numpy(),
+                               glob_pos.z + 4 * self.up_vec[i, 2].cpu().numpy()])
+                colors.append([0.05, 0.99, 0.04])
+
+            self.gym.add_lines(self.viewer, None, self.num_envs * 2, points, colors)
+
+@torch.jit.script
+def compute_ant_observations(obs_buf, root_states, targets, potentials,
+                             inv_start_rot, dof_pos, dof_vel,
+                             dof_limits_lower, dof_limits_upper, dof_vel_scale,
+                             sensor_force_torques, actions, dt, contact_force_scale,
+                             basis_vec0, basis_vec1, up_axis_idx):
+    # type: (Tensor, Tensor, Tensor, Tensor, Tensor, Tensor, Tensor, Tensor, Tensor, float, Tensor, Tensor, float, float, Tensor, Tensor, int) -> Tuple[Tensor, Tensor, Tensor, Tensor, Tensor]
+
+    torso_position = root_states[:, 0:3]
+    torso_rotation = root_states[:, 3:7]
+    velocity = root_states[:, 7:10]
+    ang_velocity = root_states[:, 10:13]
+
+    to_target = targets - torso_position
+    to_target[:, 2] = 0.0
+
+    prev_potentials_new = potentials.clone()
+    potentials = -torch.norm(to_target, p=2, dim=-1) / dt
+
+    torso_quat, up_proj, heading_proj, up_vec, heading_vec = compute_heading_and_up(
+        torso_rotation, inv_start_rot, to_target, basis_vec0, basis_vec1, 2)
+
+    vel_loc, angvel_loc, roll, pitch, yaw, angle_to_target = compute_rot(
+        torso_quat, velocity, ang_velocity, targets, torso_position)
+
+    dof_pos_scaled = unscale(dof_pos, dof_limits_lower, dof_limits_upper)
+
+    obs = torch.cat((torso_position[:, up_axis_idx].view(-1, 1), vel_loc, angvel_loc,
+                     yaw.unsqueeze(-1), roll.unsqueeze(-1), angle_to_target.unsqueeze(-1),
+                     up_proj.unsqueeze(-1), heading_proj.unsqueeze(-1), dof_pos_scaled,
+                     dof_vel * dof_vel_scale, sensor_force_torques.view(-1, 24) * contact_force_scale,
+                     actions), dim=-1)
+
+    return obs, potentials, prev_potentials_new, up_vec, heading_vec
+
+
+
+@torch.jit.script
+def compute_success(
+    obs_buf,
+    reset_buf,
+    consecutive_successes,
+    progress_buf,
+    actions,
+    up_weight,
+    heading_weight,
+    potentials,
+    prev_potentials,
+    actions_cost_scale,
+    energy_cost_scale,
+    joints_at_limit_cost_scale,
+    termination_height,
+    death_cost,
+    max_episode_length
+):
+    # type: (Tensor, Tensor, Tensor, Tensor, Tensor, float, float, Tensor, Tensor, float, float, float, float, float, float) -> Tuple[Tensor, Tensor, Tensor]
+
+    heading_weight_tensor = torch.ones_like(obs_buf[:, 11]) * heading_weight
+    heading_reward = torch.where(obs_buf[:, 11] > 0.8, heading_weight_tensor, heading_weight * obs_buf[:, 11] / 0.8)
+
+    up_reward = torch.zeros_like(heading_reward)
+    up_reward = torch.where(obs_buf[:, 10] > 0.93, up_reward + up_weight, up_reward)
+
+    actions_cost = torch.sum(actions ** 2, dim=-1)
+    electricity_cost = torch.sum(torch.abs(actions * obs_buf[:, 20:28]), dim=-1)
+    dof_at_limit_cost = torch.sum(obs_buf[:, 12:20] > 0.99, dim=-1)
+
+    alive_reward = torch.ones_like(potentials) * 0.5
+    progress_reward = potentials - prev_potentials
+
+    total_reward = progress_reward + alive_reward + up_reward + heading_reward - \
+        actions_cost_scale * actions_cost - energy_cost_scale * electricity_cost - dof_at_limit_cost * joints_at_limit_cost_scale
+
+    total_reward = torch.where(obs_buf[:, 0] < termination_height, torch.ones_like(total_reward) * death_cost, total_reward)
+
+    consecutive_successes = progress_reward.mean()
+    reset = torch.where(obs_buf[:, 0] < termination_height, torch.ones_like(reset_buf), reset_buf)
+    reset = torch.where(progress_buf >= max_episode_length - 1, torch.ones_like(reset_buf), reset)
+
+    return total_reward, reset, consecutive_successes
+
+from typing import Tuple, Dict
+import math
+import torch
+from torch import Tensor
+@torch.jit.script
+def compute_reward(root_states: torch.Tensor,
+                   dof_vel: torch.Tensor,
+                   actions: torch.Tensor) -> Tuple[torch.Tensor, Dict[str, torch.Tensor]]:
+    """
+    Ant: run forward (world +x) as fast as possible.
+
+    root_states : [N, 13] -> pos[0:3], quat(x,y,z,w)[3:7], lin_vel[7:10], ang_vel[10:13]
+    dof_vel     : [N, num_dof]
+    actions     : [N, num_actions]
+    """
+
+    # ------------------------- hyper parameters -------------------------
+    speed_weight: float = 1.5
+    speed_temperature: float = 6.0        # [m/s] tanh scale of the forward-speed reward
+    surge_weight: float = 1.0
+    surge_start: float = 2.5              # [m/s] where the high-speed ramp starts
+    surge_range: float = 7.0              # [m/s] width of the high-speed ramp
+    body_speed_weight: float = 0.5
+    body_speed_temperature: float = 6.0
+    upright_weight: float = 0.6
+    upright_temperature: float = 0.3
+    heading_weight: float = 0.4
+    alive_weight: float = 0.3
+    alive_height_offset: float = 0.25     # [m]
+    alive_height_range: float = 0.25      # [m]
+    action_cost_coeff: float = -0.01
+    dof_vel_cost_coeff: float = -5.0e-05
+    lateral_cost_coeff: float = -0.02
+    vertical_cost_coeff: float = -0.01
+    ang_vel_cost_coeff: float = -5.0e-04
+
+    # ------------------------- state extraction -------------------------
+    # root quaternion is stored as (x, y, z, w)
+    qx = root_states[:, 3]
+    qy = root_states[:, 4]
+    qz = root_states[:, 5]
+    qw = root_states[:, 6]
+
+    lin_vel = root_states[:, 7:10]
+    ang_vel = root_states[:, 10:13]
+    torso_z = root_states[:, 2]
+
+    # body x-axis (forward) expressed in world frame
+    fwd_x = 1.0 - 2.0 * (qy * qy + qz * qz)
+    fwd_y = 2.0 * (qx * qy + qz * qw)
+    fwd_z = 2.0 * (qx * qz - qy * qw)
+
+    # body z-axis (up) expressed in world frame
+    up_x = 2.0 * (qx * qz + qy * qw)
+    up_y = 2.0 * (qy * qz - qx * qw)
+    up_z = 1.0 - 2.0 * (qx * qx + qy * qy)
+
+    # ------------------------- reward components -------------------------
+    # 1) main term: world-frame forward running speed (soft, wide temperature)
+    forward_speed = lin_vel[:, 0]
+    speed_reward = speed_weight * torch.tanh(forward_speed / speed_temperature)
+
+    # 2) high-speed ramp: constant gradient well beyond the current speed
+    surge_reward = surge_weight * torch.clamp((forward_speed - surge_start) / surge_range,
+                                              min=0.0, max=1.0)
+
+    # 3) speed along the body's own forward axis (running, not sliding sideways)
+    body_forward_speed = (lin_vel[:, 0] * fwd_x +
+                          lin_vel[:, 1] * fwd_y +
+                          lin_vel[:, 2] * fwd_z)
+    body_speed_reward = body_speed_weight * torch.tanh(body_forward_speed / body_speed_temperature)
+
+    # 4) stay upright (true body up-axis vs world vertical)
+    upright_reward = upright_weight * torch.exp((up_z - 1.0) / upright_temperature)
+
+    # 5) keep the body facing the running direction (world +x)
+    heading_reward = heading_weight * fwd_x
+
+    # 6) alive: torso must stay at a sensible height
+    alive_reward = alive_weight * torch.clamp((torso_z - alive_height_offset) / alive_height_range,
+                                               min=0.0, max=1.0)
+
+    # 7) mild regularizers (kept small so they do not cap the speed)
+    action_cost = action_cost_coeff * torch.sum(actions * actions, dim=1)
+    dof_vel_cost = dof_vel_cost_coeff * torch.sum(dof_vel * dof_vel, dim=1)
+    lateral_cost = lateral_cost_coeff * lin_vel[:, 1] * lin_vel[:, 1]
+    vertical_cost = vertical_cost_coeff * lin_vel[:, 2] * lin_vel[:, 2]
+    ang_vel_cost = ang_vel_cost_coeff * torch.sum(ang_vel * ang_vel, dim=1)
+
+    total = (speed_reward + surge_reward + body_speed_reward + upright_reward +
+             heading_reward + alive_reward + action_cost + dof_vel_cost +
+             lateral_cost + vertical_cost + ang_vel_cost)
+
+    reward_dict = {"forward_speed": speed_reward}
+    reward_dict["surge_speed"] = surge_reward
+    reward_dict["body_forward_speed"] = body_speed_reward
+    reward_dict["upright"] = upright_reward
+    reward_dict["heading_align"] = heading_reward
+    reward_dict["alive"] = alive_reward
+    reward_dict["action_cost"] = action_cost
+    reward_dict["dof_vel_cost"] = dof_vel_cost
+    reward_dict["lateral_vel_cost"] = lateral_cost
+    reward_dict["vertical_vel_cost"] = vertical_cost
+    reward_dict["ang_vel_cost"] = ang_vel_cost
+
+    return total, reward_dict

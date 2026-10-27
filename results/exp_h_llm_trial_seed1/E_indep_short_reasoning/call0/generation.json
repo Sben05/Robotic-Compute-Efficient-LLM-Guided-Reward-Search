@@ -1,0 +1,45 @@
+{
+  "model_used": "minimax/minimax-m3.1-flash",
+  "provider": "vercel ai gateway",
+  "arm": "E_indep_short_reasoning",
+  "call": 0,
+  "function": null,
+  "functions_in_reply": 1,
+  "usage": {
+    "prompt_tokens": 1246,
+    "completion_tokens": 10995,
+    "total_tokens": 12241,
+    "cost": 0.00661758,
+    "is_byok": false,
+    "prompt_tokens_details": {
+      "cached_tokens": 1232,
+      "audio_tokens": 0,
+      "video_tokens": 0
+    },
+    "cost_details": {
+      "upstream_inference_cost": null,
+      "upstream_inference_prompt_cost": 0,
+      "upstream_inference_completions_cost": 0
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 10314,
+      "image_tokens": 0
+    },
+    "cache_creation_input_tokens": 0,
+    "market_cost": 0.00661758,
+    "gateway_cost": 0.00661758
+  },
+  "finish_reason": "stop",
+  "generation_seconds": 64.98172616958618,
+  "response_text": "```python\nimport torch\nfrom typing import Dict, Tuple\n\n\n@torch.jit.script\ndef compute_reward(root_states: torch.Tensor, dof_vel: torch.Tensor,\n                   actions: torch.Tensor) -> Tuple[torch.Tensor, Dict[str, torch.Tensor]]:\n    # ---------------- temperature / weight parameters ----------------\n    speed_temp: float = 4.0          # m/s scale for the forward-speed tanh\n    align_temp: float = 1.5          # sharpness of the heading-alignment term\n    upright_temp: float = 1.5        # sharpness of the upright term\n    lateral_temp: float = 1.5        # sharpness of the lateral-drift penalty\n\n    w_speed: float = 2.0\n    w_align: float = 0.5\n    w_upright: float = 0.5\n    w_alive: float = 0.2\n    w_lateral: float = 0.2\n    ctrl_weight: float = 0.02\n    vel_weight: float = 5.0e-4\n\n    # ---------------- torso orientation (quaternion w,x,y,z) ----------------\n    q = root_states[:, 3:7]\n    w = q[:, 0]\n    x = q[:, 1]\n    y = q[:, 2]\n    z = q[:, 3]\n\n    # body forward (x) axis expressed in world frame\n    fwd_x = 1.0 - 2.0 * (y * y + z * z)\n    # body up (z) axis expressed in world frame (z component)\n    up_z = 1.0 - 2.0 * (x * x + y * y)\n\n    # ---------------- velocities ----------------\n    vel = root_states[:, 7:10]\n    vx = vel[:, 0]      # world forward (+x) speed\n    vy = vel[:, 1]      # lateral speed\n\n    # ---------------- reward components ----------------\n    forward_speed = torch.tanh(vx / speed_temp)              # run forward, fast\n    heading_align = torch.tanh(fwd_x / align_temp)           # face the running direction\n    upright = torch.tanh(up_z / upright_temp)                # do not flip over\n    lateral = torch.tanh(torch.abs(vy) / lateral_temp)       # keep running straight\n    alive = torch.ones_like(vx)                              # stay alive\n\n    ctrl_cost = torch.sum(torch.square(actions), dim=-1)     # smooth / small torques\n    vel_cost = torch.sum(torch.square(dof_vel), dim=-1)       # avoid crazy joint speeds\n\n    reward = (w_speed * forward_speed\n              + w_align * heading_align\n              + w_upright * upright\n              + w_alive * alive\n              - w_lateral * lateral\n              - ctrl_weight * ctrl_cost\n              - vel_weight * vel_cost)\n\n    components = {\n        \"forward_speed\": forward_speed,\n        \"heading_align\": heading_align,\n        \"upright\": upright,\n        \"lateral\": lateral,\n        \"alive\": alive,\n        \"ctrl_cost\": ctrl_cost,\n        \"vel_cost\": vel_cost,\n    }\n    return reward, components\n```",
+  "validation": {
+    "valid": true,
+    "suffix": "GPTMHEindepshortreasoningcall0",
+    "environment_call": "compute_reward(self.root_states, self.dof_vel, self.actions)",
+    "inputs": [
+      "root_states",
+      "dof_vel",
+      "actions"
+    ]
+  }
+}

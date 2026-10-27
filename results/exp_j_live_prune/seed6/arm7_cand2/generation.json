@@ -1,0 +1,50 @@
+{
+  "model_requested": "minimax/minimax-m3.1-flash",
+  "provider": "https://ai-gateway.vercel.sh/v1/chat/completions",
+  "temperature": 1.0,
+  "candidate_count": 1,
+  "round": 1,
+  "index": 2,
+  "request_attempts": 1,
+  "api_errors": [],
+  "generation_seconds": 183.6139004137367,
+  "response_text": "## Analysis\n\n**What the env gives us** (from `compute_observations`):\n- `obs_buf` layout is fully determined by the code:\n  `[height(1), vel_body(3), angvel_body(3), yaw(1), roll(1), angle_to_target(1), up_proj(1), heading_proj(1), dof_pos(8), dof_vel(8), forces(24), actions(8)]`\n  \u2192 `obs_buf[:,1:4]` = linear velocity in the **torso frame** (x = forward, y = sideways, z = vertical), `obs_buf[:,4:7]` = angular velocity in the torso frame (z = yaw rate), `obs_buf[:,10]` = torso-up \u22c5 world-up (posture).\n- `root_states[:, 7:10]` = world-frame linear velocity.\n- `potentials` / `prev_potentials` = \u2213\u2016to_target\u2016/dt \u2192 their difference is the **closing speed** towards the target (perfect potential-based shaping, no `dt` needed).\n\n**Reward design** (\"run forward as fast as possible\"):\n1. **Forward running speed** (body-frame x velocity, m/s) \u2014 the main term; backwards motion is punished twice as hard.\n2. Small bonus on **world-x progress** so the run stays straight along the global forward axis.\n3. Penalties for **sideways drift**, **yaw spinning**, **vertical bouncing**, and **tipping over** (hinge on `up_proj`), so speed is obtained by actually running rather than by sliding/flipping.\n4. Small **action regularisation** and **alive bonus**.\n5. **Potential-based shaping** towards the target (clipped at 0, so it can never push the ant backwards).\n\n```python\nimport torch\nfrom typing import Dict, Tuple\n\n@torch.jit.script\ndef compute_reward(obs_buf: torch.Tensor,\n                   root_states: torch.Tensor,\n                   actions: torch.Tensor,\n                   potentials: torch.Tensor,\n                   prev_potentials: torch.Tensor\n                   ) -> Tuple[torch.Tensor, Dict[str, torch.Tensor]]:\n\n    # ------------------------------------------------------------------\n    # hyper parameters\n    # ------------------------------------------------------------------\n    w_forward: float = 1.0        # forward running speed   [m/s]\n    w_world_x: float = 0.25       # progress along world +x [m/s]\n    w_lateral: float = 0.10       # sideways drift penalty\n    w_yaw: float = 0.05           # yaw-rate penalty\n    w_vertical: float = 0.02      # vertical bounce penalty\n    w_upright: float = 0.50       # tipping-over penalty\n    tilt_threshold: float = 0.60  # up_proj below this  (~53 deg) is penalised\n    w_action: float = 0.005       # action regularisation\n    w_alive: float = 0.05         # small survival bonus\n    w_target: float = 0.20        # potential based shaping (closing speed)\n\n    # ------------------------------------------------------------------\n    # observation parsing (see compute_ant_observations for the layout)\n    #   [ height(1), vel_body(3), angvel_body(3), yaw(1), roll(1),\n    #     angle_to_target(1), up_proj(1), heading_proj(1), dof_pos(8),\n    #     dof_vel(8), contact_forces(24), actions(8) ]\n    # ------------------------------------------------------------------\n    vel_body = obs_buf[:, 1:4]        # linear velocity in the torso frame\n    ang_body = obs_buf[:, 4:7]        # angular velocity in the torso frame\n    up_proj = obs_buf[:, 10]          # torso up-axis . world up-axis\n\n    fwd_vel = vel_body[:, 0]          # torso +x : forward\n    lat_vel = vel_body[:, 1]          # torso +y : sideways\n    vert_vel = vel_body[:, 2]         # torso +z : vertical\n    yaw_rate = ang_body[:, 2]         # torso +z : rotation about the up axis\n\n    vel_world = root_states[:, 7:10]  # linear velocity in the world frame\n    world_x_vel = vel_world[:, 0]\n\n    # ------------------------------------------------------------------\n    # reward components\n    # ------------------------------------------------------------------\n    # forward speed [m/s]; moving backwards is punished twice as hard\n    forward_speed = fwd_vel - torch.relu(-fwd_vel)\n    # progress along the global +x axis (keeps the run straight)\n    world_x_speed = world_x_vel - torch.relu(-world_x_vel)\n\n    lateral_pen = lat_vel * lat_vel\n    yaw_pen = yaw_rate * yaw_rate\n    vertical_pen = vert_vel * vert_vel\n    tilt_pen = torch.relu(tilt_threshold - up_proj)\n    action_pen = torch.sum(actions * actions, dim=-1)\n\n    # closing speed towards the target (potential based shaping):\n    # potentials = -||to_target||/dt  ->  (potentials - prev_potentials) > 0\n    # when the ant gets closer to the target.  Clipped so it never pushes\n    # the ant away from the direction it is running.\n    target_progress = torch.relu(potentials - prev_potentials)\n\n    reward = (w_forward * forward_speed\n              + w_world_x * world_x_speed\n              - w_lateral * lateral_pen\n              - w_yaw * yaw_pen\n              - w_vertical * vertical_pen\n              - w_upright * tilt_pen\n              - w_action * action_pen\n              + w_alive\n              + w_target * target_progress)\n\n    components = {\n        \"forward_speed\": w_forward * forward_speed,\n        \"world_x_speed\": w_world_x * world_x_speed,\n        \"lateral_penalty\": -w_lateral * lateral_pen,\n        \"yaw_rate_penalty\": -w_yaw * yaw_pen,\n        \"vertical_penalty\": -w_vertical * vertical_pen,\n        \"tilt_penalty\": -w_upright * tilt_pen,\n        \"action_penalty\": -w_action * action_pen,\n        \"alive_bonus\": w_alive * torch.ones_like(fwd_vel),\n        \"target_progress\": w_target * target_progress,\n    }\n\n    return reward, components\n```\n\n**Why this should work:** the dominant term is the torso-frame forward velocity, so the only way to earn reward is to actually propel the body forwards; the side/yaw/tilt penalties remove degenerate optima (strafing, spinning on the spot, tumbling); the potential shaping provides a dense, sign-correct gradient towards the target without ever fighting the forward-speed objective.",
+  "model_used": "minimax/minimax-m3.1-flash",
+  "usage": {
+    "prompt_tokens": 1237,
+    "completion_tokens": 28368,
+    "total_tokens": 29605,
+    "cost": 0.017181105,
+    "is_byok": false,
+    "prompt_tokens_details": {
+      "cached_tokens": 187,
+      "audio_tokens": 0,
+      "video_tokens": 0
+    },
+    "cost_details": {
+      "upstream_inference_cost": null,
+      "upstream_inference_prompt_cost": 0,
+      "upstream_inference_completions_cost": 0
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 26931,
+      "image_tokens": 0
+    },
+    "cache_creation_input_tokens": 0,
+    "market_cost": 0.017181105,
+    "gateway_cost": 0.017181105
+  },
+  "finish_reason": "stop",
+  "validation": {
+    "valid": true,
+    "suffix": "GPTMLT1R1C2",
+    "environment_call": "compute_reward(self.obs_buf, self.root_states, self.actions, self.potentials, self.prev_potentials)",
+    "inputs": [
+      "obs_buf",
+      "root_states",
+      "actions",
+      "potentials",
+      "prev_potentials"
+    ]
+  }
+}

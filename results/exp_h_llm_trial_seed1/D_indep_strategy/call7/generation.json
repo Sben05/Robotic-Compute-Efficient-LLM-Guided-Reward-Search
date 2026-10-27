@@ -1,0 +1,46 @@
+{
+  "model_used": "minimax/minimax-m3.1-flash",
+  "provider": "vercel ai gateway",
+  "arm": "D_indep_strategy",
+  "call": 7,
+  "function": null,
+  "functions_in_reply": 1,
+  "usage": {
+    "prompt_tokens": 1265,
+    "completion_tokens": 23708,
+    "total_tokens": 24973,
+    "cost": 0.014389305,
+    "is_byok": false,
+    "prompt_tokens_details": {
+      "cached_tokens": 187,
+      "audio_tokens": 0,
+      "video_tokens": 0
+    },
+    "cost_details": {
+      "upstream_inference_cost": null,
+      "upstream_inference_prompt_cost": 0,
+      "upstream_inference_completions_cost": 0
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 22490,
+      "image_tokens": 0
+    },
+    "cache_creation_input_tokens": 0,
+    "market_cost": 0.014389305,
+    "gateway_cost": 0.014389305
+  },
+  "finish_reason": "stop",
+  "generation_seconds": 141.08505511283875,
+  "response_text": "Below is a reward function that (a) shapes the ant's forward speed with an exponential on the gap to a desired speed, (b) adds a linear term so the agent keeps pushing for higher speeds, and (c) rewards heading alignment with the target direction plus torso uprightness.\n\n```python\nfrom typing import Dict, Tuple\nimport torch\n\n\n@torch.jit.script\ndef compute_reward(root_states: torch.Tensor, targets: torch.Tensor, obs_buf: torch.Tensor,\n                   up_vec: torch.Tensor) -> Tuple[torch.Tensor, Dict[str, torch.Tensor]]:\n    # ------------------- hyper-parameters -------------------\n    target_speed: float = 2.0      # desired forward speed [m/s]\n    temp_speed: float = 0.5        # temperature of the exponential speed shaping\n    w_speed: float = 1.0           # weight of the exponential speed shaping\n    w_vx: float = 0.15             # weight of the linear forward-velocity bonus\n    w_vt: float = 0.10             # weight of the progress-towards-target bonus\n    w_head: float = 0.60           # weight of the heading-alignment term\n    w_align: float = 0.30          # weight of the motion-direction alignment term\n    w_up: float = 0.60             # weight of the upright/stability term\n    alive_bonus: float = 0.20      # constant bonus for staying alive and upright\n\n    pos = root_states[:, 0:3]\n    vel = root_states[:, 7:10]\n\n    # ---------------- forward (world +x) velocity ----------------\n    v_x = vel[:, 0]\n    v_x_pos = torch.clamp(v_x, min=0.0)\n\n    # ---------------- horizontal velocity / target direction ----------------\n    zeros = torch.zeros_like(vel[:, 0])\n    v_horiz = torch.stack((vel[:, 0], vel[:, 1], zeros), dim=-1)\n    v_horiz_norm = torch.norm(v_horiz, dim=-1, keepdim=True).clamp(min=1e-6)\n    v_dir = v_horiz / v_horiz_norm\n\n    to_target = targets - pos\n    tgt_horiz = torch.stack((to_target[:, 0], to_target[:, 1], zeros), dim=-1)\n    tgt_dir = tgt_horiz / torch.norm(tgt_horiz, dim=-1, keepdim=True).clamp(min=1e-6)\n\n    v_t = torch.sum(v_horiz * tgt_dir, dim=-1)\n    v_t_pos = torch.clamp(v_t, min=0.0)\n\n    # ------- 1) exponential shaping on the gap to the target speed -------\n    speed_gap = torch.clamp(target_speed - v_x_pos, min=0.0, max=target_speed)\n    r_speed = torch.exp(-speed_gap / temp_speed)\n\n    # ------- 2) linear bonus: keeps rewarding larger forward speeds -------\n    r_vx = v_x_pos\n\n    # ------- 3) progress towards the target (forward direction) -------\n    r_vt = v_t_pos\n\n    # ------- 4) heading alignment (env-provided torso heading vs. target) -------\n    angle_to_target = obs_buf[:, 9]          # obs layout: yaw=7, roll=8, angle_to_target=9\n    r_head = torch.clamp(torch.cos(angle_to_target), min=0.0, max=1.0)\n\n    # ------- 5) alignment of the actual motion direction with the target -------\n    r_align = torch.clamp(torch.sum(v_dir * tgt_dir, dim=-1), min=0.0, max=1.0)\n\n    # ------- 6) uprightness (torso up axis vs. world up) -------\n    r_up = torch.clamp(up_vec[:, 2], min=0.0, max=1.0)\n\n    total = (w_speed * r_speed\n             + w_vx * r_vx\n             + w_vt * r_vt\n             + w_head * r_head\n             + w_align * r_align\n             + w_up * r_up\n             + alive_bonus * torch.ones_like(v_x))\n\n    components: Dict[str, torch.Tensor] = {\n        \"speed\": r_speed,\n        \"forward_vel\": r_vx,\n        \"target_vel\": r_vt,\n        \"heading\": r_head,\n        \"align\": r_align,\n        \"upright\": r_up,\n        \"alive\": alive_bonus * torch.ones_like(v_x),\n    }\n    return total, components\n```\n\n**How it works**\n\n* **Speed shaping (exp):** `exp(-(v_target - v_x)_+ / temp)` gives a strong, smooth gradient at low speed (so the ant learns to stand up and start moving) and saturates at 1 once the target speed is reached.\n* **Linear term:** `w_vx * max(v_x, 0)` keeps paying off for every extra m/s, so the policy keeps pushing beyond the nominal target speed instead of plateauing.\n* **Heading alignment:** `cos(angle_to_target)` from the environment's own observation rewards keeping the torso pointed along the running direction; `align` additionally rewards that the actual horizontal motion points that way (prevents strafing/sideways \"cheating\").\n* **Stability:** `up_vec[:, 2]` (torso up axis vs. gravity) and the alive bonus discourage flipping over, which would end the episode and destroy the running behaviour.\n* All components are per-environment tensors (shape `[num_envs]`), and no new inputs other than existing environment attributes (`root_states`, `targets`, `obs_buf`, `up_vec`) are used.",
+  "validation": {
+    "valid": true,
+    "suffix": "GPTMHDindepstrategycall7",
+    "environment_call": "compute_reward(self.root_states, self.targets, self.obs_buf, self.up_vec)",
+    "inputs": [
+      "root_states",
+      "targets",
+      "obs_buf",
+      "up_vec"
+    ]
+  }
+}

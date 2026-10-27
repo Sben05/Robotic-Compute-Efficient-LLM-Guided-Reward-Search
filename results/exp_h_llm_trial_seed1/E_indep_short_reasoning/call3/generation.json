@@ -1,0 +1,47 @@
+{
+  "model_used": "minimax/minimax-m3.1-flash",
+  "provider": "vercel ai gateway",
+  "arm": "E_indep_short_reasoning",
+  "call": 3,
+  "function": null,
+  "functions_in_reply": 1,
+  "usage": {
+    "prompt_tokens": 1246,
+    "completion_tokens": 16496,
+    "total_tokens": 17742,
+    "cost": 0.009916425,
+    "is_byok": false,
+    "prompt_tokens_details": {
+      "cached_tokens": 1245,
+      "audio_tokens": 0,
+      "video_tokens": 0
+    },
+    "cost_details": {
+      "upstream_inference_cost": null,
+      "upstream_inference_prompt_cost": 0,
+      "upstream_inference_completions_cost": 0
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 15623,
+      "image_tokens": 0
+    },
+    "cache_creation_input_tokens": 0,
+    "market_cost": 0.009916425,
+    "gateway_cost": 0.009916425
+  },
+  "finish_reason": "stop",
+  "generation_seconds": 106.81494498252869,
+  "response_text": "```python\nfrom typing import Dict, Tuple\n\nimport torch\n\n\n@torch.jit.script\ndef compute_reward(\n    root_states: torch.Tensor,\n    heading_vec: torch.Tensor,\n    up_vec: torch.Tensor,\n    actions: torch.Tensor,\n    dof_vel: torch.Tensor,\n) -> Tuple[torch.Tensor, Dict[str, torch.Tensor]]:\n    # ---------------- temperatures (for the exponential transforms) ----------------\n    speed_temp: float = 4.0      # temperature of the (forward) speed reward\n    upright_temp: float = 0.5   # temperature of the uprightness reward\n    speed_mag_temp: float = 4.0 # temperature of the overall horizontal speed reward\n\n    # ---------------- reward weights ----------------\n    w_speed: float = 1.0        # run forward as fast as possible\n    w_speed_mag: float = 0.2    # keep moving fast in the horizontal plane\n    w_upright: float = 0.5      # stay on its legs\n    w_lateral: float = 0.1      # run straight (no sideways slipping)\n    w_yaw_rate: float = 0.02    # do not spin around\n    w_action: float = 0.005     # energy / smoothness\n    w_dof_vel: float = 1.0e-5   # joint velocity regularization\n    w_alive: float = 0.1        # stay alive\n\n    # root state decomposition (world frame)\n    vel = root_states[:, 7:10]\n    vel_xy = vel[:, 0:2]\n    ang_vel = root_states[:, 10:13]\n\n    # heading (forward) direction of the ant projected on the ground plane\n    heading_xy = heading_vec[:, 0:2]\n    heading_xy = heading_xy / torch.norm(heading_xy, dim=-1, keepdim=True).clamp(min=1.0e-6)\n\n    # decompose the horizontal velocity into forward / lateral components\n    forward_speed = torch.sum(vel_xy * heading_xy, dim=-1)\n    lateral_speed = vel_xy[:, 0] * (-heading_xy[:, 1]) + vel_xy[:, 1] * heading_xy[:, 0]\n    speed_mag = torch.norm(vel_xy, dim=-1)\n\n    # uprightness: cosine of the tilt of the torso (up axis is z)\n    up_norm = up_vec / torch.norm(up_vec, dim=-1, keepdim=True).clamp(min=1.0e-6)\n    uprightness = up_norm[:, 2]\n\n    # ---------------- individual reward components ----------------\n    speed_reward = torch.exp(forward_speed / speed_temp) - 1.0\n    speed_mag_reward = torch.exp(speed_mag / speed_mag_temp) - 1.0\n    upright_reward = torch.exp((uprightness - 1.0) / upright_temp)\n    lateral_penalty = lateral_speed * lateral_speed\n    yaw_rate_penalty = ang_vel[:, 2] * ang_vel[:, 2]\n    action_penalty = torch.sum(actions * actions, dim=-1)\n    dof_vel_penalty = torch.sum(dof_vel * dof_vel, dim=-1)\n    alive_reward = torch.ones_like(forward_speed)\n\n    reward = (\n        w_speed * speed_reward\n        + w_speed_mag * speed_mag_reward\n        + w_upright * upright_reward\n        - w_lateral * lateral_penalty\n        - w_yaw_rate * yaw_rate_penalty\n        - w_action * action_penalty\n        - w_dof_vel * dof_vel_penalty\n        + w_alive * alive_reward\n    )\n\n    components = {\n        \"forward_speed\": speed_reward,\n        \"speed_magnitude\": speed_mag_reward,\n        \"upright\": upright_reward,\n        \"lateral_penalty\": lateral_penalty,\n        \"yaw_rate_penalty\": yaw_rate_penalty,\n        \"action_penalty\": action_penalty,\n        \"dof_vel_penalty\": dof_vel_penalty,\n        \"alive\": alive_reward,\n    }\n\n    return reward, components\n```",
+  "validation": {
+    "valid": true,
+    "suffix": "GPTMHEindepshortreasoningcall3",
+    "environment_call": "compute_reward(self.root_states, self.heading_vec, self.up_vec, self.actions, self.dof_vel)",
+    "inputs": [
+      "root_states",
+      "heading_vec",
+      "up_vec",
+      "actions",
+      "dof_vel"
+    ]
+  }
+}
