@@ -1,0 +1,323 @@
+{
+ "n_fresh": 9,
+ "n_pairs": 36,
+ "pairwise_args": {
+  "mean": 0.4498456790123456,
+  "min": 0.0,
+  "max": 0.7777777777777778,
+  "frac_identical": 0.08333333333333333
+ },
+ "pairwise_transforms": {
+  "mean": 0.6398148148148148,
+  "min": 0.0,
+  "max": 1.0,
+  "frac_identical": 0.08333333333333333
+ },
+ "pairwise_code": {
+  "mean": 0.5479740376107762,
+  "min": 0.43983402489626555,
+  "max": 0.6773255813953488,
+  "frac_identical": 0.0
+ },
+ "pairwise_tokset": {
+  "mean": 0.5641800413848346,
+  "min": 0.45614035087719296,
+  "max": 0.6458333333333333,
+  "frac_identical": 0.0
+ },
+ "distinct_recipes": 8,
+ "recipe_groups": [
+  [
+   "r1c0"
+  ],
+  [
+   "r1c1"
+  ],
+  [
+   "r1c2"
+  ],
+  [
+   "p0"
+  ],
+  [
+   "p1"
+  ],
+  [
+   "p2"
+  ],
+  [
+   "p3",
+   "p5"
+  ],
+  [
+   "p4"
+  ]
+ ],
+ "code_dist_vs_outcome_dist": {
+  "spearman": 0.09858429858429861,
+  "p": 0.5673037310972122
+ },
+ "nn_smoothness": {
+  "mean_gap_nearest_code_neighbour": 3.511788262261285,
+  "mean_gap_random": 3.702321900261773
+ },
+ "refine_r2c0_vs_parent": {
+  "args": 0.0,
+  "transforms": 0.0,
+  "code": 0.2098092643051771,
+  "tokset": 0.2533333333333333
+ },
+ "refine_r2c0_vs_fresh_mean_code": 0.5847628831150913,
+ "refine_r2c1_vs_parent": {
+  "args": 0.5,
+  "transforms": 0.25,
+  "code": 0.2584269662921348,
+  "tokset": 0.3513513513513513
+ },
+ "refine_r2c1_vs_fresh_mean_code": 0.5847628831150913,
+ "features": {
+  "r1c0": {
+   "peak": 6.589665412902832,
+   "lines": 79,
+   "n_comps": 6,
+   "n_float_consts": 11,
+   "args": [
+    "actions",
+    "dof_vel",
+    "dt",
+    "root_states",
+    "targets"
+   ],
+   "comps": [
+    "action_cost",
+    "dof_vel_cost",
+    "forward_speed",
+    "lateral_penalty",
+    "spin_penalty",
+    "upright"
+   ],
+   "transforms": [
+    "torch.clamp",
+    "torch.tanh"
+   ]
+  },
+  "r1c1": {
+   "peak": 7.553312301635742,
+   "lines": 68,
+   "n_comps": 0,
+   "n_float_consts": 9,
+   "args": [
+    "actions",
+    "dof_limits_lower",
+    "dof_limits_upper",
+    "dof_pos",
+    "root_states",
+    "up_vec"
+   ],
+   "comps": [],
+   "transforms": [
+    "torch.abs",
+    "torch.clamp",
+    "torch.relu",
+    "torch.tanh"
+   ]
+  },
+  "r1c2": {
+   "peak": 4.455410957336426,
+   "lines": 80,
+   "n_comps": 7,
+   "n_float_consts": 15,
+   "args": [
+    "actions",
+    "dof_vel",
+    "root_states"
+   ],
+   "comps": [
+    "angular_velocity_cost",
+    "backward_heading_cost",
+    "control_cost",
+    "dof_velocity_cost",
+    "forward_speed",
+    "tilt_cost",
+    "vertical_velocity_cost"
+   ],
+   "transforms": [
+    "torch.clamp",
+    "torch.sqrt",
+    "torch.tanh",
+    "torch.where"
+   ]
+  },
+  "p0": {
+   "peak": 6.949843406677246,
+   "lines": 79,
+   "n_comps": 6,
+   "n_float_consts": 13,
+   "args": [
+    "actions",
+    "root_states"
+   ],
+   "comps": [
+    "action_penalty",
+    "backward_penalty",
+    "forward_speed",
+    "lateral_drift_penalty",
+    "tilt_penalty",
+    "upright_bonus"
+   ],
+   "transforms": [
+    "torch.abs",
+    "torch.clamp_min",
+    "torch.exp"
+   ]
+  },
+  "p1": {
+   "peak": 9.412944793701172,
+   "lines": 38,
+   "n_comps": 4,
+   "n_float_consts": 5,
+   "args": [
+    "actions",
+    "heading_vec",
+    "root_states",
+    "up_vec"
+   ],
+   "comps": [
+    "action_penalty",
+    "alive",
+    "forward_speed",
+    "upright"
+   ],
+   "transforms": [
+    "torch.clamp"
+   ]
+  },
+  "p2": {
+   "peak": 5.282718658447266,
+   "lines": 66,
+   "n_comps": 6,
+   "n_float_consts": 15,
+   "args": [
+    "actions",
+    "root_states",
+    "up_vec"
+   ],
+   "comps": [
+    "alive_bonus",
+    "control_cost",
+    "forward_speed_reward",
+    "lateral_drift_cost",
+    "posture_cost",
+    "speed_bonus"
+   ],
+   "transforms": [
+    "torch.abs",
+    "torch.clamp",
+    "torch.exp"
+   ]
+  },
+  "p3": {
+   "peak": 10.730608940124512,
+   "lines": 58,
+   "n_comps": 4,
+   "n_float_consts": 9,
+   "args": [
+    "actions",
+    "dof_vel",
+    "root_states"
+   ],
+   "comps": [
+    "action_penalty",
+    "dof_velocity_penalty",
+    "forward_speed",
+    "upright_bonus"
+   ],
+   "transforms": [
+    "torch.clamp"
+   ]
+  },
+  "p4": {
+   "peak": 9.24992561340332,
+   "lines": 55,
+   "n_comps": 6,
+   "n_float_consts": 15,
+   "args": [
+    "actions",
+    "dof_vel",
+    "root_states",
+    "up_vec"
+   ],
+   "comps": [
+    "action_cost",
+    "fall_penalty",
+    "forward_speed",
+    "joint_velocity_cost",
+    "lateral_velocity_cost",
+    "upright_bonus"
+   ],
+   "transforms": [
+    "torch.clamp",
+    "torch.exp"
+   ]
+  },
+  "p5": {
+   "peak": 0.012825965881347656,
+   "lines": 60,
+   "n_comps": 5,
+   "n_float_consts": 14,
+   "args": [
+    "actions",
+    "dof_vel",
+    "root_states"
+   ],
+   "comps": [
+    "action_cost",
+    "forward_velocity",
+    "joint_velocity_cost",
+    "lateral_velocity_cost",
+    "upright_alive"
+   ],
+   "transforms": [
+    "torch.clamp"
+   ]
+  },
+  "r2c0": {
+   "peak": 10.93368911743164,
+   "lines": 99,
+   "n_comps": 0,
+   "n_float_consts": 21,
+   "args": [
+    "actions",
+    "dof_limits_lower",
+    "dof_limits_upper",
+    "dof_pos",
+    "root_states",
+    "up_vec"
+   ],
+   "comps": [],
+   "transforms": [
+    "torch.abs",
+    "torch.clamp",
+    "torch.relu",
+    "torch.tanh"
+   ]
+  },
+  "r2c1": {
+   "peak": 10.753103256225586,
+   "lines": 78,
+   "n_comps": 0,
+   "n_float_consts": 12,
+   "args": [
+    "actions",
+    "root_states",
+    "up_vec"
+   ],
+   "comps": [],
+   "transforms": [
+    "torch.abs",
+    "torch.clamp",
+    "torch.tanh"
+   ]
+  }
+ }
+}
