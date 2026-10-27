@@ -17,10 +17,13 @@ from pathlib import Path
 
 import eureka_ab as e
 
-TASKS = {"cartpole": dict(task="Cartpole", env="cartpole", cfg="cartpole", iters=100),
+TASKS = {"ant": dict(task="Ant", env="ant", cfg="ant", iters=3000, num_envs=4096),
+         "cartpole": dict(task="Cartpole", env="cartpole", cfg="cartpole", iters=100),
          "ballbalance": dict(task="BallBalance", env="ball_balance", cfg="ballbalance", iters=250),
          "humanoid": dict(task="Humanoid", env="humanoid", cfg="humanoid", iters=1000)}
-OUT = e.ROOT / "results/exp_i_generalize"
+import os
+TAG = os.environ.get("GEN_TAG", "")  # robustness study: one output tree + task-name tag per LLM
+OUT = e.ROOT / ("results/exp_k_llm_robustness/" + TAG if TAG else "results/exp_i_generalize")
 BATCH = "Write FOUR different reward functions in this one reply, each in its own ```python block, each named compute_reward_1 ... compute_reward_4."
 P_IN, P_OUT = 0.15e-6, 0.60e-6
 
@@ -150,8 +153,9 @@ def build(t):
                 name = f"call{i}" + (f"_f{k}" if k is not None else "")
                 cdir = arm_dir / name
                 cdir.mkdir(exist_ok=True)
-                suffix = "GPTMI" + re.sub(r"[^A-Za-z0-9]", "", f"{t}{arm}{name}")
-                gen = {"task_spec": {"task": spec["task"], "env": spec["env"], "num_envs": None}, "task": t, "arm": arm, "call": i,
+                suffix = "GPTMI" + re.sub(r"[^A-Za-z0-9]", "", f"{TAG}{t}{arm}{name}")
+                gen = {"task_spec": {"task": spec["task"], "env": spec["env"], "num_envs": spec.get("num_envs")}, "task": t, "arm": arm, "call": i,
+                       "model_requested": e.MODEL,
                        "function": k, "model_used": raw.get("model"), "usage": u, "finish_reason": ch.get("finish_reason"),
                        "functions_in_reply": len(pieces(arm, text)), "generation_seconds": rec.get("seconds"), "response_text": piece}
                 gen["validation"] = build_one(spec, cdir, piece, obs, suffix)

@@ -43,6 +43,7 @@ if LLM == "minimax" and os.environ.get("EUREKA_ENDPOINT") == "vercel":  # same m
     ARM = dict(ARM, model="minimax/minimax-m3.1-flash", url="https://ai-gateway.vercel.sh/v1/chat/completions",
                key_file="vercel_ai_gateway_key", min_interval=0)
 MODEL, URL, MIN_INTERVAL = ARM["model"], ARM["url"], ARM["min_interval"]
+MODEL = os.environ.get("EUREKA_MODEL", MODEL)  # robustness study: other gateway models (e.g. deepseek/deepseek-v4.1-flash)
 KEY_FILE = Path.home() / ".config/msthesis" / ARM["key_file"] if ARM["key_file"] else None
 MAX_TOKENS = int(os.environ.get("EUREKA_MAX_TOKENS", "16384"))  # explicit room for reasoning plus code
 OUT = ROOT / ("results/exp_b_" + LLM)

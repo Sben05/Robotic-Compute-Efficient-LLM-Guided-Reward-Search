@@ -49,6 +49,9 @@ Outcome = 3,000-it peak, seeds 0-5 (n = 6 each, same seeds). Test = one-sided pa
   repeated with two other LLMs, DeepSeek V4.1 Flash and Qwen 3.8 Flash (Vercel AI Gateway, same prompts, temperature 1.0):
   8 independent calls + 2 batched calls each, 500-it screens of every valid reward, top 4 per LLM resumed to 3,000.
   Reported per LLM next to MiniMax; H2/H3 stay defined on the MiniMax data.
+- Substitution (same day, before any generation): DeepSeek V4.1 Flash and Qwen 3.8 Flash are refused on the Vercel free tier
+  (HTTP 403, no charge). They are replaced by Google Gemini 2.5 Flash and Alibaba Qwen-3-32B, the two available models from
+  other labs; design unchanged.
 
 ## Secondary / exploratory (no significance claims)
 
