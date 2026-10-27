@@ -1,0 +1,48 @@
+{
+  "model_requested": "minimax/minimax-m3.1-flash",
+  "provider": "https://ai-gateway.vercel.sh/v1/chat/completions",
+  "temperature": 1.0,
+  "candidate_count": 1,
+  "round": 2,
+  "index": 2,
+  "request_attempts": 1,
+  "api_errors": [],
+  "generation_seconds": 89.98465299606323,
+  "response_text": "## Analysis of the current reward\n\n| Component | Behavior | Diagnosis / Fix |\n|---|---|---|\n| `forward_speed` | 0.92\u20130.96, **saturated** | `tanh(v/3)` has slope \u22480.05 (m/s)\u207b\u00b9 at 5 m/s \u2192 almost no gradient left, the agent can't push faster. Increase temperature **and** add a (clipped) *linear* speed term so the marginal gain of speed stays large. |\n| `surge_speed` | 0.46, **saturated at its cap** | `(v-2)/2` is 0 once v \u2265 4 m/s. Move the threshold up and add a second, higher tier so fast running keeps paying off. |\n| `upright` | 0.98, works well | Keep, slightly steeper temperature (0.5 \u2192 0.4) and a bit more weight so it still protects the gait when the speed reward gets stronger. |\n| `alive` | **exactly 0.50 the whole time** | Fully redundant with `upright` (both saturate) \u2192 **discard**. |\n| `heading_align` | **saturated at \u22120.20 = 0.2\u00b7(\u22121)** | **Bug**: I read the quaternion as (w,x,y,z) but Isaac Gym stores **(x,y,z,w)**, so the \"forward axis\" was computed garbage (always \u2248 \u2212x). Fix the index mapping, and only pay for it when it is actually violated (clamp at 0), so it no longer wastes reward signal. |\n| `action_cost` | \u22120.21 \u2192 \u22120.10, mildly fighting speed | Halve the coefficient (still gives smooth gaits). |\n| `dof_vel_cost` | \u2248 \u22120.05 constant | Penalizing joint velocity directly opposes \"run fast\" \u2192 shrink it to a negligible regularizer. |\n| `lateral/vertical/ang_vel` | tiny, stable | Keep with slightly weaker coefficients (they were already well behaved). |\n\n**New structure:** forward speed gets *three* complementary terms (soft-saturating `tanh`, clipped **linear**, and two **speed-tier bonuses**) so the marginal reward of extra speed is large across the whole 0\u201310 m/s range; a **body-frame forward-speed** term is added to guarantee the ant runs *along its own axis* (not sideways/side-slipping); the redundant `alive` term is removed and the heading term is corrected and only activates when the ant deviates.\n\n```python\nfrom typing import Dict, Tuple\n\nimport torch\n\n\n@torch.jit.script\ndef compute_reward(root_states: torch.Tensor,\n                   dof_vel: torch.Tensor,\n                   actions: torch.Tensor) -> Tuple[torch.Tensor, Dict[str, torch.Tensor]]:\n    \"\"\"\n    Ant: run forward (+X world) as fast as possible.\n\n    root_states : [N, 13] -> pos[0:3], quat (x,y,z,w)[3:7], lin_vel[7:10], ang_vel[10:13]\n    dof_vel     : [N, num_dof] joint velocities\n    actions     : [N, num_actions] last applied actions\n    \"\"\"\n\n    # ------------------------- hyper parameters -------------------------\n    speed_weight: float = 1.0            # soft (tanh) forward speed\n    speed_temperature: float = 6.0       # [m/s] scale -> keeps gradient alive at high speed\n    linear_speed_weight: float = 0.8     # linear forward speed (no early saturation)\n    linear_speed_scale: float = 12.0     # [m/s] speed mapped to +-1\n    surge_weight: float = 0.4            # tier 1 bonus\n    surge_start: float = 4.0             # [m/s]\n    surge_range: float = 4.0             # [m/s]\n    super_surge_weight: float = 0.3      # tier 2 bonus (very fast running)\n    super_surge_start: float = 8.0       # [m/s]\n    super_surge_range: float = 4.0       # [m/s]\n    body_speed_weight: float = 0.4       # speed along the body forward axis\n    body_speed_temperature: float = 6.0  # [m/s]\n    upright_weight: float = 1.2\n    upright_temperature: float = 0.4     # exp() scale on the body up-axis\n    heading_weight: float = 0.15         # only paid when actually facing forward\n    action_cost_coeff: float = -0.02\n    dof_vel_cost_coeff: float = -0.00002\n    lateral_cost_coeff: float = -0.03\n    vertical_cost_coeff: float = -0.03\n    ang_vel_cost_coeff: float = -0.0015\n\n    # ------------------------- state extraction -------------------------\n    lin_vel = root_states[:, 7:10]\n    ang_vel = root_states[:, 10:13]\n\n    # Isaac Gym root quaternion is stored as (x, y, z, w)\n    qx = root_states[:, 3]\n    qy = root_states[:, 4]\n    qz = root_states[:, 5]\n    qw = root_states[:, 6]\n\n    # body forward axis (local +x) expressed in world frame\n    fwd_x = 1.0 - 2.0 * (qy * qy + qz * qz)\n    fwd_y = 2.0 * (qx * qy + qw * qz)\n    # body up axis (local +z) world component -> 1 when perfectly upright\n    up_z = 1.0 - 2.0 * (qx * qx + qy * qy)\n\n    v_world = lin_vel[:, 0]                                   # world +X speed\n    v_body = lin_vel[:, 0] * fwd_x + lin_vel[:, 1] * fwd_y      # speed along body forward\n\n    # ------------------------- reward components -------------------------\n    # 1) soft saturating forward speed (never fully saturates at realistic speeds)\n    speed_reward = speed_weight * torch.tanh(v_world / speed_temperature)\n\n    # 2) linear forward speed -> constant marginal gain for going faster\n    linear_speed = linear_speed_weight * torch.clamp(v_world / linear_speed_scale,\n                                                     min=-1.0, max=1.0)\n\n    # 3) speed tier bonuses (reward for genuinely fast running)\n    surge = surge_weight * torch.clamp((v_world - surge_start) / surge_range,\n                                       min=0.0, max=1.0)\n    super_surge = super_surge_weight * torch.clamp(\n        (v_world - super_surge_start) / super_surge_range, min=0.0, max=1.0)\n\n    # 4) run along the body's own forward axis (no side-slipping / backwards)\n    body_speed = body_speed_weight * torch.tanh(v_body / body_speed_temperature)\n\n    # 5) stay upright (replaces the redundant constant 'alive' term)\n    upright = upright_weight * torch.exp((up_z - 1.0) / upright_temperature)\n\n    # 6) only reward heading when it is actually pointing forward\n    heading = heading_weight * torch.clamp(fwd_x, min=0.0, max=1.0)\n\n    # 7) regularizers\n    action_cost = action_cost_coeff * torch.sum(actions * actions, dim=1)\n    dof_vel_cost = dof_vel_cost_coeff * torch.sum(dof_vel * dof_vel, dim=1)\n    lateral_cost = lateral_cost_coeff * lin_vel[:, 1] * lin_vel[:, 1]\n    vertical_cost = vertical_cost_coeff * lin_vel[:, 2] * lin_vel[:, 2]\n    ang_vel_cost = ang_vel_cost_coeff * torch.sum(ang_vel * ang_vel, dim=1)\n\n    total = (speed_reward + linear_speed + surge + super_surge + body_speed +\n             upright + heading + action_cost + dof_vel_cost +\n             lateral_cost + vertical_cost + ang_vel_cost)\n\n    reward_dict = {\"forward_speed\": speed_reward}\n    reward_dict[\"linear_speed\"] = linear_speed\n    reward_dict[\"surge_speed\"] = surge\n    reward_dict[\"super_surge_speed\"] = super_surge\n    reward_dict[\"body_forward_speed\"] = body_speed\n    reward_dict[\"upright\"] = upright\n    reward_dict[\"heading\"] = heading\n    reward_dict[\"action_cost\"] = action_cost\n    reward_dict[\"dof_vel_cost\"] = dof_vel_cost\n    reward_dict[\"lateral_vel_cost\"] = lateral_cost\n    reward_dict[\"vertical_vel_cost\"] = vertical_cost\n    reward_dict[\"ang_vel_cost\"] = ang_vel_cost\n\n    return total, reward_dict\n```",
+  "model_used": "minimax/minimax-m3.1-flash",
+  "usage": {
+    "prompt_tokens": 3859,
+    "completion_tokens": 13609,
+    "total_tokens": 17468,
+    "cost": 0.00822342,
+    "is_byok": false,
+    "prompt_tokens_details": {
+      "cached_tokens": 3858,
+      "audio_tokens": 0,
+      "video_tokens": 0
+    },
+    "cost_details": {
+      "upstream_inference_cost": null,
+      "upstream_inference_prompt_cost": 0,
+      "upstream_inference_completions_cost": 0
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 11711,
+      "image_tokens": 0
+    },
+    "cache_creation_input_tokens": 0,
+    "market_cost": 0.00822342,
+    "gateway_cost": 0.00822342
+  },
+  "finish_reason": "stop",
+  "validation": {
+    "valid": true,
+    "suffix": "GPTMLT1R2C2",
+    "environment_call": "compute_reward(self.root_states, self.dof_vel, self.actions)",
+    "inputs": [
+      "root_states",
+      "dof_vel",
+      "actions"
+    ]
+  }
+}

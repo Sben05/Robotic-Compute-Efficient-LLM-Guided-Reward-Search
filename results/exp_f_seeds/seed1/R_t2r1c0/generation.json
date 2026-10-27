@@ -1,0 +1,49 @@
+{
+  "model_requested": "minimax/minimax-m3.1-flash",
+  "provider": "https://ai-gateway.vercel.sh/v1/chat/completions",
+  "temperature": 1.0,
+  "candidate_count": 1,
+  "round": 1,
+  "index": 0,
+  "request_attempts": 1,
+  "api_errors": [],
+  "generation_seconds": 145.58341605775058,
+  "response_text": "```python\nfrom typing import Dict, Tuple\n\nimport torch\n\n\n@torch.jit.script\ndef compute_reward(root_states: torch.Tensor, actions: torch.Tensor, heading_vec: torch.Tensor,\n                   up_vec: torch.Tensor) -> Tuple[torch.Tensor, Dict[str, torch.Tensor]]:\n    \"\"\"\n    Reward for making the Ant run forward as fast as possible.\n\n    root_states : (N, 13) -> [pos(3), quat(4, wxyz), lin_vel(3), ang_vel(3)]\n    actions     : (N, A)   -> joint actions in [-1, 1]\n    heading_vec : (N, 3)   -> world frame direction the ant is facing (its \"forward\")\n    up_vec      : (N, 3)   -> world frame up axis of the ant's torso (z is up, index 2)\n    \"\"\"\n\n    # ----------------------------- hyper parameters -----------------------------\n    max_speed = 8.0             # [m/s] reference speed used for clipping / normalisation\n    target_speed = 4.0          # [m/s] speed the ant is smoothly encouraged to reach\n    speed_temperature = 1.5     # [m/s] temperature of the gaussian speed shaping\n    upright_temperature = 2.0   # temperature of the exponential uprightness bonus\n\n    w_speed = 1.0               # weight on forward (heading aligned) speed\n    w_target = 0.5              # weight on the gaussian \"reach a fast speed\" shaping\n    w_world = 0.2               # weight on the world +x speed (keeps running straight ahead)\n    w_alive = 0.5               # weight on staying upright\n    w_action = 0.05             # energy / smoothness penalty\n    w_lateral = 0.1             # side slip penalty\n    w_vertical = 0.05           # bouncing penalty\n    w_angvel = 0.02             # body spin penalty\n\n    # ----------------------------- forward direction -----------------------------\n    heading = heading_vec.clone()\n    heading[:, 2] = 0.0\n    heading_norm = torch.norm(heading, dim=-1, keepdim=True)\n    fallback = torch.zeros_like(heading)\n    fallback[:, 0] = 1.0\n    heading = torch.where(heading_norm > 1e-3, heading / (heading_norm + 1e-6), fallback)\n\n    # ----------------------------- velocities -----------------------------------\n    lin_vel = root_states[:, 7:10]\n    ang_vel = root_states[:, 10:13]\n\n    vel_xy = lin_vel.clone()\n    vel_xy[:, 2] = 0.0\n\n    forward_speed = torch.sum(vel_xy * heading, dim=-1)                      # [m/s]\n    lateral_speed = vel_xy[:, 0] * (-heading[:, 1]) + vel_xy[:, 1] * heading[:, 0]\n    world_speed = vel_xy[:, 0]                                              # +x speed [m/s]\n\n    # ----------------------------- posture --------------------------------------\n    up_z = torch.clamp(up_vec[:, 2], min=-1.0, max=1.0)\n    upright_bonus = torch.exp(upright_temperature * (up_z - 1.0))            # in (0, 1]\n\n    # ----------------------------- reward terms ---------------------------------\n    # main term: velocity along the direction the ant faces\n    speed_term = torch.clamp(forward_speed, min=-1.0, max=max_speed)\n    # smooth bonus for approaching a high running speed\n    target_term = torch.exp(-torch.pow(forward_speed - target_speed, 2) /\n                            (2.0 * speed_temperature * speed_temperature))\n    # keep the world +x progress (running straight ahead)\n    world_term = torch.clamp(world_speed, min=-1.0, max=max_speed)\n    # staying on its feet\n    alive_term = upright_bonus\n    # smoothness / energy\n    action_term = torch.mean(torch.square(actions), dim=-1)\n    lateral_term = torch.clamp(torch.abs(lateral_speed), min=0.0, max=max_speed) / max_speed\n    vertical_term = torch.clamp(torch.abs(lin_vel[:, 2]), min=0.0, max=max_speed) / max_speed\n    angvel_term = torch.clamp(torch.mean(torch.square(ang_vel), dim=-1), min=0.0, max=25.0) / 25.0\n\n    reward = (w_speed * speed_term\n              + w_target * target_term\n              + w_world * world_term\n              + w_alive * alive_term\n              - w_action * action_term\n              - w_lateral * lateral_term\n              - w_vertical * vertical_term\n              - w_angvel * angvel_term)\n\n    components = {\n        \"forward_speed\": speed_term,\n        \"target_speed_shaping\": target_term,\n        \"world_x_speed\": world_term,\n        \"upright_bonus\": alive_term,\n        \"action_penalty\": action_term,\n        \"lateral_penalty\": lateral_term,\n        \"vertical_velocity_penalty\": vertical_term,\n        \"angular_velocity_penalty\": angvel_term,\n    }\n    return reward, components\n```",
+  "model_used": "minimax/minimax-m3.1-flash",
+  "usage": {
+    "prompt_tokens": 1237,
+    "completion_tokens": 23020,
+    "total_tokens": 24257,
+    "cost": 0.01383069,
+    "is_byok": false,
+    "prompt_tokens_details": {
+      "cached_tokens": 1236,
+      "audio_tokens": 0,
+      "video_tokens": 0
+    },
+    "cost_details": {
+      "upstream_inference_cost": null,
+      "upstream_inference_prompt_cost": 0,
+      "upstream_inference_completions_cost": 0
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 21911,
+      "image_tokens": 0
+    },
+    "cache_creation_input_tokens": 0,
+    "market_cost": 0.01383069,
+    "gateway_cost": 0.01383069
+  },
+  "finish_reason": "stop",
+  "validation": {
+    "valid": true,
+    "suffix": "GPTMLT2R1C0",
+    "environment_call": "compute_reward(self.root_states, self.actions, self.heading_vec, self.up_vec)",
+    "inputs": [
+      "root_states",
+      "actions",
+      "heading_vec",
+      "up_vec"
+    ]
+  }
+}

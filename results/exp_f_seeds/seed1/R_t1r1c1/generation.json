@@ -1,0 +1,48 @@
+{
+  "model_requested": "minimax/minimax-m3.1-flash",
+  "provider": "https://ai-gateway.vercel.sh/v1/chat/completions",
+  "temperature": 1.0,
+  "candidate_count": 1,
+  "round": 1,
+  "index": 1,
+  "request_attempts": 1,
+  "api_errors": [],
+  "generation_seconds": 134.73981844447553,
+  "response_text": "## Reward design\n\n**Task:** make the Ant run forward as fast as possible.\n\n**Key ideas**\n1. **Forward speed (main term):** use the world\u2011frame velocity along +x (the Ant starts facing +x) and squash it with `tanh` (temperature = speed scale) so the reward stays bounded but keeps pushing the agent to increase speed.\n2. **Surge bonus:** an extra ramp above 2 m/s so that the agent is explicitly pushed to run *fast*, not just to move.\n3. **Posture / alive terms:** the body up axis (from the root quaternion) is used to reward staying upright and to give an alive bonus \u2014 this prevents the degenerate solution of \"flip over and slide\".\n4. **Heading alignment:** reward keeping the body's forward axis pointing along the travel direction.\n5. **Regularizers:** small penalties on action magnitude, joint velocity, lateral/vertical velocity and body angular velocity to get a clean, smooth, stable gait.\n\n```python\nfrom typing import Dict, Tuple\n\nimport torch\n\n\n@torch.jit.script\ndef compute_reward(root_states: torch.Tensor,\n                   dof_vel: torch.Tensor,\n                   actions: torch.Tensor) -> Tuple[torch.Tensor, Dict[str, torch.Tensor]]:\n    \"\"\"\n    Ant \"run forward as fast as possible\" reward.\n\n    root_states : [N, 13] -> pos[0:3], quat (x,y,z,w)[3:7], lin_vel[7:10], ang_vel[10:13]\n    dof_vel     : [N, num_dof] joint velocities\n    actions     : [N, num_actions] last applied actions\n    \"\"\"\n    # ------------------------- hyper parameters -------------------------\n    speed_weight: float = 1.0\n    vel_temperature: float = 3.0          # [m/s] scale of the forward-speed reward\n    surge_weight: float = 0.5             # extra push beyond 2 m/s\n    surge_start: float = 2.0              # [m/s]\n    surge_range: float = 2.0              # [m/s]\n    upright_weight: float = 1.0\n    upright_temperature: float = 0.5\n    alive_weight: float = 0.5\n    heading_weight: float = 0.2\n    action_cost_coeff: float = -0.05\n    dof_vel_cost_coeff: float = -0.0002\n    lateral_cost_coeff: float = -0.05\n    vertical_cost_coeff: float = -0.05\n    ang_vel_cost_coeff: float = -0.002\n\n    # ------------------------- state extraction -------------------------\n    lin_vel = root_states[:, 7:10]\n    ang_vel = root_states[:, 10:13]\n\n    # root quaternion is (x, y, z, w) in Isaac Gym\n    qw = root_states[:, 3]\n    qx = root_states[:, 4]\n    qy = root_states[:, 5]\n    qz = root_states[:, 6]\n\n    # body forward axis (x) expressed in world frame\n    fwd_x = 1.0 - 2.0 * (qy * qy + qz * qz)\n    fwd_y = 2.0 * (qw * qz + qx * qy)\n    # body up axis (z) expressed in world frame (world z component)\n    up_z = 1.0 - 2.0 * (qx * qx + qy * qy)\n\n    # ------------------------- reward components -------------------------\n    # 1) forward (world +x) running speed\n    forward_speed = lin_vel[:, 0]\n    speed_reward = speed_weight * torch.tanh(forward_speed / vel_temperature)\n\n    # 2) extra incentive for genuinely fast running\n    surge_reward = surge_weight * torch.clamp((forward_speed - surge_start) / surge_range,\n                                              min=0.0, max=1.0)\n\n    # 3) stay upright\n    upright_reward = upright_weight * torch.exp((up_z - 1.0) / upright_temperature)\n\n    # 4) alive bonus (only while the torso is not flipped over)\n    alive = torch.clamp((up_z - 0.2) / 0.5, min=0.0, max=1.0)\n    alive_reward = alive_weight * alive\n\n    # 5) keep the body facing the direction of travel\n    heading_align = fwd_x / torch.sqrt(fwd_x * fwd_x + fwd_y * fwd_y + 1.0e-6)\n    heading_reward = heading_weight * heading_align\n\n    # 6) regularizers\n    action_cost = action_cost_coeff * torch.sum(actions * actions, dim=1)\n    dof_vel_cost = dof_vel_cost_coeff * torch.sum(dof_vel * dof_vel, dim=1)\n    lateral_cost = lateral_cost_coeff * lin_vel[:, 1] * lin_vel[:, 1]\n    vertical_cost = vertical_cost_coeff * lin_vel[:, 2] * lin_vel[:, 2]\n    ang_vel_cost = ang_vel_cost_coeff * torch.sum(ang_vel * ang_vel, dim=1)\n\n    total = (speed_reward + surge_reward + upright_reward + alive_reward +\n             heading_reward + action_cost + dof_vel_cost +\n             lateral_cost + vertical_cost + ang_vel_cost)\n\n    reward_dict = {\"forward_speed\": speed_reward}\n    reward_dict[\"surge_speed\"] = surge_reward\n    reward_dict[\"upright\"] = upright_reward\n    reward_dict[\"alive\"] = alive_reward\n    reward_dict[\"heading_align\"] = heading_reward\n    reward_dict[\"action_cost\"] = action_cost\n    reward_dict[\"dof_vel_cost\"] = dof_vel_cost\n    reward_dict[\"lateral_vel_cost\"] = lateral_cost\n    reward_dict[\"vertical_vel_cost\"] = vertical_cost\n    reward_dict[\"ang_vel_cost\"] = ang_vel_cost\n\n    return total, reward_dict\n```",
+  "model_used": "minimax/minimax-m3.1-flash",
+  "usage": {
+    "prompt_tokens": 1237,
+    "completion_tokens": 21350,
+    "total_tokens": 22587,
+    "cost": 0.012970305,
+    "is_byok": false,
+    "prompt_tokens_details": {
+      "cached_tokens": 187,
+      "audio_tokens": 0,
+      "video_tokens": 0
+    },
+    "cost_details": {
+      "upstream_inference_cost": null,
+      "upstream_inference_prompt_cost": 0,
+      "upstream_inference_completions_cost": 0
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 20078,
+      "image_tokens": 0
+    },
+    "cache_creation_input_tokens": 0,
+    "market_cost": 0.012970305,
+    "gateway_cost": 0.012970305
+  },
+  "finish_reason": "stop",
+  "validation": {
+    "valid": true,
+    "suffix": "GPTMLT1R1C1",
+    "environment_call": "compute_reward(self.root_states, self.dof_vel, self.actions)",
+    "inputs": [
+      "root_states",
+      "dof_vel",
+      "actions"
+    ]
+  }
+}

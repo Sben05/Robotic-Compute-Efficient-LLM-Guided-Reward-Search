@@ -1,0 +1,48 @@
+{
+  "model_requested": "minimax/minimax-m3.1-flash",
+  "provider": "https://ai-gateway.vercel.sh/v1/chat/completions",
+  "temperature": 1.0,
+  "candidate_count": 1,
+  "round": 2,
+  "index": 1,
+  "request_attempts": 1,
+  "api_errors": [],
+  "generation_seconds": 102.2179808318615,
+  "response_text": "## Analysis of the previous reward\n\n| Component | Observed | Diagnosis | Fix |\n|---|---|---|---|\n| `forward_speed` | 0.92 (\u2248 max 0.96) | `tanh(v/3)` **saturates** at v \u2248 4.8 m/s \u2192 gradient `(1/3)\u00b7sech\u00b2` \u2248 0.03 \u2192 almost no incentive to go faster | Replace with a smooth but *non\u2011vanishing* transform `1 - exp(-v/\u03c4)` (\u03c4 = 4 m/s) plus a separate \"surge\" ramp above the current speed |\n| `surge_speed` | 0.46, flat | threshold 2 m/s was already far below the achieved speed \u2192 the term is saturated/flat, provides no new information | Raise threshold to 4 m/s so it again becomes an active \"go faster\" gradient |\n| `upright` | 0.98 (constant) | **Bug:** the Isaac\u2011Gym quaternion in `root_states[:,3:7]` is `(x,y,z,w)`, but the code assumed `(w,x,y,z)`. So \"up_z = 1-2(x\u00b2+y\u00b2)\" actually measured the *body x\u2011axis* world\u2011x component (i.e. \"am I facing +x\"), not tilt. It was ~1 \u2192 constant | Fix quaternion parsing; now `up_z = 1-2(qx\u00b2+qy\u00b2)` is true torso upness, and the term can actually detect tipping over |\n| `alive` | 0.50 flat forever | `clamp((up_z-0.2)/0.5,0,1)` was saturated at 1 (because of the same bug) \u2192 no gradient at all | Replace with a *fall penalty* that only activates when the torso actually tilts (up_z < 0.3) |\n| `heading_align` | \u20110.20 flat | Same quaternion bug (`fwd_y = 2(wz+xy)` used wrong components) \u2192 meaningless constant | Recompute correctly: `fwd_x = 1-2(y\u00b2+z\u00b2)`, `fwd_y = 2(xy+zw)`; now it really measures cos(yaw) and can pull the ant to face its direction of travel |\n| `action_cost`, `dof_vel_cost`, `lateral/vertical/ang_vel_cost` | small, flat | fine as regularizers, but slightly re\u2011scaled so they don't dominate | keep, mild weights |\n\n**New design:** world\u2011frame +x speed (main, non\u2011saturating) + body\u2011frame forward speed (keeps gait aligned with motion) + surge above 4 m/s + correct uprightness reward + fall penalty + correct heading term + light regularizers.\n\n```python\nfrom typing import Dict, Tuple\n\nimport torch\n\n\n@torch.jit.script\ndef compute_reward(root_states: torch.Tensor,\n                   dof_vel: torch.Tensor,\n                   actions: torch.Tensor) -> Tuple[torch.Tensor, Dict[str, torch.Tensor]]:\n    \"\"\"\n    Ant: run forward (+x world) as fast as possible.\n\n    root_states : [N, 13]  pos[0:3], quat(x,y,z,w)[3:7], lin_vel[7:10], ang_vel[10:13]\n    dof_vel     : [N, num_dof]\n    actions     : [N, num_actions]\n    \"\"\"\n    # ------------------------- hyper parameters -------------------------\n    speed_weight: float = 1.5               # weight of world-frame forward speed\n    speed_temperature: float = 4.0          # [m/s] soft saturation scale\n    body_speed_weight: float = 0.3           # weight of body-frame forward speed\n    body_speed_temperature: float = 4.0      # [m/s]\n    surge_weight: float = 0.4                # extra push to run really fast\n    surge_threshold: float = 4.0            # [m/s]\n    surge_range: float = 2.0                # [m/s]\n    upright_weight: float = 0.5\n    upright_temperature: float = 0.5\n    fall_weight: float = 0.5                 # penalty when the torso tips over\n    fall_threshold: float = 0.3              # up_z below this == falling\n    fall_range: float = 0.4\n    heading_weight: float = 0.2              # keep facing the travel direction\n    action_cost_coeff: float = -0.03\n    dof_vel_cost_coeff: float = -0.0005\n    lateral_cost_coeff: float = -0.05\n    vertical_cost_coeff: float = -0.05\n    ang_vel_cost_coeff: float = -0.001\n\n    # ------------------------- state extraction -------------------------\n    # NOTE: Isaac Gym stores the root quaternion as (x, y, z, w)\n    qx = root_states[:, 3]\n    qy = root_states[:, 4]\n    qz = root_states[:, 5]\n    qw = root_states[:, 6]\n\n    lin_vel = root_states[:, 7:10]\n    ang_vel = root_states[:, 10:13]\n\n    # body forward axis (body x) expressed in world frame\n    fwd_x = 1.0 - 2.0 * (qy * qy + qz * qz)\n    fwd_y = 2.0 * (qx * qy + qz * qw)\n    # body up axis (body z) world-z component -> 1 when perfectly upright\n    up_z = 1.0 - 2.0 * (qx * qx + qy * qy)\n\n    # ------------------------- reward components -------------------------\n    # 1) world-frame forward running speed (main term, soft-saturating)\n    forward_speed = lin_vel[:, 0]\n    speed_reward = speed_weight * (1.0 - torch.exp(-forward_speed / speed_temperature))\n\n    # 2) body-frame forward speed (rewards running along the facing direction)\n    body_forward_speed = lin_vel[:, 0] * fwd_x + lin_vel[:, 1] * fwd_y\n    body_speed_reward = body_speed_weight * (1.0 - torch.exp(-body_forward_speed /\n                                                             body_speed_temperature))\n\n    # 3) surge bonus once the ant is already fast -> push for even more speed\n    surge_reward = surge_weight * torch.clamp((forward_speed - surge_threshold) / surge_range,\n                                              min=0.0, max=1.0)\n\n    # 4) stay upright (torso up axis aligned with world z)\n    upright_reward = upright_weight * torch.exp((up_z - 1.0) / upright_temperature)\n\n    # 5) fall penalty (only active when the torso really tips over)\n    fall_penalty = -fall_weight * torch.clamp((fall_threshold - up_z) / fall_range,\n                                              min=0.0, max=1.0)\n\n    # 6) keep the body facing the direction of travel\n    heading_align = torch.clamp(fwd_x, min=-1.0, max=1.0)\n    heading_reward = heading_weight * heading_align\n\n    # 7) regularizers\n    action_cost = action_cost_coeff * torch.sum(actions * actions, dim=1)\n    dof_vel_cost = dof_vel_cost_coeff * torch.sum(dof_vel * dof_vel, dim=1)\n    lateral_cost = lateral_cost_coeff * lin_vel[:, 1] * lin_vel[:, 1]\n    vertical_cost = vertical_cost_coeff * lin_vel[:, 2] * lin_vel[:, 2]\n    ang_vel_cost = ang_vel_cost_coeff * torch.sum(ang_vel * ang_vel, dim=1)\n\n    total = (speed_reward + body_speed_reward + surge_reward + upright_reward +\n             fall_penalty + heading_reward + action_cost + dof_vel_cost +\n             lateral_cost + vertical_cost + ang_vel_cost)\n\n    reward_dict = {\"forward_speed\": speed_reward}\n    reward_dict[\"body_forward_speed\"] = body_speed_reward\n    reward_dict[\"surge_speed\"] = surge_reward\n    reward_dict[\"upright\"] = upright_reward\n    reward_dict[\"fall_penalty\"] = fall_penalty\n    reward_dict[\"heading_align\"] = heading_reward\n    reward_dict[\"action_cost\"] = action_cost\n    reward_dict[\"dof_vel_cost\"] = dof_vel_cost\n    reward_dict[\"lateral_vel_cost\"] = lateral_cost\n    reward_dict[\"vertical_vel_cost\"] = vertical_cost\n    reward_dict[\"ang_vel_cost\"] = ang_vel_cost\n\n    return total, reward_dict\n```",
+  "model_used": "minimax/minimax-m3.1-flash",
+  "usage": {
+    "prompt_tokens": 3859,
+    "completion_tokens": 15269,
+    "total_tokens": 19128,
+    "cost": 0.00957339,
+    "is_byok": false,
+    "prompt_tokens_details": {
+      "cached_tokens": 1236,
+      "audio_tokens": 0,
+      "video_tokens": 0
+    },
+    "cost_details": {
+      "upstream_inference_cost": null,
+      "upstream_inference_prompt_cost": 0,
+      "upstream_inference_completions_cost": 0
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 13426,
+      "image_tokens": 0
+    },
+    "cache_creation_input_tokens": 0,
+    "market_cost": 0.00957339,
+    "gateway_cost": 0.00957339
+  },
+  "finish_reason": "stop",
+  "validation": {
+    "valid": true,
+    "suffix": "GPTMLT1R2C1",
+    "environment_call": "compute_reward(self.root_states, self.dof_vel, self.actions)",
+    "inputs": [
+      "root_states",
+      "dof_vel",
+      "actions"
+    ]
+  }
+}

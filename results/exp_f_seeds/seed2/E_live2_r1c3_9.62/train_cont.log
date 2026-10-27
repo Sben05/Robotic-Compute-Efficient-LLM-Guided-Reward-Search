@@ -1,0 +1,985 @@
+Command: /root/MSThesis/.env/bin/python -u /root/MSThesis/Eureka/isaacgymenvs/isaacgymenvs/train.py hydra/output=subprocess task=AntGPTMLT2R1C3S2 wandb_activate=False wandb_entity= wandb_project= headless=True capture_video=False force_render=False max_iterations=2500 seed=2 num_envs=4096 checkpoint=/root/MSThesis/results/exp_f_seeds/seed2/E_live2_r1c3_9.62/policy-2026-10-27_01-28-04/runs/AntGPTMLT2R1C3S2-2026-10-27_01-28-05/nn/last_AntGPTMLT2R1C3S2_ep_500.pth
+Importing module 'gym_38' (/root/MSThesis/isaacgym/python/isaacgym/_bindings/linux-x86_64/gym_38.so)
+Setting GYM_USD_PLUG_INFO_PATH to /root/MSThesis/isaacgym/python/isaacgym/_bindings/linux-x86_64/usd/plugInfo.json
+PyTorch version 2.0.0+cu117
+Device count 1
+/root/MSThesis/isaacgym/python/isaacgym/_bindings/src/gymtorch
+Using /root/.cache/torch_extensions/py38_cu117 as PyTorch extensions root...
+Emitting ninja build file /root/.cache/torch_extensions/py38_cu117/gymtorch/build.ninja...
+Building extension module gymtorch...
+Allowing ninja to set a default number of workers... (overridable by setting the environment variable MAX_JOBS=N)
+ninja: no work to do.
+Loading extension module gymtorch...
+Gym has been unmaintained since 2022 and does not support NumPy 2.0 amongst other critical functionality.
+Please upgrade to Gymnasium, the maintained drop-in replacement of Gym, or contact the authors of your software and request that they upgrade.
+See the migration guide at https://gymnasium.farama.org/introduction/migration_guide/ for additional information.
+2026-10-27 02:04:14,181 - INFO - logger - logger initialized
+<unknown>:3: DeprecationWarning: invalid escape sequence \*
+Error: FBX library failed to load - importing FBX data will not succeed. Message: No module named 'fbx'
+FBX tools must be installed from https://help.autodesk.com/view/FBX/2020/ENU/?guid=FBX_Developer_Help_scripting_with_python_fbx_installing_python_fbx_html
+/root/MSThesis/Eureka/isaacgymenvs/isaacgymenvs/train.py:75: UserWarning: 
+The version_base parameter is not specified.
+Please specify a compatability version level, or None.
+Will assume defaults for version 1.1
+  @hydra.main(config_name="config", config_path="./cfg")
+/root/MSThesis/.env/lib/python3.8/site-packages/hydra/_internal/defaults_list.py:415: UserWarning: In config: Invalid overriding of hydra/job_logging:
+Default list overrides requires 'override' keyword.
+See https://hydra.cc/docs/1.2/upgrades/1.0_to_1.1/defaults_list_override for more information.
+
+  deprecation_warning(msg)
+/root/MSThesis/.env/lib/python3.8/site-packages/hydra/_internal/hydra.py:119: UserWarning: Future Hydra versions will no longer change working directory at job runtime by default.
+See https://hydra.cc/docs/1.2/upgrades/1.1_to_1.2/changes_to_job_working_dir/ for more information.
+  ret = run_job(
+/root/MSThesis/.env/lib/python3.8/site-packages/torch/utils/tensorboard/__init__.py:4: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+  if not hasattr(tensorboard, "__version__") or LooseVersion(
+Setting seed: 2
+Network Directory: /root/MSThesis/results/exp_f_seeds/seed2/E_live2_r1c3_9.62/policy-2026-10-27_02-04-15/runs/AntGPTMLT2R1C3S2-2026-10-27_02-04-15/nn
+Tensorboard Directory: /root/MSThesis/results/exp_f_seeds/seed2/E_live2_r1c3_9.62/policy-2026-10-27_02-04-15/runs/AntGPTMLT2R1C3S2-2026-10-27_02-04-15/summaries
+self.seed = 2
+Started to train
+/root/MSThesis/.env/lib/python3.8/site-packages/gym/spaces/box.py:84: UserWarning: [33mWARN: Box bound precision lowered by casting to float32[0m
+  logger.warn(f"Box bound precision lowered by casting to {self.dtype}")
+[Warning] [carb.gym.plugin] useGpu is set, forcing single scene (0 subscenes)
+Not connected to PVD
++++ Using GPU PhysX
+Physics Engine: PhysX
+Physics Device: cuda:0
+GPU Pipeline: enabled
+num envs 4096 env spacing 5
+/root/MSThesis/Eureka/isaacgymenvs/isaacgymenvs/tasks/antgptmlt2r1c3s2.py:121: DeprecationWarning: an integer is required (got type isaacgym._bindings.linux-x86_64.gym_38.DofDriveMode).  Implicit conversion to integers using __int__ is deprecated, and may be removed in a future version of Python.
+  asset_options.default_dof_drive_mode = gymapi.DOF_MODE_NONE
+Box(-1.0, 1.0, (8,), float32) Box(-inf, inf, (60,), float32)
+current training device: cuda:0
+build mlp: 60
+RunningMeanStd:  (1,)
+RunningMeanStd:  (60,)
+=> loading checkpoint '/root/MSThesis/results/exp_f_seeds/seed2/E_live2_r1c3_9.62/policy-2026-10-27_01-28-04/runs/AntGPTMLT2R1C3S2-2026-10-27_01-28-05/nn/last_AntGPTMLT2R1C3S2_ep_500.pth'
+fps step: 31794 fps step and policy inference: 21479 fps total: 21047 epoch: 1/2500 frames: 32768000
+fps step: 178951 fps step and policy inference: 156209 fps total: 143498 epoch: 2/2500 frames: 32833536
+fps step: 229079 fps step and policy inference: 200150 fps total: 178595 epoch: 3/2500 frames: 32899072
+fps step: 233504 fps step and policy inference: 201472 fps total: 168231 epoch: 4/2500 frames: 32964608
+fps step: 221723 fps step and policy inference: 183091 fps total: 160076 epoch: 5/2500 frames: 33030144
+fps step: 220711 fps step and policy inference: 183061 fps total: 156088 epoch: 6/2500 frames: 33095680
+fps step: 158076 fps step and policy inference: 143134 fps total: 132022 epoch: 7/2500 frames: 33161216
+fps step: 261726 fps step and policy inference: 229203 fps total: 199498 epoch: 8/2500 frames: 33226752
+fps step: 246156 fps step and policy inference: 218144 fps total: 193112 epoch: 9/2500 frames: 33292288
+fps step: 243189 fps step and policy inference: 209836 fps total: 182610 epoch: 10/2500 frames: 33357824
+fps step: 221941 fps step and policy inference: 196658 fps total: 174308 epoch: 11/2500 frames: 33423360
+fps step: 244030 fps step and policy inference: 209358 fps total: 185316 epoch: 12/2500 frames: 33488896
+fps step: 237547 fps step and policy inference: 205505 fps total: 183862 epoch: 13/2500 frames: 33554432
+fps step: 250555 fps step and policy inference: 218268 fps total: 192298 epoch: 14/2500 frames: 33619968
+fps step: 211581 fps step and policy inference: 183328 fps total: 164836 epoch: 15/2500 frames: 33685504
+fps step: 230962 fps step and policy inference: 196160 fps total: 173910 epoch: 16/2500 frames: 33751040
+fps step: 239648 fps step and policy inference: 206254 fps total: 181570 epoch: 17/2500 frames: 33816576
+fps step: 206870 fps step and policy inference: 182388 fps total: 164968 epoch: 18/2500 frames: 33882112
+fps step: 196369 fps step and policy inference: 169960 fps total: 154817 epoch: 19/2500 frames: 33947648
+fps step: 214007 fps step and policy inference: 186796 fps total: 167167 epoch: 20/2500 frames: 34013184
+fps step: 226610 fps step and policy inference: 197691 fps total: 178271 epoch: 21/2500 frames: 34078720
+fps step: 259562 fps step and policy inference: 220489 fps total: 195711 epoch: 22/2500 frames: 34144256
+fps step: 251998 fps step and policy inference: 215611 fps total: 192282 epoch: 23/2500 frames: 34209792
+fps step: 197402 fps step and policy inference: 172870 fps total: 154950 epoch: 24/2500 frames: 34275328
+fps step: 159542 fps step and policy inference: 139865 fps total: 125685 epoch: 25/2500 frames: 34340864
+fps step: 149850 fps step and policy inference: 132680 fps total: 118133 epoch: 26/2500 frames: 34406400
+fps step: 160062 fps step and policy inference: 142758 fps total: 126084 epoch: 27/2500 frames: 34471936
+fps step: 154597 fps step and policy inference: 137350 fps total: 124248 epoch: 28/2500 frames: 34537472
+fps step: 159248 fps step and policy inference: 140647 fps total: 124713 epoch: 29/2500 frames: 34603008
+fps step: 157834 fps step and policy inference: 140046 fps total: 124872 epoch: 30/2500 frames: 34668544
+fps step: 183116 fps step and policy inference: 159226 fps total: 142688 epoch: 31/2500 frames: 34734080
+fps step: 148685 fps step and policy inference: 132990 fps total: 119071 epoch: 32/2500 frames: 34799616
+fps step: 153619 fps step and policy inference: 136471 fps total: 121914 epoch: 33/2500 frames: 34865152
+fps step: 159442 fps step and policy inference: 141743 fps total: 129260 epoch: 34/2500 frames: 34930688
+fps step: 158756 fps step and policy inference: 140434 fps total: 125021 epoch: 35/2500 frames: 34996224
+fps step: 160798 fps step and policy inference: 141741 fps total: 124625 epoch: 36/2500 frames: 35061760
+fps step: 149911 fps step and policy inference: 131112 fps total: 117637 epoch: 37/2500 frames: 35127296
+fps step: 153450 fps step and policy inference: 134782 fps total: 120648 epoch: 38/2500 frames: 35192832
+fps step: 154781 fps step and policy inference: 133512 fps total: 119363 epoch: 39/2500 frames: 35258368
+fps step: 162477 fps step and policy inference: 143927 fps total: 128408 epoch: 40/2500 frames: 35323904
+fps step: 154605 fps step and policy inference: 137710 fps total: 124883 epoch: 41/2500 frames: 35389440
+fps step: 156654 fps step and policy inference: 139682 fps total: 124634 epoch: 42/2500 frames: 35454976
+fps step: 162627 fps step and policy inference: 144397 fps total: 126321 epoch: 43/2500 frames: 35520512
+fps step: 160738 fps step and policy inference: 140600 fps total: 124154 epoch: 44/2500 frames: 35586048
+fps step: 162178 fps step and policy inference: 142974 fps total: 129784 epoch: 45/2500 frames: 35651584
+fps step: 150889 fps step and policy inference: 132206 fps total: 119403 epoch: 46/2500 frames: 35717120
+fps step: 148497 fps step and policy inference: 128256 fps total: 116194 epoch: 47/2500 frames: 35782656
+fps step: 156937 fps step and policy inference: 135095 fps total: 122503 epoch: 48/2500 frames: 35848192
+fps step: 139431 fps step and policy inference: 121831 fps total: 110090 epoch: 49/2500 frames: 35913728
+fps step: 151685 fps step and policy inference: 130517 fps total: 117283 epoch: 50/2500 frames: 35979264
+fps step: 149220 fps step and policy inference: 131037 fps total: 118138 epoch: 51/2500 frames: 36044800
+fps step: 156002 fps step and policy inference: 133829 fps total: 120282 epoch: 52/2500 frames: 36110336
+fps step: 154684 fps step and policy inference: 133229 fps total: 119089 epoch: 53/2500 frames: 36175872
+fps step: 153439 fps step and policy inference: 131014 fps total: 117834 epoch: 54/2500 frames: 36241408
+fps step: 140080 fps step and policy inference: 120244 fps total: 107777 epoch: 55/2500 frames: 36306944
+fps step: 147236 fps step and policy inference: 123004 fps total: 108064 epoch: 56/2500 frames: 36372480
+fps step: 147819 fps step and policy inference: 127768 fps total: 117921 epoch: 57/2500 frames: 36438016
+fps step: 159900 fps step and policy inference: 139717 fps total: 128681 epoch: 58/2500 frames: 36503552
+fps step: 155267 fps step and policy inference: 137611 fps total: 126585 epoch: 59/2500 frames: 36569088
+fps step: 145981 fps step and policy inference: 128319 fps total: 117269 epoch: 60/2500 frames: 36634624
+fps step: 153078 fps step and policy inference: 130952 fps total: 121604 epoch: 61/2500 frames: 36700160
+fps step: 167328 fps step and policy inference: 146141 fps total: 134870 epoch: 62/2500 frames: 36765696
+fps step: 152343 fps step and policy inference: 134945 fps total: 124412 epoch: 63/2500 frames: 36831232
+fps step: 172859 fps step and policy inference: 150839 fps total: 136947 epoch: 64/2500 frames: 36896768
+fps step: 172772 fps step and policy inference: 154098 fps total: 140040 epoch: 65/2500 frames: 36962304
+fps step: 172815 fps step and policy inference: 154841 fps total: 140819 epoch: 66/2500 frames: 37027840
+fps step: 169331 fps step and policy inference: 147568 fps total: 135149 epoch: 67/2500 frames: 37093376
+fps step: 163442 fps step and policy inference: 145540 fps total: 133735 epoch: 68/2500 frames: 37158912
+fps step: 157664 fps step and policy inference: 141796 fps total: 129767 epoch: 69/2500 frames: 37224448
+fps step: 170954 fps step and policy inference: 150175 fps total: 137494 epoch: 70/2500 frames: 37289984
+fps step: 158450 fps step and policy inference: 141531 fps total: 129523 epoch: 71/2500 frames: 37355520
+fps step: 163785 fps step and policy inference: 145541 fps total: 133488 epoch: 72/2500 frames: 37421056
+fps step: 159061 fps step and policy inference: 140761 fps total: 129475 epoch: 73/2500 frames: 37486592
+fps step: 159960 fps step and policy inference: 141143 fps total: 130182 epoch: 74/2500 frames: 37552128
+fps step: 154304 fps step and policy inference: 137266 fps total: 126503 epoch: 75/2500 frames: 37617664
+fps step: 155172 fps step and policy inference: 136980 fps total: 125853 epoch: 76/2500 frames: 37683200
+fps step: 156622 fps step and policy inference: 138313 fps total: 128012 epoch: 77/2500 frames: 37748736
+fps step: 161487 fps step and policy inference: 141760 fps total: 130848 epoch: 78/2500 frames: 37814272
+fps step: 155540 fps step and policy inference: 137802 fps total: 126785 epoch: 79/2500 frames: 37879808
+fps step: 160578 fps step and policy inference: 142644 fps total: 130561 epoch: 80/2500 frames: 37945344
+fps step: 154481 fps step and policy inference: 137766 fps total: 126583 epoch: 81/2500 frames: 38010880
+fps step: 145466 fps step and policy inference: 128285 fps total: 119322 epoch: 82/2500 frames: 38076416
+fps step: 153737 fps step and policy inference: 135962 fps total: 125614 epoch: 83/2500 frames: 38141952
+fps step: 144981 fps step and policy inference: 127621 fps total: 118636 epoch: 84/2500 frames: 38207488
+fps step: 141192 fps step and policy inference: 121418 fps total: 112359 epoch: 85/2500 frames: 38273024
+fps step: 151979 fps step and policy inference: 135589 fps total: 125501 epoch: 86/2500 frames: 38338560
+fps step: 154884 fps step and policy inference: 137181 fps total: 125822 epoch: 87/2500 frames: 38404096
+fps step: 141330 fps step and policy inference: 123351 fps total: 115061 epoch: 88/2500 frames: 38469632
+fps step: 138828 fps step and policy inference: 121195 fps total: 110943 epoch: 89/2500 frames: 38535168
+fps step: 133090 fps step and policy inference: 116249 fps total: 109175 epoch: 90/2500 frames: 38600704
+fps step: 139422 fps step and policy inference: 122937 fps total: 112031 epoch: 91/2500 frames: 38666240
+fps step: 139643 fps step and policy inference: 123310 fps total: 112141 epoch: 92/2500 frames: 38731776
+fps step: 139298 fps step and policy inference: 121420 fps total: 109926 epoch: 93/2500 frames: 38797312
+fps step: 129187 fps step and policy inference: 112629 fps total: 101623 epoch: 94/2500 frames: 38862848
+fps step: 145077 fps step and policy inference: 123083 fps total: 110325 epoch: 95/2500 frames: 38928384
+fps step: 137397 fps step and policy inference: 118158 fps total: 109170 epoch: 96/2500 frames: 38993920
+fps step: 155213 fps step and policy inference: 136244 fps total: 126413 epoch: 97/2500 frames: 39059456
+fps step: 150883 fps step and policy inference: 135264 fps total: 124597 epoch: 98/2500 frames: 39124992
+fps step: 144634 fps step and policy inference: 131157 fps total: 121082 epoch: 99/2500 frames: 39190528
+fps step: 151078 fps step and policy inference: 134992 fps total: 124796 epoch: 100/2500 frames: 39256064
+fps step: 151938 fps step and policy inference: 134734 fps total: 123722 epoch: 101/2500 frames: 39321600
+fps step: 148642 fps step and policy inference: 133256 fps total: 123243 epoch: 102/2500 frames: 39387136
+fps step: 149152 fps step and policy inference: 132770 fps total: 122694 epoch: 103/2500 frames: 39452672
+fps step: 151221 fps step and policy inference: 134003 fps total: 122586 epoch: 104/2500 frames: 39518208
+fps step: 153447 fps step and policy inference: 135156 fps total: 123803 epoch: 105/2500 frames: 39583744
+fps step: 145440 fps step and policy inference: 127300 fps total: 118119 epoch: 106/2500 frames: 39649280
+fps step: 149138 fps step and policy inference: 132835 fps total: 122812 epoch: 107/2500 frames: 39714816
+fps step: 156869 fps step and policy inference: 138089 fps total: 128094 epoch: 108/2500 frames: 39780352
+fps step: 149854 fps step and policy inference: 132167 fps total: 122425 epoch: 109/2500 frames: 39845888
+fps step: 156076 fps step and policy inference: 136213 fps total: 122128 epoch: 110/2500 frames: 39911424
+fps step: 140062 fps step and policy inference: 121368 fps total: 111226 epoch: 111/2500 frames: 39976960
+fps step: 134285 fps step and policy inference: 117041 fps total: 107016 epoch: 112/2500 frames: 40042496
+fps step: 144398 fps step and policy inference: 124626 fps total: 110333 epoch: 113/2500 frames: 40108032
+fps step: 141653 fps step and policy inference: 123211 fps total: 111480 epoch: 114/2500 frames: 40173568
+fps step: 141980 fps step and policy inference: 121582 fps total: 109391 epoch: 115/2500 frames: 40239104
+fps step: 141832 fps step and policy inference: 123329 fps total: 110699 epoch: 116/2500 frames: 40304640
+fps step: 136453 fps step and policy inference: 116554 fps total: 103490 epoch: 117/2500 frames: 40370176
+fps step: 146664 fps step and policy inference: 124664 fps total: 112859 epoch: 118/2500 frames: 40435712
+fps step: 140863 fps step and policy inference: 124901 fps total: 110866 epoch: 119/2500 frames: 40501248
+fps step: 137488 fps step and policy inference: 120642 fps total: 107983 epoch: 120/2500 frames: 40566784
+fps step: 141643 fps step and policy inference: 123355 fps total: 112254 epoch: 121/2500 frames: 40632320
+fps step: 138995 fps step and policy inference: 122347 fps total: 111609 epoch: 122/2500 frames: 40697856
+fps step: 142898 fps step and policy inference: 122797 fps total: 110326 epoch: 123/2500 frames: 40763392
+fps step: 138405 fps step and policy inference: 121407 fps total: 110137 epoch: 124/2500 frames: 40828928
+fps step: 137703 fps step and policy inference: 120391 fps total: 110940 epoch: 125/2500 frames: 40894464
+fps step: 148688 fps step and policy inference: 128558 fps total: 116336 epoch: 126/2500 frames: 40960000
+fps step: 153838 fps step and policy inference: 133760 fps total: 115869 epoch: 127/2500 frames: 41025536
+fps step: 143040 fps step and policy inference: 125002 fps total: 115102 epoch: 128/2500 frames: 41091072
+fps step: 163723 fps step and policy inference: 142526 fps total: 128967 epoch: 129/2500 frames: 41156608
+fps step: 157406 fps step and policy inference: 136766 fps total: 124995 epoch: 130/2500 frames: 41222144
+fps step: 155791 fps step and policy inference: 137070 fps total: 124099 epoch: 131/2500 frames: 41287680
+fps step: 145339 fps step and policy inference: 127185 fps total: 116102 epoch: 132/2500 frames: 41353216
+fps step: 142216 fps step and policy inference: 124548 fps total: 113664 epoch: 133/2500 frames: 41418752
+fps step: 143728 fps step and policy inference: 126891 fps total: 115653 epoch: 134/2500 frames: 41484288
+fps step: 143814 fps step and policy inference: 127862 fps total: 115874 epoch: 135/2500 frames: 41549824
+fps step: 142517 fps step and policy inference: 123509 fps total: 113427 epoch: 136/2500 frames: 41615360
+fps step: 144070 fps step and policy inference: 125600 fps total: 114985 epoch: 137/2500 frames: 41680896
+fps step: 142172 fps step and policy inference: 126598 fps total: 114996 epoch: 138/2500 frames: 41746432
+fps step: 147228 fps step and policy inference: 129223 fps total: 117225 epoch: 139/2500 frames: 41811968
+fps step: 136370 fps step and policy inference: 121287 fps total: 110821 epoch: 140/2500 frames: 41877504
+fps step: 131122 fps step and policy inference: 116676 fps total: 106742 epoch: 141/2500 frames: 41943040
+fps step: 144194 fps step and policy inference: 125073 fps total: 112971 epoch: 142/2500 frames: 42008576
+fps step: 130800 fps step and policy inference: 116721 fps total: 107108 epoch: 143/2500 frames: 42074112
+fps step: 126059 fps step and policy inference: 110561 fps total: 100220 epoch: 144/2500 frames: 42139648
+fps step: 138014 fps step and policy inference: 123176 fps total: 112423 epoch: 145/2500 frames: 42205184
+fps step: 153033 fps step and policy inference: 135741 fps total: 123805 epoch: 146/2500 frames: 42270720
+fps step: 149090 fps step and policy inference: 130399 fps total: 119422 epoch: 147/2500 frames: 42336256
+fps step: 143859 fps step and policy inference: 129265 fps total: 117550 epoch: 148/2500 frames: 42401792
+fps step: 141884 fps step and policy inference: 126720 fps total: 116789 epoch: 149/2500 frames: 42467328
+fps step: 153984 fps step and policy inference: 138033 fps total: 125540 epoch: 150/2500 frames: 42532864
+fps step: 152998 fps step and policy inference: 134846 fps total: 122374 epoch: 151/2500 frames: 42598400
+fps step: 158467 fps step and policy inference: 139795 fps total: 127459 epoch: 152/2500 frames: 42663936
+fps step: 155212 fps step and policy inference: 138218 fps total: 124751 epoch: 153/2500 frames: 42729472
+fps step: 156766 fps step and policy inference: 137359 fps total: 124723 epoch: 154/2500 frames: 42795008
+fps step: 149626 fps step and policy inference: 132356 fps total: 120950 epoch: 155/2500 frames: 42860544
+fps step: 152437 fps step and policy inference: 136632 fps total: 123528 epoch: 156/2500 frames: 42926080
+fps step: 144168 fps step and policy inference: 126187 fps total: 116419 epoch: 157/2500 frames: 42991616
+fps step: 136566 fps step and policy inference: 124568 fps total: 114602 epoch: 158/2500 frames: 43057152
+fps step: 141192 fps step and policy inference: 126787 fps total: 117875 epoch: 159/2500 frames: 43122688
+fps step: 150494 fps step and policy inference: 134625 fps total: 125573 epoch: 160/2500 frames: 43188224
+fps step: 142579 fps step and policy inference: 128998 fps total: 119122 epoch: 161/2500 frames: 43253760
+fps step: 143561 fps step and policy inference: 128273 fps total: 117832 epoch: 162/2500 frames: 43319296
+fps step: 157415 fps step and policy inference: 136219 fps total: 126348 epoch: 163/2500 frames: 43384832
+fps step: 154827 fps step and policy inference: 137069 fps total: 126698 epoch: 164/2500 frames: 43450368
+fps step: 143768 fps step and policy inference: 127556 fps total: 118459 epoch: 165/2500 frames: 43515904
+fps step: 153108 fps step and policy inference: 134910 fps total: 123626 epoch: 166/2500 frames: 43581440
+fps step: 151952 fps step and policy inference: 135511 fps total: 125025 epoch: 167/2500 frames: 43646976
+fps step: 145036 fps step and policy inference: 129788 fps total: 120279 epoch: 168/2500 frames: 43712512
+fps step: 149733 fps step and policy inference: 133325 fps total: 123185 epoch: 169/2500 frames: 43778048
+fps step: 148852 fps step and policy inference: 132921 fps total: 122727 epoch: 170/2500 frames: 43843584
+fps step: 157781 fps step and policy inference: 140507 fps total: 130497 epoch: 171/2500 frames: 43909120
+fps step: 145296 fps step and policy inference: 128910 fps total: 119741 epoch: 172/2500 frames: 43974656
+fps step: 143049 fps step and policy inference: 127742 fps total: 118730 epoch: 173/2500 frames: 44040192
+fps step: 141347 fps step and policy inference: 123963 fps total: 114482 epoch: 174/2500 frames: 44105728
+fps step: 137296 fps step and policy inference: 123249 fps total: 114810 epoch: 175/2500 frames: 44171264
+fps step: 138507 fps step and policy inference: 122158 fps total: 112265 epoch: 176/2500 frames: 44236800
+fps step: 136749 fps step and policy inference: 119519 fps total: 111318 epoch: 177/2500 frames: 44302336
+fps step: 130886 fps step and policy inference: 115214 fps total: 107474 epoch: 178/2500 frames: 44367872
+fps step: 135950 fps step and policy inference: 118873 fps total: 109344 epoch: 179/2500 frames: 44433408
+fps step: 129752 fps step and policy inference: 114714 fps total: 104407 epoch: 180/2500 frames: 44498944
+fps step: 137840 fps step and policy inference: 122188 fps total: 109864 epoch: 181/2500 frames: 44564480
+fps step: 149078 fps step and policy inference: 131776 fps total: 116872 epoch: 182/2500 frames: 44630016
+fps step: 148546 fps step and policy inference: 129564 fps total: 115626 epoch: 183/2500 frames: 44695552
+fps step: 143639 fps step and policy inference: 126856 fps total: 115461 epoch: 184/2500 frames: 44761088
+fps step: 127765 fps step and policy inference: 114979 fps total: 105821 epoch: 185/2500 frames: 44826624
+fps step: 132125 fps step and policy inference: 117104 fps total: 107251 epoch: 186/2500 frames: 44892160
+fps step: 137383 fps step and policy inference: 122764 fps total: 112455 epoch: 187/2500 frames: 44957696
+fps step: 133268 fps step and policy inference: 119152 fps total: 109903 epoch: 188/2500 frames: 45023232
+fps step: 154837 fps step and policy inference: 137218 fps total: 123979 epoch: 189/2500 frames: 45088768
+fps step: 155082 fps step and policy inference: 135114 fps total: 119984 epoch: 190/2500 frames: 45154304
+fps step: 150490 fps step and policy inference: 133292 fps total: 122842 epoch: 191/2500 frames: 45219840
+fps step: 149951 fps step and policy inference: 133106 fps total: 122918 epoch: 192/2500 frames: 45285376
+fps step: 154253 fps step and policy inference: 138177 fps total: 128349 epoch: 193/2500 frames: 45350912
+fps step: 151710 fps step and policy inference: 134721 fps total: 122612 epoch: 194/2500 frames: 45416448
+fps step: 159549 fps step and policy inference: 141009 fps total: 128891 epoch: 195/2500 frames: 45481984
+fps step: 146029 fps step and policy inference: 130197 fps total: 119547 epoch: 196/2500 frames: 45547520
+fps step: 149931 fps step and policy inference: 133317 fps total: 121432 epoch: 197/2500 frames: 45613056
+fps step: 152711 fps step and policy inference: 134864 fps total: 123226 epoch: 198/2500 frames: 45678592
+fps step: 148212 fps step and policy inference: 131028 fps total: 121869 epoch: 199/2500 frames: 45744128
+fps step: 150287 fps step and policy inference: 132721 fps total: 123289 epoch: 200/2500 frames: 45809664
+saving next best successes:  7.176976
+=> saving checkpoint 'runs/AntGPTMLT2R1C3S2-2026-10-27_02-04-15/nn/AntGPTMLT2R1C3S2.pth'
+fps step: 147476 fps step and policy inference: 132126 fps total: 121707 epoch: 201/2500 frames: 45875200
+fps step: 146088 fps step and policy inference: 129307 fps total: 119380 epoch: 202/2500 frames: 45940736
+fps step: 144989 fps step and policy inference: 125961 fps total: 117072 epoch: 203/2500 frames: 46006272
+fps step: 141350 fps step and policy inference: 124968 fps total: 115167 epoch: 204/2500 frames: 46071808
+fps step: 136593 fps step and policy inference: 121750 fps total: 113463 epoch: 205/2500 frames: 46137344
+fps step: 143971 fps step and policy inference: 126958 fps total: 116004 epoch: 206/2500 frames: 46202880
+fps step: 143635 fps step and policy inference: 129108 fps total: 118906 epoch: 207/2500 frames: 46268416
+fps step: 148788 fps step and policy inference: 131377 fps total: 121142 epoch: 208/2500 frames: 46333952
+fps step: 142210 fps step and policy inference: 127221 fps total: 117700 epoch: 209/2500 frames: 46399488
+fps step: 135847 fps step and policy inference: 121483 fps total: 113199 epoch: 210/2500 frames: 46465024
+fps step: 140722 fps step and policy inference: 122554 fps total: 113938 epoch: 211/2500 frames: 46530560
+fps step: 144045 fps step and policy inference: 127477 fps total: 118143 epoch: 212/2500 frames: 46596096
+fps step: 142505 fps step and policy inference: 126284 fps total: 116368 epoch: 213/2500 frames: 46661632
+fps step: 136225 fps step and policy inference: 122837 fps total: 113465 epoch: 214/2500 frames: 46727168
+fps step: 146066 fps step and policy inference: 130862 fps total: 121153 epoch: 215/2500 frames: 46792704
+fps step: 150697 fps step and policy inference: 134242 fps total: 123624 epoch: 216/2500 frames: 46858240
+fps step: 157180 fps step and policy inference: 138537 fps total: 127469 epoch: 217/2500 frames: 46923776
+fps step: 148604 fps step and policy inference: 132531 fps total: 122497 epoch: 218/2500 frames: 46989312
+fps step: 145537 fps step and policy inference: 130414 fps total: 120632 epoch: 219/2500 frames: 47054848
+fps step: 148504 fps step and policy inference: 132442 fps total: 122037 epoch: 220/2500 frames: 47120384
+fps step: 148058 fps step and policy inference: 129837 fps total: 118737 epoch: 221/2500 frames: 47185920
+fps step: 140580 fps step and policy inference: 125824 fps total: 116439 epoch: 222/2500 frames: 47251456
+fps step: 142900 fps step and policy inference: 126383 fps total: 115799 epoch: 223/2500 frames: 47316992
+fps step: 141698 fps step and policy inference: 123491 fps total: 113867 epoch: 224/2500 frames: 47382528
+fps step: 132135 fps step and policy inference: 119175 fps total: 110127 epoch: 225/2500 frames: 47448064
+fps step: 144214 fps step and policy inference: 125289 fps total: 112899 epoch: 226/2500 frames: 47513600
+fps step: 132012 fps step and policy inference: 115048 fps total: 103627 epoch: 227/2500 frames: 47579136
+fps step: 136991 fps step and policy inference: 119746 fps total: 107981 epoch: 228/2500 frames: 47644672
+fps step: 134689 fps step and policy inference: 118747 fps total: 109118 epoch: 229/2500 frames: 47710208
+fps step: 147432 fps step and policy inference: 129865 fps total: 119306 epoch: 230/2500 frames: 47775744
+fps step: 146332 fps step and policy inference: 126255 fps total: 113659 epoch: 231/2500 frames: 47841280
+fps step: 135920 fps step and policy inference: 119131 fps total: 108605 epoch: 232/2500 frames: 47906816
+fps step: 148765 fps step and policy inference: 132007 fps total: 121889 epoch: 233/2500 frames: 47972352
+fps step: 145925 fps step and policy inference: 130616 fps total: 120965 epoch: 234/2500 frames: 48037888
+fps step: 148789 fps step and policy inference: 133728 fps total: 123695 epoch: 235/2500 frames: 48103424
+fps step: 138315 fps step and policy inference: 126101 fps total: 116738 epoch: 236/2500 frames: 48168960
+fps step: 158153 fps step and policy inference: 139490 fps total: 128371 epoch: 237/2500 frames: 48234496
+fps step: 150383 fps step and policy inference: 131837 fps total: 120192 epoch: 238/2500 frames: 48300032
+fps step: 143557 fps step and policy inference: 125360 fps total: 115312 epoch: 239/2500 frames: 48365568
+fps step: 138821 fps step and policy inference: 123602 fps total: 109766 epoch: 240/2500 frames: 48431104
+fps step: 141469 fps step and policy inference: 121071 fps total: 111251 epoch: 241/2500 frames: 48496640
+fps step: 137293 fps step and policy inference: 118277 fps total: 107402 epoch: 242/2500 frames: 48562176
+fps step: 138846 fps step and policy inference: 116791 fps total: 105400 epoch: 243/2500 frames: 48627712
+fps step: 139422 fps step and policy inference: 119216 fps total: 106532 epoch: 244/2500 frames: 48693248
+fps step: 146445 fps step and policy inference: 124964 fps total: 112765 epoch: 245/2500 frames: 48758784
+fps step: 142773 fps step and policy inference: 126694 fps total: 114680 epoch: 246/2500 frames: 48824320
+fps step: 141651 fps step and policy inference: 125134 fps total: 109719 epoch: 247/2500 frames: 48889856
+fps step: 141799 fps step and policy inference: 120977 fps total: 105855 epoch: 248/2500 frames: 48955392
+fps step: 150577 fps step and policy inference: 127181 fps total: 109331 epoch: 249/2500 frames: 49020928
+fps step: 145287 fps step and policy inference: 124075 fps total: 107338 epoch: 250/2500 frames: 49086464
+fps step: 156948 fps step and policy inference: 130411 fps total: 112650 epoch: 251/2500 frames: 49152000
+fps step: 160465 fps step and policy inference: 135326 fps total: 115802 epoch: 252/2500 frames: 49217536
+fps step: 150706 fps step and policy inference: 127318 fps total: 111088 epoch: 253/2500 frames: 49283072
+fps step: 149596 fps step and policy inference: 127620 fps total: 110129 epoch: 254/2500 frames: 49348608
+fps step: 152915 fps step and policy inference: 136356 fps total: 120949 epoch: 255/2500 frames: 49414144
+fps step: 150387 fps step and policy inference: 134609 fps total: 119688 epoch: 256/2500 frames: 49479680
+fps step: 159764 fps step and policy inference: 140701 fps total: 122399 epoch: 257/2500 frames: 49545216
+saving next best successes:  7.2175817
+=> saving checkpoint 'runs/AntGPTMLT2R1C3S2-2026-10-27_02-04-15/nn/AntGPTMLT2R1C3S2.pth'
+fps step: 142122 fps step and policy inference: 123418 fps total: 109001 epoch: 258/2500 frames: 49610752
+saving next best successes:  7.348113
+=> saving checkpoint 'runs/AntGPTMLT2R1C3S2-2026-10-27_02-04-15/nn/AntGPTMLT2R1C3S2.pth'
+fps step: 132317 fps step and policy inference: 116196 fps total: 104629 epoch: 259/2500 frames: 49676288
+saving next best successes:  7.378827
+=> saving checkpoint 'runs/AntGPTMLT2R1C3S2-2026-10-27_02-04-15/nn/AntGPTMLT2R1C3S2.pth'
+fps step: 139222 fps step and policy inference: 120353 fps total: 107391 epoch: 260/2500 frames: 49741824
+saving next best successes:  7.4041557
+=> saving checkpoint 'runs/AntGPTMLT2R1C3S2-2026-10-27_02-04-15/nn/AntGPTMLT2R1C3S2.pth'
+fps step: 131890 fps step and policy inference: 117018 fps total: 104642 epoch: 261/2500 frames: 49807360
+fps step: 139478 fps step and policy inference: 121975 fps total: 109416 epoch: 262/2500 frames: 49872896
+fps step: 142249 fps step and policy inference: 124408 fps total: 111412 epoch: 263/2500 frames: 49938432
+fps step: 136304 fps step and policy inference: 120224 fps total: 108663 epoch: 264/2500 frames: 50003968
+fps step: 143536 fps step and policy inference: 124244 fps total: 112122 epoch: 265/2500 frames: 50069504
+fps step: 141320 fps step and policy inference: 122718 fps total: 108639 epoch: 266/2500 frames: 50135040
+fps step: 138524 fps step and policy inference: 119025 fps total: 107123 epoch: 267/2500 frames: 50200576
+fps step: 140917 fps step and policy inference: 123511 fps total: 109184 epoch: 268/2500 frames: 50266112
+fps step: 133438 fps step and policy inference: 116559 fps total: 103899 epoch: 269/2500 frames: 50331648
+fps step: 144500 fps step and policy inference: 123495 fps total: 109720 epoch: 270/2500 frames: 50397184
+fps step: 137708 fps step and policy inference: 121565 fps total: 107973 epoch: 271/2500 frames: 50462720
+fps step: 145462 fps step and policy inference: 122740 fps total: 108798 epoch: 272/2500 frames: 50528256
+fps step: 140294 fps step and policy inference: 123263 fps total: 109959 epoch: 273/2500 frames: 50593792
+fps step: 139809 fps step and policy inference: 120543 fps total: 106593 epoch: 274/2500 frames: 50659328
+fps step: 141106 fps step and policy inference: 123876 fps total: 109586 epoch: 275/2500 frames: 50724864
+fps step: 142379 fps step and policy inference: 122511 fps total: 112164 epoch: 276/2500 frames: 50790400
+fps step: 136002 fps step and policy inference: 119209 fps total: 109840 epoch: 277/2500 frames: 50855936
+fps step: 130730 fps step and policy inference: 114885 fps total: 105667 epoch: 278/2500 frames: 50921472
+fps step: 129901 fps step and policy inference: 115255 fps total: 106221 epoch: 279/2500 frames: 50987008
+fps step: 132584 fps step and policy inference: 116686 fps total: 107011 epoch: 280/2500 frames: 51052544
+fps step: 135086 fps step and policy inference: 118514 fps total: 109749 epoch: 281/2500 frames: 51118080
+fps step: 131353 fps step and policy inference: 117172 fps total: 108074 epoch: 282/2500 frames: 51183616
+fps step: 139666 fps step and policy inference: 123630 fps total: 114043 epoch: 283/2500 frames: 51249152
+fps step: 151042 fps step and policy inference: 128240 fps total: 117916 epoch: 284/2500 frames: 51314688
+fps step: 143479 fps step and policy inference: 125149 fps total: 114458 epoch: 285/2500 frames: 51380224
+fps step: 136441 fps step and policy inference: 121655 fps total: 111675 epoch: 286/2500 frames: 51445760
+fps step: 138627 fps step and policy inference: 123147 fps total: 113128 epoch: 287/2500 frames: 51511296
+fps step: 139069 fps step and policy inference: 120502 fps total: 111201 epoch: 288/2500 frames: 51576832
+fps step: 143269 fps step and policy inference: 127558 fps total: 116787 epoch: 289/2500 frames: 51642368
+fps step: 136517 fps step and policy inference: 118636 fps total: 108690 epoch: 290/2500 frames: 51707904
+fps step: 133344 fps step and policy inference: 118741 fps total: 109053 epoch: 291/2500 frames: 51773440
+fps step: 143044 fps step and policy inference: 126498 fps total: 115693 epoch: 292/2500 frames: 51838976
+fps step: 145032 fps step and policy inference: 127794 fps total: 117259 epoch: 293/2500 frames: 51904512
+fps step: 139331 fps step and policy inference: 122577 fps total: 112317 epoch: 294/2500 frames: 51970048
+fps step: 146033 fps step and policy inference: 129724 fps total: 118277 epoch: 295/2500 frames: 52035584
+fps step: 139572 fps step and policy inference: 124000 fps total: 113863 epoch: 296/2500 frames: 52101120
+fps step: 141768 fps step and policy inference: 126539 fps total: 116202 epoch: 297/2500 frames: 52166656
+fps step: 149553 fps step and policy inference: 131903 fps total: 120750 epoch: 298/2500 frames: 52232192
+fps step: 147913 fps step and policy inference: 129320 fps total: 119035 epoch: 299/2500 frames: 52297728
+fps step: 144611 fps step and policy inference: 126002 fps total: 113437 epoch: 300/2500 frames: 52363264
+fps step: 148080 fps step and policy inference: 131195 fps total: 120652 epoch: 301/2500 frames: 52428800
+fps step: 141799 fps step and policy inference: 126278 fps total: 116469 epoch: 302/2500 frames: 52494336
+fps step: 148176 fps step and policy inference: 129757 fps total: 119738 epoch: 303/2500 frames: 52559872
+fps step: 134625 fps step and policy inference: 119096 fps total: 111175 epoch: 304/2500 frames: 52625408
+fps step: 130753 fps step and policy inference: 117419 fps total: 107365 epoch: 305/2500 frames: 52690944
+fps step: 124340 fps step and policy inference: 110317 fps total: 102031 epoch: 306/2500 frames: 52756480
+fps step: 132206 fps step and policy inference: 114729 fps total: 105680 epoch: 307/2500 frames: 52822016
+fps step: 130744 fps step and policy inference: 116403 fps total: 107954 epoch: 308/2500 frames: 52887552
+fps step: 131536 fps step and policy inference: 116492 fps total: 107624 epoch: 309/2500 frames: 52953088
+fps step: 134508 fps step and policy inference: 117620 fps total: 108982 epoch: 310/2500 frames: 53018624
+fps step: 135699 fps step and policy inference: 118935 fps total: 109568 epoch: 311/2500 frames: 53084160
+fps step: 135078 fps step and policy inference: 119490 fps total: 110048 epoch: 312/2500 frames: 53149696
+fps step: 148085 fps step and policy inference: 126300 fps total: 115582 epoch: 313/2500 frames: 53215232
+fps step: 142112 fps step and policy inference: 124616 fps total: 114006 epoch: 314/2500 frames: 53280768
+fps step: 142581 fps step and policy inference: 123390 fps total: 113673 epoch: 315/2500 frames: 53346304
+fps step: 142111 fps step and policy inference: 122886 fps total: 112602 epoch: 316/2500 frames: 53411840
+fps step: 149330 fps step and policy inference: 129958 fps total: 118888 epoch: 317/2500 frames: 53477376
+fps step: 148260 fps step and policy inference: 130301 fps total: 119442 epoch: 318/2500 frames: 53542912
+fps step: 141631 fps step and policy inference: 124842 fps total: 113874 epoch: 319/2500 frames: 53608448
+fps step: 145567 fps step and policy inference: 126048 fps total: 114989 epoch: 320/2500 frames: 53673984
+fps step: 141458 fps step and policy inference: 122850 fps total: 112226 epoch: 321/2500 frames: 53739520
+saving next best successes:  7.4443426
+=> saving checkpoint 'runs/AntGPTMLT2R1C3S2-2026-10-27_02-04-15/nn/AntGPTMLT2R1C3S2.pth'
+fps step: 144849 fps step and policy inference: 124301 fps total: 113904 epoch: 322/2500 frames: 53805056
+fps step: 144512 fps step and policy inference: 124208 fps total: 114187 epoch: 323/2500 frames: 53870592
+fps step: 150673 fps step and policy inference: 129608 fps total: 119361 epoch: 324/2500 frames: 53936128
+fps step: 147912 fps step and policy inference: 128559 fps total: 118171 epoch: 325/2500 frames: 54001664
+fps step: 139768 fps step and policy inference: 123238 fps total: 112359 epoch: 326/2500 frames: 54067200
+fps step: 142350 fps step and policy inference: 124453 fps total: 114130 epoch: 327/2500 frames: 54132736
+fps step: 142731 fps step and policy inference: 123840 fps total: 114029 epoch: 328/2500 frames: 54198272
+fps step: 136604 fps step and policy inference: 121268 fps total: 111702 epoch: 329/2500 frames: 54263808
+fps step: 139294 fps step and policy inference: 121270 fps total: 111728 epoch: 330/2500 frames: 54329344
+fps step: 144243 fps step and policy inference: 126501 fps total: 116578 epoch: 331/2500 frames: 54394880
+fps step: 139364 fps step and policy inference: 121828 fps total: 112458 epoch: 332/2500 frames: 54460416
+fps step: 147827 fps step and policy inference: 130918 fps total: 119600 epoch: 333/2500 frames: 54525952
+fps step: 152346 fps step and policy inference: 134804 fps total: 124480 epoch: 334/2500 frames: 54591488
+fps step: 143248 fps step and policy inference: 125113 fps total: 113777 epoch: 335/2500 frames: 54657024
+fps step: 134658 fps step and policy inference: 120464 fps total: 110078 epoch: 336/2500 frames: 54722560
+fps step: 141540 fps step and policy inference: 124091 fps total: 112191 epoch: 337/2500 frames: 54788096
+fps step: 139007 fps step and policy inference: 123445 fps total: 113015 epoch: 338/2500 frames: 54853632
+fps step: 135748 fps step and policy inference: 120592 fps total: 111212 epoch: 339/2500 frames: 54919168
+fps step: 131626 fps step and policy inference: 117691 fps total: 108136 epoch: 340/2500 frames: 54984704
+fps step: 125678 fps step and policy inference: 111689 fps total: 102660 epoch: 341/2500 frames: 55050240
+fps step: 130234 fps step and policy inference: 114762 fps total: 102901 epoch: 342/2500 frames: 55115776
+fps step: 131909 fps step and policy inference: 115366 fps total: 103325 epoch: 343/2500 frames: 55181312
+fps step: 130017 fps step and policy inference: 114761 fps total: 106359 epoch: 344/2500 frames: 55246848
+fps step: 128739 fps step and policy inference: 114730 fps total: 103737 epoch: 345/2500 frames: 55312384
+fps step: 130471 fps step and policy inference: 114628 fps total: 103445 epoch: 346/2500 frames: 55377920
+fps step: 136529 fps step and policy inference: 121850 fps total: 107969 epoch: 347/2500 frames: 55443456
+fps step: 122670 fps step and policy inference: 106887 fps total: 95294 epoch: 348/2500 frames: 55508992
+fps step: 125712 fps step and policy inference: 109483 fps total: 97976 epoch: 349/2500 frames: 55574528
+fps step: 121620 fps step and policy inference: 105021 fps total: 94372 epoch: 350/2500 frames: 55640064
+fps step: 125803 fps step and policy inference: 107514 fps total: 94940 epoch: 351/2500 frames: 55705600
+fps step: 128084 fps step and policy inference: 112287 fps total: 104472 epoch: 352/2500 frames: 55771136
+fps step: 121139 fps step and policy inference: 106531 fps total: 95160 epoch: 353/2500 frames: 55836672
+fps step: 117288 fps step and policy inference: 102055 fps total: 91208 epoch: 354/2500 frames: 55902208
+fps step: 120199 fps step and policy inference: 106064 fps total: 99247 epoch: 355/2500 frames: 55967744
+fps step: 128840 fps step and policy inference: 114657 fps total: 106137 epoch: 356/2500 frames: 56033280
+fps step: 130366 fps step and policy inference: 117309 fps total: 108314 epoch: 357/2500 frames: 56098816
+fps step: 144525 fps step and policy inference: 125352 fps total: 115591 epoch: 358/2500 frames: 56164352
+fps step: 142510 fps step and policy inference: 126862 fps total: 115859 epoch: 359/2500 frames: 56229888
+fps step: 151143 fps step and policy inference: 131518 fps total: 120128 epoch: 360/2500 frames: 56295424
+fps step: 138876 fps step and policy inference: 122030 fps total: 112757 epoch: 361/2500 frames: 56360960
+fps step: 148229 fps step and policy inference: 127855 fps total: 117700 epoch: 362/2500 frames: 56426496
+fps step: 137154 fps step and policy inference: 120189 fps total: 110128 epoch: 363/2500 frames: 56492032
+fps step: 142583 fps step and policy inference: 120579 fps total: 108860 epoch: 364/2500 frames: 56557568
+fps step: 143555 fps step and policy inference: 123208 fps total: 111752 epoch: 365/2500 frames: 56623104
+fps step: 133613 fps step and policy inference: 116455 fps total: 104941 epoch: 366/2500 frames: 56688640
+fps step: 135063 fps step and policy inference: 119629 fps total: 108189 epoch: 367/2500 frames: 56754176
+fps step: 143143 fps step and policy inference: 122282 fps total: 109702 epoch: 368/2500 frames: 56819712
+fps step: 141349 fps step and policy inference: 123189 fps total: 112801 epoch: 369/2500 frames: 56885248
+fps step: 134120 fps step and policy inference: 118658 fps total: 108477 epoch: 370/2500 frames: 56950784
+fps step: 132746 fps step and policy inference: 114179 fps total: 102674 epoch: 371/2500 frames: 57016320
+fps step: 136048 fps step and policy inference: 114592 fps total: 102990 epoch: 372/2500 frames: 57081856
+fps step: 127308 fps step and policy inference: 112948 fps total: 102805 epoch: 373/2500 frames: 57147392
+fps step: 135370 fps step and policy inference: 118957 fps total: 106681 epoch: 374/2500 frames: 57212928
+fps step: 138416 fps step and policy inference: 120436 fps total: 109496 epoch: 375/2500 frames: 57278464
+fps step: 149708 fps step and policy inference: 129948 fps total: 118180 epoch: 376/2500 frames: 57344000
+fps step: 139614 fps step and policy inference: 122614 fps total: 111278 epoch: 377/2500 frames: 57409536
+fps step: 135414 fps step and policy inference: 116767 fps total: 104098 epoch: 378/2500 frames: 57475072
+fps step: 136428 fps step and policy inference: 119997 fps total: 106485 epoch: 379/2500 frames: 57540608
+fps step: 137173 fps step and policy inference: 120794 fps total: 110002 epoch: 380/2500 frames: 57606144
+fps step: 144336 fps step and policy inference: 124914 fps total: 111598 epoch: 381/2500 frames: 57671680
+fps step: 143125 fps step and policy inference: 121417 fps total: 106097 epoch: 382/2500 frames: 57737216
+fps step: 135229 fps step and policy inference: 115410 fps total: 101309 epoch: 383/2500 frames: 57802752
+fps step: 136869 fps step and policy inference: 117239 fps total: 103329 epoch: 384/2500 frames: 57868288
+fps step: 135766 fps step and policy inference: 115141 fps total: 101732 epoch: 385/2500 frames: 57933824
+fps step: 130776 fps step and policy inference: 115258 fps total: 106054 epoch: 386/2500 frames: 57999360
+fps step: 131965 fps step and policy inference: 116662 fps total: 105691 epoch: 387/2500 frames: 58064896
+fps step: 129670 fps step and policy inference: 112882 fps total: 102813 epoch: 388/2500 frames: 58130432
+fps step: 132677 fps step and policy inference: 119282 fps total: 107719 epoch: 389/2500 frames: 58195968
+fps step: 137218 fps step and policy inference: 123505 fps total: 110640 epoch: 390/2500 frames: 58261504
+fps step: 142612 fps step and policy inference: 126140 fps total: 115373 epoch: 391/2500 frames: 58327040
+fps step: 149180 fps step and policy inference: 131674 fps total: 118401 epoch: 392/2500 frames: 58392576
+fps step: 132666 fps step and policy inference: 118560 fps total: 107891 epoch: 393/2500 frames: 58458112
+fps step: 134691 fps step and policy inference: 119694 fps total: 107649 epoch: 394/2500 frames: 58523648
+fps step: 132217 fps step and policy inference: 116977 fps total: 106996 epoch: 395/2500 frames: 58589184
+fps step: 136597 fps step and policy inference: 119999 fps total: 110947 epoch: 396/2500 frames: 58654720
+fps step: 142376 fps step and policy inference: 125861 fps total: 115615 epoch: 397/2500 frames: 58720256
+fps step: 141754 fps step and policy inference: 125860 fps total: 111721 epoch: 398/2500 frames: 58785792
+fps step: 137034 fps step and policy inference: 119747 fps total: 108146 epoch: 399/2500 frames: 58851328
+fps step: 143201 fps step and policy inference: 125331 fps total: 115034 epoch: 400/2500 frames: 58916864
+fps step: 134403 fps step and policy inference: 119381 fps total: 108777 epoch: 401/2500 frames: 58982400
+fps step: 139983 fps step and policy inference: 120156 fps total: 109253 epoch: 402/2500 frames: 59047936
+fps step: 140808 fps step and policy inference: 120260 fps total: 108771 epoch: 403/2500 frames: 59113472
+fps step: 147895 fps step and policy inference: 127255 fps total: 115434 epoch: 404/2500 frames: 59179008
+fps step: 150983 fps step and policy inference: 133723 fps total: 122422 epoch: 405/2500 frames: 59244544
+fps step: 150141 fps step and policy inference: 133126 fps total: 122664 epoch: 406/2500 frames: 59310080
+fps step: 138656 fps step and policy inference: 121371 fps total: 108705 epoch: 407/2500 frames: 59375616
+fps step: 141953 fps step and policy inference: 120584 fps total: 108671 epoch: 408/2500 frames: 59441152
+fps step: 141800 fps step and policy inference: 121285 fps total: 108616 epoch: 409/2500 frames: 59506688
+fps step: 139220 fps step and policy inference: 118711 fps total: 107005 epoch: 410/2500 frames: 59572224
+fps step: 140772 fps step and policy inference: 119703 fps total: 107367 epoch: 411/2500 frames: 59637760
+fps step: 139092 fps step and policy inference: 117079 fps total: 105997 epoch: 412/2500 frames: 59703296
+fps step: 139209 fps step and policy inference: 117069 fps total: 106152 epoch: 413/2500 frames: 59768832
+fps step: 145660 fps step and policy inference: 123516 fps total: 110238 epoch: 414/2500 frames: 59834368
+fps step: 141085 fps step and policy inference: 120222 fps total: 107382 epoch: 415/2500 frames: 59899904
+fps step: 144810 fps step and policy inference: 123372 fps total: 109110 epoch: 416/2500 frames: 59965440
+fps step: 135924 fps step and policy inference: 115995 fps total: 104926 epoch: 417/2500 frames: 60030976
+fps step: 139031 fps step and policy inference: 120831 fps total: 109672 epoch: 418/2500 frames: 60096512
+fps step: 134204 fps step and policy inference: 119898 fps total: 108543 epoch: 419/2500 frames: 60162048
+fps step: 138150 fps step and policy inference: 119336 fps total: 109329 epoch: 420/2500 frames: 60227584
+fps step: 139083 fps step and policy inference: 118290 fps total: 105226 epoch: 421/2500 frames: 60293120
+fps step: 133328 fps step and policy inference: 113143 fps total: 101740 epoch: 422/2500 frames: 60358656
+fps step: 130576 fps step and policy inference: 110319 fps total: 97758 epoch: 423/2500 frames: 60424192
+fps step: 133976 fps step and policy inference: 112723 fps total: 102362 epoch: 424/2500 frames: 60489728
+fps step: 144924 fps step and policy inference: 127773 fps total: 116819 epoch: 425/2500 frames: 60555264
+fps step: 141751 fps step and policy inference: 121366 fps total: 110497 epoch: 426/2500 frames: 60620800
+fps step: 134980 fps step and policy inference: 118247 fps total: 107385 epoch: 427/2500 frames: 60686336
+fps step: 140128 fps step and policy inference: 124187 fps total: 112851 epoch: 428/2500 frames: 60751872
+fps step: 137350 fps step and policy inference: 116820 fps total: 104109 epoch: 429/2500 frames: 60817408
+fps step: 127297 fps step and policy inference: 107353 fps total: 96826 epoch: 430/2500 frames: 60882944
+fps step: 131405 fps step and policy inference: 112776 fps total: 101799 epoch: 431/2500 frames: 60948480
+fps step: 140838 fps step and policy inference: 121861 fps total: 110708 epoch: 432/2500 frames: 61014016
+fps step: 151017 fps step and policy inference: 129315 fps total: 114585 epoch: 433/2500 frames: 61079552
+fps step: 137615 fps step and policy inference: 117496 fps total: 105163 epoch: 434/2500 frames: 61145088
+fps step: 141252 fps step and policy inference: 118736 fps total: 106305 epoch: 435/2500 frames: 61210624
+fps step: 133155 fps step and policy inference: 114532 fps total: 102898 epoch: 436/2500 frames: 61276160
+fps step: 137006 fps step and policy inference: 117994 fps total: 106056 epoch: 437/2500 frames: 61341696
+fps step: 138269 fps step and policy inference: 120011 fps total: 110400 epoch: 438/2500 frames: 61407232
+fps step: 141479 fps step and policy inference: 125893 fps total: 117009 epoch: 439/2500 frames: 61472768
+fps step: 152363 fps step and policy inference: 133856 fps total: 122613 epoch: 440/2500 frames: 61538304
+fps step: 147664 fps step and policy inference: 128117 fps total: 117994 epoch: 441/2500 frames: 61603840
+fps step: 150253 fps step and policy inference: 131662 fps total: 122519 epoch: 442/2500 frames: 61669376
+fps step: 137570 fps step and policy inference: 121344 fps total: 112027 epoch: 443/2500 frames: 61734912
+fps step: 134900 fps step and policy inference: 120536 fps total: 112302 epoch: 444/2500 frames: 61800448
+fps step: 139275 fps step and policy inference: 123424 fps total: 113530 epoch: 445/2500 frames: 61865984
+saving next best successes:  7.4786205
+=> saving checkpoint 'runs/AntGPTMLT2R1C3S2-2026-10-27_02-04-15/nn/AntGPTMLT2R1C3S2.pth'
+fps step: 144873 fps step and policy inference: 126169 fps total: 115881 epoch: 446/2500 frames: 61931520
+saving next best successes:  7.5660696
+=> saving checkpoint 'runs/AntGPTMLT2R1C3S2-2026-10-27_02-04-15/nn/AntGPTMLT2R1C3S2.pth'
+fps step: 140423 fps step and policy inference: 122614 fps total: 113547 epoch: 447/2500 frames: 61997056
+saving next best successes:  7.582965
+=> saving checkpoint 'runs/AntGPTMLT2R1C3S2-2026-10-27_02-04-15/nn/AntGPTMLT2R1C3S2.pth'
+fps step: 142733 fps step and policy inference: 126267 fps total: 116314 epoch: 448/2500 frames: 62062592
+fps step: 144008 fps step and policy inference: 127011 fps total: 113990 epoch: 449/2500 frames: 62128128
+fps step: 140462 fps step and policy inference: 121853 fps total: 108071 epoch: 450/2500 frames: 62193664
+fps step: 141367 fps step and policy inference: 120550 fps total: 106543 epoch: 451/2500 frames: 62259200
+fps step: 136233 fps step and policy inference: 117075 fps total: 108228 epoch: 452/2500 frames: 62324736
+fps step: 137998 fps step and policy inference: 117405 fps total: 105266 epoch: 453/2500 frames: 62390272
+fps step: 137804 fps step and policy inference: 119285 fps total: 111007 epoch: 454/2500 frames: 62455808
+fps step: 141003 fps step and policy inference: 127190 fps total: 117568 epoch: 455/2500 frames: 62521344
+fps step: 128299 fps step and policy inference: 113174 fps total: 103371 epoch: 456/2500 frames: 62586880
+fps step: 128628 fps step and policy inference: 112401 fps total: 100590 epoch: 457/2500 frames: 62652416
+fps step: 134697 fps step and policy inference: 117868 fps total: 108425 epoch: 458/2500 frames: 62717952
+fps step: 139239 fps step and policy inference: 120909 fps total: 111507 epoch: 459/2500 frames: 62783488
+fps step: 139284 fps step and policy inference: 123719 fps total: 113643 epoch: 460/2500 frames: 62849024
+fps step: 149272 fps step and policy inference: 131349 fps total: 121270 epoch: 461/2500 frames: 62914560
+fps step: 143332 fps step and policy inference: 125913 fps total: 112718 epoch: 462/2500 frames: 62980096
+fps step: 143131 fps step and policy inference: 123792 fps total: 114661 epoch: 463/2500 frames: 63045632
+fps step: 146777 fps step and policy inference: 127792 fps total: 118392 epoch: 464/2500 frames: 63111168
+fps step: 153201 fps step and policy inference: 135928 fps total: 120522 epoch: 465/2500 frames: 63176704
+fps step: 136072 fps step and policy inference: 117070 fps total: 103326 epoch: 466/2500 frames: 63242240
+fps step: 139854 fps step and policy inference: 119423 fps total: 106073 epoch: 467/2500 frames: 63307776
+fps step: 137804 fps step and policy inference: 117007 fps total: 104265 epoch: 468/2500 frames: 63373312
+fps step: 145856 fps step and policy inference: 125106 fps total: 110624 epoch: 469/2500 frames: 63438848
+fps step: 142917 fps step and policy inference: 121544 fps total: 107299 epoch: 470/2500 frames: 63504384
+fps step: 149119 fps step and policy inference: 122973 fps total: 109586 epoch: 471/2500 frames: 63569920
+fps step: 142039 fps step and policy inference: 121286 fps total: 110451 epoch: 472/2500 frames: 63635456
+fps step: 136741 fps step and policy inference: 118923 fps total: 110560 epoch: 473/2500 frames: 63700992
+fps step: 137712 fps step and policy inference: 122538 fps total: 114351 epoch: 474/2500 frames: 63766528
+fps step: 141313 fps step and policy inference: 123656 fps total: 111544 epoch: 475/2500 frames: 63832064
+fps step: 139442 fps step and policy inference: 122592 fps total: 114188 epoch: 476/2500 frames: 63897600
+fps step: 138233 fps step and policy inference: 121198 fps total: 107369 epoch: 477/2500 frames: 63963136
+fps step: 134603 fps step and policy inference: 113604 fps total: 100729 epoch: 478/2500 frames: 64028672
+fps step: 137922 fps step and policy inference: 118295 fps total: 105056 epoch: 479/2500 frames: 64094208
+fps step: 134910 fps step and policy inference: 116512 fps total: 103784 epoch: 480/2500 frames: 64159744
+fps step: 143348 fps step and policy inference: 121726 fps total: 108961 epoch: 481/2500 frames: 64225280
+fps step: 144796 fps step and policy inference: 123126 fps total: 109831 epoch: 482/2500 frames: 64290816
+fps step: 144672 fps step and policy inference: 124330 fps total: 112018 epoch: 483/2500 frames: 64356352
+fps step: 148361 fps step and policy inference: 130900 fps total: 118764 epoch: 484/2500 frames: 64421888
+fps step: 140765 fps step and policy inference: 122612 fps total: 109607 epoch: 485/2500 frames: 64487424
+fps step: 149817 fps step and policy inference: 131254 fps total: 120896 epoch: 486/2500 frames: 64552960
+fps step: 157469 fps step and policy inference: 136290 fps total: 123767 epoch: 487/2500 frames: 64618496
+fps step: 152397 fps step and policy inference: 133398 fps total: 121162 epoch: 488/2500 frames: 64684032
+fps step: 153078 fps step and policy inference: 131896 fps total: 120083 epoch: 489/2500 frames: 64749568
+fps step: 154917 fps step and policy inference: 136922 fps total: 124275 epoch: 490/2500 frames: 64815104
+fps step: 146637 fps step and policy inference: 130905 fps total: 120731 epoch: 491/2500 frames: 64880640
+fps step: 144408 fps step and policy inference: 127601 fps total: 116764 epoch: 492/2500 frames: 64946176
+fps step: 140500 fps step and policy inference: 124574 fps total: 113823 epoch: 493/2500 frames: 65011712
+fps step: 144379 fps step and policy inference: 126952 fps total: 114727 epoch: 494/2500 frames: 65077248
+fps step: 146031 fps step and policy inference: 127232 fps total: 116785 epoch: 495/2500 frames: 65142784
+fps step: 145996 fps step and policy inference: 129475 fps total: 119900 epoch: 496/2500 frames: 65208320
+fps step: 147154 fps step and policy inference: 130094 fps total: 116950 epoch: 497/2500 frames: 65273856
+fps step: 142891 fps step and policy inference: 128749 fps total: 116513 epoch: 498/2500 frames: 65339392
+fps step: 143331 fps step and policy inference: 127104 fps total: 115222 epoch: 499/2500 frames: 65404928
+fps step: 142657 fps step and policy inference: 126960 fps total: 113045 epoch: 500/2500 frames: 65470464
+fps step: 153147 fps step and policy inference: 132354 fps total: 116050 epoch: 501/2500 frames: 65536000
+fps step: 144943 fps step and policy inference: 123861 fps total: 109408 epoch: 502/2500 frames: 65601536
+fps step: 145659 fps step and policy inference: 124210 fps total: 108788 epoch: 503/2500 frames: 65667072
+fps step: 155252 fps step and policy inference: 131619 fps total: 116889 epoch: 504/2500 frames: 65732608
+fps step: 152760 fps step and policy inference: 129987 fps total: 116847 epoch: 505/2500 frames: 65798144
+fps step: 141153 fps step and policy inference: 120472 fps total: 106075 epoch: 506/2500 frames: 65863680
+fps step: 137889 fps step and policy inference: 119861 fps total: 105364 epoch: 507/2500 frames: 65929216
+fps step: 150117 fps step and policy inference: 126497 fps total: 111580 epoch: 508/2500 frames: 65994752
+saving next best successes:  7.5925713
+=> saving checkpoint 'runs/AntGPTMLT2R1C3S2-2026-10-27_02-04-15/nn/AntGPTMLT2R1C3S2.pth'
+fps step: 142434 fps step and policy inference: 123134 fps total: 108353 epoch: 509/2500 frames: 66060288
+saving next best successes:  7.646201
+=> saving checkpoint 'runs/AntGPTMLT2R1C3S2-2026-10-27_02-04-15/nn/AntGPTMLT2R1C3S2.pth'
+fps step: 142200 fps step and policy inference: 122419 fps total: 108361 epoch: 510/2500 frames: 66125824
+saving next best successes:  7.6705904
+=> saving checkpoint 'runs/AntGPTMLT2R1C3S2-2026-10-27_02-04-15/nn/AntGPTMLT2R1C3S2.pth'
+fps step: 140592 fps step and policy inference: 122415 fps total: 110537 epoch: 511/2500 frames: 66191360
+fps step: 133684 fps step and policy inference: 115827 fps total: 105674 epoch: 512/2500 frames: 66256896
+fps step: 137360 fps step and policy inference: 120087 fps total: 111466 epoch: 513/2500 frames: 66322432
+fps step: 141869 fps step and policy inference: 125209 fps total: 112353 epoch: 514/2500 frames: 66387968
+fps step: 131027 fps step and policy inference: 112574 fps total: 102387 epoch: 515/2500 frames: 66453504
+fps step: 138444 fps step and policy inference: 119033 fps total: 106481 epoch: 516/2500 frames: 66519040
+fps step: 137842 fps step and policy inference: 117948 fps total: 104088 epoch: 517/2500 frames: 66584576
+fps step: 140385 fps step and policy inference: 119521 fps total: 106024 epoch: 518/2500 frames: 66650112
+fps step: 138105 fps step and policy inference: 117467 fps total: 105955 epoch: 519/2500 frames: 66715648
+fps step: 143093 fps step and policy inference: 125096 fps total: 112447 epoch: 520/2500 frames: 66781184
+fps step: 148348 fps step and policy inference: 125703 fps total: 108488 epoch: 521/2500 frames: 66846720
+fps step: 147936 fps step and policy inference: 127582 fps total: 119237 epoch: 522/2500 frames: 66912256
+fps step: 142724 fps step and policy inference: 127493 fps total: 113202 epoch: 523/2500 frames: 66977792
+fps step: 144080 fps step and policy inference: 126275 fps total: 117946 epoch: 524/2500 frames: 67043328
+fps step: 149734 fps step and policy inference: 134396 fps total: 124395 epoch: 525/2500 frames: 67108864
+fps step: 144321 fps step and policy inference: 129005 fps total: 120132 epoch: 526/2500 frames: 67174400
+fps step: 147679 fps step and policy inference: 131223 fps total: 121746 epoch: 527/2500 frames: 67239936
+fps step: 147912 fps step and policy inference: 131809 fps total: 122791 epoch: 528/2500 frames: 67305472
+fps step: 144285 fps step and policy inference: 130067 fps total: 120490 epoch: 529/2500 frames: 67371008
+fps step: 147305 fps step and policy inference: 127942 fps total: 118938 epoch: 530/2500 frames: 67436544
+fps step: 147117 fps step and policy inference: 129609 fps total: 119583 epoch: 531/2500 frames: 67502080
+fps step: 143254 fps step and policy inference: 126997 fps total: 118055 epoch: 532/2500 frames: 67567616
+fps step: 147808 fps step and policy inference: 132445 fps total: 122623 epoch: 533/2500 frames: 67633152
+fps step: 148474 fps step and policy inference: 132460 fps total: 123175 epoch: 534/2500 frames: 67698688
+fps step: 146530 fps step and policy inference: 129660 fps total: 117603 epoch: 535/2500 frames: 67764224
+fps step: 145140 fps step and policy inference: 123752 fps total: 109128 epoch: 536/2500 frames: 67829760
+fps step: 138329 fps step and policy inference: 118852 fps total: 105442 epoch: 537/2500 frames: 67895296
+fps step: 138408 fps step and policy inference: 120530 fps total: 106350 epoch: 538/2500 frames: 67960832
+fps step: 145207 fps step and policy inference: 123472 fps total: 111208 epoch: 539/2500 frames: 68026368
+fps step: 148430 fps step and policy inference: 126211 fps total: 111202 epoch: 540/2500 frames: 68091904
+fps step: 148733 fps step and policy inference: 124230 fps total: 110016 epoch: 541/2500 frames: 68157440
+fps step: 143213 fps step and policy inference: 121086 fps total: 106274 epoch: 542/2500 frames: 68222976
+fps step: 143143 fps step and policy inference: 123128 fps total: 109944 epoch: 543/2500 frames: 68288512
+fps step: 147666 fps step and policy inference: 126688 fps total: 113376 epoch: 544/2500 frames: 68354048
+fps step: 149045 fps step and policy inference: 126006 fps total: 117343 epoch: 545/2500 frames: 68419584
+fps step: 151834 fps step and policy inference: 132872 fps total: 123080 epoch: 546/2500 frames: 68485120
+fps step: 146324 fps step and policy inference: 130079 fps total: 120569 epoch: 547/2500 frames: 68550656
+fps step: 151461 fps step and policy inference: 132668 fps total: 122416 epoch: 548/2500 frames: 68616192
+fps step: 147656 fps step and policy inference: 131325 fps total: 120458 epoch: 549/2500 frames: 68681728
+fps step: 152271 fps step and policy inference: 134170 fps total: 124075 epoch: 550/2500 frames: 68747264
+fps step: 146019 fps step and policy inference: 128618 fps total: 118407 epoch: 551/2500 frames: 68812800
+fps step: 144585 fps step and policy inference: 127821 fps total: 112893 epoch: 552/2500 frames: 68878336
+fps step: 146007 fps step and policy inference: 125135 fps total: 110214 epoch: 553/2500 frames: 68943872
+fps step: 142727 fps step and policy inference: 121698 fps total: 107315 epoch: 554/2500 frames: 69009408
+fps step: 139142 fps step and policy inference: 119255 fps total: 107791 epoch: 555/2500 frames: 69074944
+fps step: 146188 fps step and policy inference: 124778 fps total: 114787 epoch: 556/2500 frames: 69140480
+fps step: 146626 fps step and policy inference: 128017 fps total: 119325 epoch: 557/2500 frames: 69206016
+fps step: 143773 fps step and policy inference: 124494 fps total: 109994 epoch: 558/2500 frames: 69271552
+fps step: 148013 fps step and policy inference: 127856 fps total: 117862 epoch: 559/2500 frames: 69337088
+fps step: 148048 fps step and policy inference: 131121 fps total: 121633 epoch: 560/2500 frames: 69402624
+fps step: 146067 fps step and policy inference: 129676 fps total: 120700 epoch: 561/2500 frames: 69468160
+fps step: 151768 fps step and policy inference: 133245 fps total: 118941 epoch: 562/2500 frames: 69533696
+fps step: 143729 fps step and policy inference: 122293 fps total: 107898 epoch: 563/2500 frames: 69599232
+fps step: 148508 fps step and policy inference: 126468 fps total: 111315 epoch: 564/2500 frames: 69664768
+fps step: 146343 fps step and policy inference: 125381 fps total: 110721 epoch: 565/2500 frames: 69730304
+fps step: 159554 fps step and policy inference: 137025 fps total: 124775 epoch: 566/2500 frames: 69795840
+fps step: 153568 fps step and policy inference: 133102 fps total: 116483 epoch: 567/2500 frames: 69861376
+fps step: 147451 fps step and policy inference: 130176 fps total: 117918 epoch: 568/2500 frames: 69926912
+fps step: 143973 fps step and policy inference: 127553 fps total: 118296 epoch: 569/2500 frames: 69992448
+fps step: 143492 fps step and policy inference: 124095 fps total: 112617 epoch: 570/2500 frames: 70057984
+fps step: 149202 fps step and policy inference: 130493 fps total: 118869 epoch: 571/2500 frames: 70123520
+saving next best successes:  7.7172127
+=> saving checkpoint 'runs/AntGPTMLT2R1C3S2-2026-10-27_02-04-15/nn/AntGPTMLT2R1C3S2.pth'
+fps step: 143004 fps step and policy inference: 125944 fps total: 114377 epoch: 572/2500 frames: 70189056
+saving next best successes:  7.7402096
+=> saving checkpoint 'runs/AntGPTMLT2R1C3S2-2026-10-27_02-04-15/nn/AntGPTMLT2R1C3S2.pth'
+fps step: 156410 fps step and policy inference: 131551 fps total: 118800 epoch: 573/2500 frames: 70254592
+saving next best successes:  7.741578
+=> saving checkpoint 'runs/AntGPTMLT2R1C3S2-2026-10-27_02-04-15/nn/AntGPTMLT2R1C3S2.pth'
+fps step: 156166 fps step and policy inference: 134251 fps total: 123377 epoch: 574/2500 frames: 70320128
+fps step: 152203 fps step and policy inference: 136294 fps total: 122218 epoch: 575/2500 frames: 70385664
+fps step: 152935 fps step and policy inference: 131345 fps total: 118278 epoch: 576/2500 frames: 70451200
+fps step: 151690 fps step and policy inference: 127318 fps total: 113615 epoch: 577/2500 frames: 70516736
+fps step: 148143 fps step and policy inference: 125179 fps total: 112286 epoch: 578/2500 frames: 70582272
+fps step: 144302 fps step and policy inference: 124891 fps total: 113067 epoch: 579/2500 frames: 70647808
+fps step: 139319 fps step and policy inference: 120142 fps total: 107988 epoch: 580/2500 frames: 70713344
+fps step: 144128 fps step and policy inference: 123346 fps total: 109964 epoch: 581/2500 frames: 70778880
+fps step: 148110 fps step and policy inference: 124659 fps total: 112399 epoch: 582/2500 frames: 70844416
+fps step: 141942 fps step and policy inference: 123448 fps total: 111848 epoch: 583/2500 frames: 70909952
+fps step: 148862 fps step and policy inference: 128789 fps total: 115373 epoch: 584/2500 frames: 70975488
+fps step: 135455 fps step and policy inference: 117800 fps total: 105713 epoch: 585/2500 frames: 71041024
+fps step: 143973 fps step and policy inference: 125204 fps total: 112341 epoch: 586/2500 frames: 71106560
+fps step: 150488 fps step and policy inference: 129785 fps total: 119377 epoch: 587/2500 frames: 71172096
+fps step: 141306 fps step and policy inference: 127216 fps total: 116730 epoch: 588/2500 frames: 71237632
+fps step: 139486 fps step and policy inference: 121926 fps total: 109871 epoch: 589/2500 frames: 71303168
+fps step: 137853 fps step and policy inference: 120769 fps total: 111989 epoch: 590/2500 frames: 71368704
+fps step: 142953 fps step and policy inference: 126989 fps total: 117432 epoch: 591/2500 frames: 71434240
+fps step: 141840 fps step and policy inference: 128255 fps total: 119364 epoch: 592/2500 frames: 71499776
+fps step: 144980 fps step and policy inference: 128915 fps total: 119085 epoch: 593/2500 frames: 71565312
+fps step: 141253 fps step and policy inference: 123895 fps total: 110231 epoch: 594/2500 frames: 71630848
+fps step: 150663 fps step and policy inference: 128006 fps total: 114063 epoch: 595/2500 frames: 71696384
+fps step: 148091 fps step and policy inference: 127926 fps total: 112761 epoch: 596/2500 frames: 71761920
+fps step: 141704 fps step and policy inference: 120277 fps total: 109174 epoch: 597/2500 frames: 71827456
+fps step: 149008 fps step and policy inference: 130672 fps total: 120939 epoch: 598/2500 frames: 71892992
+fps step: 146659 fps step and policy inference: 129543 fps total: 116021 epoch: 599/2500 frames: 71958528
+fps step: 142510 fps step and policy inference: 123395 fps total: 110913 epoch: 600/2500 frames: 72024064
+fps step: 149177 fps step and policy inference: 125241 fps total: 110318 epoch: 601/2500 frames: 72089600
+fps step: 143526 fps step and policy inference: 127075 fps total: 117513 epoch: 602/2500 frames: 72155136
+fps step: 150212 fps step and policy inference: 131960 fps total: 123159 epoch: 603/2500 frames: 72220672
+fps step: 151265 fps step and policy inference: 134238 fps total: 123506 epoch: 604/2500 frames: 72286208
+fps step: 144057 fps step and policy inference: 125804 fps total: 112666 epoch: 605/2500 frames: 72351744
+fps step: 139454 fps step and policy inference: 122940 fps total: 114349 epoch: 606/2500 frames: 72417280
+fps step: 154770 fps step and policy inference: 136353 fps total: 126169 epoch: 607/2500 frames: 72482816
+fps step: 154645 fps step and policy inference: 135497 fps total: 123994 epoch: 608/2500 frames: 72548352
+fps step: 145677 fps step and policy inference: 128609 fps total: 118412 epoch: 609/2500 frames: 72613888
+fps step: 155907 fps step and policy inference: 134988 fps total: 122912 epoch: 610/2500 frames: 72679424
+fps step: 147263 fps step and policy inference: 127816 fps total: 117577 epoch: 611/2500 frames: 72744960
+fps step: 142129 fps step and policy inference: 123776 fps total: 110332 epoch: 612/2500 frames: 72810496
+fps step: 144147 fps step and policy inference: 123728 fps total: 108892 epoch: 613/2500 frames: 72876032
+fps step: 136785 fps step and policy inference: 117719 fps total: 104362 epoch: 614/2500 frames: 72941568
+fps step: 138562 fps step and policy inference: 119182 fps total: 105828 epoch: 615/2500 frames: 73007104
+fps step: 144335 fps step and policy inference: 121007 fps total: 107585 epoch: 616/2500 frames: 73072640
+fps step: 143890 fps step and policy inference: 121453 fps total: 107712 epoch: 617/2500 frames: 73138176
+fps step: 135485 fps step and policy inference: 118040 fps total: 107494 epoch: 618/2500 frames: 73203712
+fps step: 138955 fps step and policy inference: 118152 fps total: 105074 epoch: 619/2500 frames: 73269248
+fps step: 152068 fps step and policy inference: 129100 fps total: 115412 epoch: 620/2500 frames: 73334784
+fps step: 140719 fps step and policy inference: 120341 fps total: 107434 epoch: 621/2500 frames: 73400320
+fps step: 139288 fps step and policy inference: 118890 fps total: 107496 epoch: 622/2500 frames: 73465856
+fps step: 146621 fps step and policy inference: 125539 fps total: 112372 epoch: 623/2500 frames: 73531392
+fps step: 138897 fps step and policy inference: 121344 fps total: 109204 epoch: 624/2500 frames: 73596928
+fps step: 137449 fps step and policy inference: 118334 fps total: 105793 epoch: 625/2500 frames: 73662464
+fps step: 148191 fps step and policy inference: 125527 fps total: 110578 epoch: 626/2500 frames: 73728000
+fps step: 141608 fps step and policy inference: 121269 fps total: 107856 epoch: 627/2500 frames: 73793536
+fps step: 138761 fps step and policy inference: 118432 fps total: 106970 epoch: 628/2500 frames: 73859072
+fps step: 155137 fps step and policy inference: 132919 fps total: 121327 epoch: 629/2500 frames: 73924608
+fps step: 148839 fps step and policy inference: 133380 fps total: 119217 epoch: 630/2500 frames: 73990144
+fps step: 145610 fps step and policy inference: 126090 fps total: 115655 epoch: 631/2500 frames: 74055680
+fps step: 146738 fps step and policy inference: 131508 fps total: 115612 epoch: 632/2500 frames: 74121216
+fps step: 150690 fps step and policy inference: 128214 fps total: 119210 epoch: 633/2500 frames: 74186752
+saving next best successes:  7.798435
+=> saving checkpoint 'runs/AntGPTMLT2R1C3S2-2026-10-27_02-04-15/nn/AntGPTMLT2R1C3S2.pth'
+fps step: 147174 fps step and policy inference: 126958 fps total: 113585 epoch: 634/2500 frames: 74252288
+saving next best successes:  7.849325
+=> saving checkpoint 'runs/AntGPTMLT2R1C3S2-2026-10-27_02-04-15/nn/AntGPTMLT2R1C3S2.pth'
+fps step: 140257 fps step and policy inference: 121473 fps total: 107643 epoch: 635/2500 frames: 74317824
+fps step: 144032 fps step and policy inference: 123363 fps total: 109038 epoch: 636/2500 frames: 74383360
+fps step: 147926 fps step and policy inference: 124217 fps total: 109606 epoch: 637/2500 frames: 74448896
+fps step: 143552 fps step and policy inference: 121861 fps total: 108348 epoch: 638/2500 frames: 74514432
+fps step: 137901 fps step and policy inference: 117683 fps total: 104465 epoch: 639/2500 frames: 74579968
+fps step: 136950 fps step and policy inference: 115964 fps total: 107050 epoch: 640/2500 frames: 74645504
+fps step: 136436 fps step and policy inference: 118493 fps total: 105831 epoch: 641/2500 frames: 74711040
+fps step: 138686 fps step and policy inference: 118103 fps total: 104465 epoch: 642/2500 frames: 74776576
+fps step: 142527 fps step and policy inference: 123043 fps total: 114966 epoch: 643/2500 frames: 74842112
+fps step: 146801 fps step and policy inference: 129843 fps total: 119981 epoch: 644/2500 frames: 74907648
+fps step: 150826 fps step and policy inference: 134527 fps total: 124917 epoch: 645/2500 frames: 74973184
+fps step: 148735 fps step and policy inference: 132565 fps total: 122214 epoch: 646/2500 frames: 75038720
+fps step: 149267 fps step and policy inference: 133509 fps total: 124263 epoch: 647/2500 frames: 75104256
+fps step: 148563 fps step and policy inference: 128959 fps total: 120254 epoch: 648/2500 frames: 75169792
+fps step: 140526 fps step and policy inference: 126363 fps total: 113515 epoch: 649/2500 frames: 75235328
+fps step: 147874 fps step and policy inference: 129310 fps total: 120099 epoch: 650/2500 frames: 75300864
+fps step: 141963 fps step and policy inference: 124357 fps total: 111288 epoch: 651/2500 frames: 75366400
+fps step: 141049 fps step and policy inference: 122603 fps total: 111325 epoch: 652/2500 frames: 75431936
+fps step: 149340 fps step and policy inference: 130133 fps total: 119379 epoch: 653/2500 frames: 75497472
+fps step: 138383 fps step and policy inference: 123108 fps total: 111952 epoch: 654/2500 frames: 75563008
+fps step: 140448 fps step and policy inference: 126013 fps total: 116337 epoch: 655/2500 frames: 75628544
+fps step: 146243 fps step and policy inference: 129191 fps total: 116350 epoch: 656/2500 frames: 75694080
+fps step: 143538 fps step and policy inference: 124491 fps total: 109534 epoch: 657/2500 frames: 75759616
+fps step: 138426 fps step and policy inference: 120578 fps total: 111978 epoch: 658/2500 frames: 75825152
+fps step: 153184 fps step and policy inference: 135413 fps total: 125899 epoch: 659/2500 frames: 75890688
+fps step: 143657 fps step and policy inference: 125222 fps total: 114088 epoch: 660/2500 frames: 75956224
+fps step: 147690 fps step and policy inference: 123657 fps total: 112000 epoch: 661/2500 frames: 76021760
+fps step: 146874 fps step and policy inference: 126382 fps total: 111928 epoch: 662/2500 frames: 76087296
+fps step: 137517 fps step and policy inference: 118809 fps total: 105548 epoch: 663/2500 frames: 76152832
+fps step: 139306 fps step and policy inference: 121374 fps total: 109283 epoch: 664/2500 frames: 76218368
+fps step: 148737 fps step and policy inference: 127876 fps total: 119396 epoch: 665/2500 frames: 76283904
+fps step: 152793 fps step and policy inference: 136545 fps total: 126776 epoch: 666/2500 frames: 76349440
+fps step: 153657 fps step and policy inference: 136586 fps total: 125763 epoch: 667/2500 frames: 76414976
+fps step: 150298 fps step and policy inference: 131975 fps total: 120626 epoch: 668/2500 frames: 76480512
+fps step: 149156 fps step and policy inference: 130902 fps total: 115319 epoch: 669/2500 frames: 76546048
+fps step: 141741 fps step and policy inference: 122172 fps total: 108092 epoch: 670/2500 frames: 76611584
+fps step: 140327 fps step and policy inference: 120788 fps total: 105787 epoch: 671/2500 frames: 76677120
+fps step: 134919 fps step and policy inference: 113811 fps total: 101645 epoch: 672/2500 frames: 76742656
+fps step: 140888 fps step and policy inference: 121585 fps total: 109047 epoch: 673/2500 frames: 76808192
+fps step: 149373 fps step and policy inference: 129288 fps total: 115830 epoch: 674/2500 frames: 76873728
+fps step: 138945 fps step and policy inference: 120554 fps total: 106215 epoch: 675/2500 frames: 76939264
+fps step: 137820 fps step and policy inference: 120088 fps total: 108833 epoch: 676/2500 frames: 77004800
+fps step: 149861 fps step and policy inference: 127925 fps total: 114588 epoch: 677/2500 frames: 77070336
+fps step: 143056 fps step and policy inference: 121495 fps total: 108053 epoch: 678/2500 frames: 77135872
+fps step: 141090 fps step and policy inference: 121245 fps total: 107498 epoch: 679/2500 frames: 77201408
+fps step: 146059 fps step and policy inference: 125328 fps total: 114795 epoch: 680/2500 frames: 77266944
+fps step: 141931 fps step and policy inference: 122308 fps total: 110713 epoch: 681/2500 frames: 77332480
+fps step: 139613 fps step and policy inference: 118757 fps total: 106385 epoch: 682/2500 frames: 77398016
+fps step: 139826 fps step and policy inference: 121316 fps total: 111370 epoch: 683/2500 frames: 77463552
+fps step: 140778 fps step and policy inference: 123852 fps total: 111368 epoch: 684/2500 frames: 77529088
+fps step: 147331 fps step and policy inference: 123744 fps total: 111589 epoch: 685/2500 frames: 77594624
+fps step: 134154 fps step and policy inference: 115904 fps total: 103280 epoch: 686/2500 frames: 77660160
+fps step: 139315 fps step and policy inference: 118034 fps total: 107505 epoch: 687/2500 frames: 77725696
+fps step: 138813 fps step and policy inference: 123174 fps total: 114480 epoch: 688/2500 frames: 77791232
+fps step: 153866 fps step and policy inference: 134507 fps total: 125198 epoch: 689/2500 frames: 77856768
+fps step: 152314 fps step and policy inference: 136342 fps total: 126613 epoch: 690/2500 frames: 77922304
+fps step: 164063 fps step and policy inference: 144646 fps total: 133704 epoch: 691/2500 frames: 77987840
+fps step: 160017 fps step and policy inference: 141515 fps total: 130694 epoch: 692/2500 frames: 78053376
+fps step: 156937 fps step and policy inference: 139553 fps total: 123286 epoch: 693/2500 frames: 78118912
+fps step: 142397 fps step and policy inference: 125387 fps total: 116910 epoch: 694/2500 frames: 78184448
+fps step: 155787 fps step and policy inference: 135020 fps total: 125953 epoch: 695/2500 frames: 78249984
+fps step: 136814 fps step and policy inference: 119333 fps total: 105468 epoch: 696/2500 frames: 78315520
+fps step: 138998 fps step and policy inference: 119234 fps total: 105756 epoch: 697/2500 frames: 78381056
+saving next best successes:  7.8505125
+=> saving checkpoint 'runs/AntGPTMLT2R1C3S2-2026-10-27_02-04-15/nn/AntGPTMLT2R1C3S2.pth'
+fps step: 143241 fps step and policy inference: 124690 fps total: 110056 epoch: 698/2500 frames: 78446592
+saving next best successes:  7.854126
+=> saving checkpoint 'runs/AntGPTMLT2R1C3S2-2026-10-27_02-04-15/nn/AntGPTMLT2R1C3S2.pth'
+fps step: 139561 fps step and policy inference: 120842 fps total: 108881 epoch: 699/2500 frames: 78512128
+saving next best successes:  7.8590593
+=> saving checkpoint 'runs/AntGPTMLT2R1C3S2-2026-10-27_02-04-15/nn/AntGPTMLT2R1C3S2.pth'
+fps step: 144779 fps step and policy inference: 129524 fps total: 120582 epoch: 700/2500 frames: 78577664
+fps step: 137437 fps step and policy inference: 121848 fps total: 110189 epoch: 701/2500 frames: 78643200
+fps step: 144427 fps step and policy inference: 125484 fps total: 111666 epoch: 702/2500 frames: 78708736
+fps step: 130608 fps step and policy inference: 112855 fps total: 100649 epoch: 703/2500 frames: 78774272
+fps step: 136737 fps step and policy inference: 119192 fps total: 110171 epoch: 704/2500 frames: 78839808
+fps step: 150456 fps step and policy inference: 135049 fps total: 125806 epoch: 705/2500 frames: 78905344
+fps step: 155162 fps step and policy inference: 135069 fps total: 125168 epoch: 706/2500 frames: 78970880
+fps step: 153333 fps step and policy inference: 137412 fps total: 126499 epoch: 707/2500 frames: 79036416
+fps step: 158436 fps step and policy inference: 142772 fps total: 131734 epoch: 708/2500 frames: 79101952
+fps step: 147622 fps step and policy inference: 128163 fps total: 114672 epoch: 709/2500 frames: 79167488
+fps step: 147573 fps step and policy inference: 124571 fps total: 110699 epoch: 710/2500 frames: 79233024
+fps step: 139650 fps step and policy inference: 121349 fps total: 109943 epoch: 711/2500 frames: 79298560
+fps step: 149701 fps step and policy inference: 128554 fps total: 115966 epoch: 712/2500 frames: 79364096
+fps step: 151919 fps step and policy inference: 128312 fps total: 119662 epoch: 713/2500 frames: 79429632
+fps step: 148379 fps step and policy inference: 131806 fps total: 122724 epoch: 714/2500 frames: 79495168
+fps step: 140265 fps step and policy inference: 125035 fps total: 113558 epoch: 715/2500 frames: 79560704
+fps step: 135456 fps step and policy inference: 118477 fps total: 106062 epoch: 716/2500 frames: 79626240
+fps step: 141884 fps step and policy inference: 120685 fps total: 107145 epoch: 717/2500 frames: 79691776
+fps step: 138449 fps step and policy inference: 118581 fps total: 105621 epoch: 718/2500 frames: 79757312
+fps step: 139195 fps step and policy inference: 120296 fps total: 109519 epoch: 719/2500 frames: 79822848
+fps step: 142584 fps step and policy inference: 121721 fps total: 107743 epoch: 720/2500 frames: 79888384
+fps step: 144978 fps step and policy inference: 124134 fps total: 111936 epoch: 721/2500 frames: 79953920
+fps step: 146000 fps step and policy inference: 123581 fps total: 110164 epoch: 722/2500 frames: 80019456
+fps step: 145676 fps step and policy inference: 126389 fps total: 113117 epoch: 723/2500 frames: 80084992
+fps step: 138085 fps step and policy inference: 118521 fps total: 105075 epoch: 724/2500 frames: 80150528
+fps step: 144786 fps step and policy inference: 122719 fps total: 113828 epoch: 725/2500 frames: 80216064
+fps step: 148113 fps step and policy inference: 127669 fps total: 117728 epoch: 726/2500 frames: 80281600
+fps step: 133702 fps step and policy inference: 117233 fps total: 104133 epoch: 727/2500 frames: 80347136
+fps step: 134826 fps step and policy inference: 114351 fps total: 98698 epoch: 728/2500 frames: 80412672
+fps step: 130276 fps step and policy inference: 108509 fps total: 96710 epoch: 729/2500 frames: 80478208
+fps step: 135482 fps step and policy inference: 114047 fps total: 100964 epoch: 730/2500 frames: 80543744
+fps step: 131817 fps step and policy inference: 110898 fps total: 98143 epoch: 731/2500 frames: 80609280
+fps step: 134524 fps step and policy inference: 114030 fps total: 101882 epoch: 732/2500 frames: 80674816
+fps step: 131749 fps step and policy inference: 114104 fps total: 100610 epoch: 733/2500 frames: 80740352
+fps step: 131468 fps step and policy inference: 112849 fps total: 100905 epoch: 734/2500 frames: 80805888
+fps step: 135274 fps step and policy inference: 116217 fps total: 102692 epoch: 735/2500 frames: 80871424
+fps step: 138442 fps step and policy inference: 117692 fps total: 105403 epoch: 736/2500 frames: 80936960
+fps step: 139059 fps step and policy inference: 118782 fps total: 105353 epoch: 737/2500 frames: 81002496
+fps step: 137430 fps step and policy inference: 116170 fps total: 102964 epoch: 738/2500 frames: 81068032
+fps step: 144144 fps step and policy inference: 118220 fps total: 106063 epoch: 739/2500 frames: 81133568
+fps step: 136743 fps step and policy inference: 119395 fps total: 106524 epoch: 740/2500 frames: 81199104
+fps step: 142048 fps step and policy inference: 117914 fps total: 105016 epoch: 741/2500 frames: 81264640
+fps step: 144294 fps step and policy inference: 120408 fps total: 108481 epoch: 742/2500 frames: 81330176
+fps step: 140080 fps step and policy inference: 119769 fps total: 106857 epoch: 743/2500 frames: 81395712
+fps step: 135448 fps step and policy inference: 116528 fps total: 103677 epoch: 744/2500 frames: 81461248
+fps step: 135200 fps step and policy inference: 114637 fps total: 101591 epoch: 745/2500 frames: 81526784
+fps step: 143434 fps step and policy inference: 119901 fps total: 105854 epoch: 746/2500 frames: 81592320
+fps step: 135610 fps step and policy inference: 113708 fps total: 100653 epoch: 747/2500 frames: 81657856
+fps step: 137465 fps step and policy inference: 116449 fps total: 102650 epoch: 748/2500 frames: 81723392
+fps step: 139868 fps step and policy inference: 117013 fps total: 103053 epoch: 749/2500 frames: 81788928
+fps step: 137666 fps step and policy inference: 118253 fps total: 106866 epoch: 750/2500 frames: 81854464
+fps step: 142645 fps step and policy inference: 123209 fps total: 109962 epoch: 751/2500 frames: 81920000
+fps step: 140282 fps step and policy inference: 120505 fps total: 105609 epoch: 752/2500 frames: 81985536
+fps step: 137921 fps step and policy inference: 117217 fps total: 104254 epoch: 753/2500 frames: 82051072
+fps step: 143969 fps step and policy inference: 122911 fps total: 114314 epoch: 754/2500 frames: 82116608
+fps step: 145730 fps step and policy inference: 129028 fps total: 119692 epoch: 755/2500 frames: 82182144
+fps step: 143341 fps step and policy inference: 125932 fps total: 112461 epoch: 756/2500 frames: 82247680
+fps step: 134919 fps step and policy inference: 117189 fps total: 105771 epoch: 757/2500 frames: 82313216
+fps step: 131778 fps step and policy inference: 113936 fps total: 100589 epoch: 758/2500 frames: 82378752
+saving next best successes:  7.8863525
+=> saving checkpoint 'runs/AntGPTMLT2R1C3S2-2026-10-27_02-04-15/nn/AntGPTMLT2R1C3S2.pth'
+fps step: 141793 fps step and policy inference: 118347 fps total: 105106 epoch: 759/2500 frames: 82444288
+saving next best successes:  7.926242
+=> saving checkpoint 'runs/AntGPTMLT2R1C3S2-2026-10-27_02-04-15/nn/AntGPTMLT2R1C3S2.pth'
+fps step: 141095 fps step and policy inference: 118443 fps total: 105095 epoch: 760/2500 frames: 82509824
+fps step: 150406 fps step and policy inference: 126534 fps total: 112255 epoch: 761/2500 frames: 82575360
+saving next best successes:  7.946213
+=> saving checkpoint 'runs/AntGPTMLT2R1C3S2-2026-10-27_02-04-15/nn/AntGPTMLT2R1C3S2.pth'
+fps step: 148053 fps step and policy inference: 126040 fps total: 114009 epoch: 762/2500 frames: 82640896
+saving next best successes:  7.9696836
+=> saving checkpoint 'runs/AntGPTMLT2R1C3S2-2026-10-27_02-04-15/nn/AntGPTMLT2R1C3S2.pth'
+fps step: 151791 fps step and policy inference: 136175 fps total: 126449 epoch: 763/2500 frames: 82706432
+fps step: 143374 fps step and policy inference: 127392 fps total: 117507 epoch: 764/2500 frames: 82771968
+fps step: 149092 fps step and policy inference: 131029 fps total: 121893 epoch: 765/2500 frames: 82837504
+fps step: 145426 fps step and policy inference: 128790 fps total: 119644 epoch: 766/2500 frames: 82903040
+fps step: 149893 fps step and policy inference: 132701 fps total: 123103 epoch: 767/2500 frames: 82968576
+fps step: 150464 fps step and policy inference: 130221 fps total: 121270 epoch: 768/2500 frames: 83034112
+fps step: 141695 fps step and policy inference: 123222 fps total: 110968 epoch: 769/2500 frames: 83099648
+fps step: 137918 fps step and policy inference: 119152 fps total: 105570 epoch: 770/2500 frames: 83165184
+fps step: 134428 fps step and policy inference: 114397 fps total: 103076 epoch: 771/2500 frames: 83230720
+fps step: 129816 fps step and policy inference: 113781 fps total: 101775 epoch: 772/2500 frames: 83296256
+fps step: 135819 fps step and policy inference: 117323 fps total: 104277 epoch: 773/2500 frames: 83361792
+fps step: 133711 fps step and policy inference: 114915 fps total: 102091 epoch: 774/2500 frames: 83427328
+fps step: 137661 fps step and policy inference: 117403 fps total: 103816 epoch: 775/2500 frames: 83492864
+fps step: 133769 fps step and policy inference: 115444 fps total: 102894 epoch: 776/2500 frames: 83558400
+fps step: 131659 fps step and policy inference: 113161 fps total: 100909 epoch: 777/2500 frames: 83623936
+fps step: 137081 fps step and policy inference: 116337 fps total: 103738 epoch: 778/2500 frames: 83689472
+fps step: 135938 fps step and policy inference: 114771 fps total: 102548 epoch: 779/2500 frames: 83755008
+fps step: 142421 fps step and policy inference: 121513 fps total: 111769 epoch: 780/2500 frames: 83820544
+fps step: 138057 fps step and policy inference: 120634 fps total: 109132 epoch: 781/2500 frames: 83886080
+fps step: 140638 fps step and policy inference: 119515 fps total: 105505 epoch: 782/2500 frames: 83951616
+fps step: 135711 fps step and policy inference: 115629 fps total: 103509 epoch: 783/2500 frames: 84017152
+fps step: 131306 fps step and policy inference: 110893 fps total: 96824 epoch: 784/2500 frames: 84082688
+fps step: 130564 fps step and policy inference: 110609 fps total: 98660 epoch: 785/2500 frames: 84148224
+fps step: 128458 fps step and policy inference: 108044 fps total: 96807 epoch: 786/2500 frames: 84213760
+fps step: 137797 fps step and policy inference: 116693 fps total: 103801 epoch: 787/2500 frames: 84279296
+fps step: 138396 fps step and policy inference: 119595 fps total: 106049 epoch: 788/2500 frames: 84344832
+fps step: 131177 fps step and policy inference: 113773 fps total: 100508 epoch: 789/2500 frames: 84410368
+fps step: 143115 fps step and policy inference: 122258 fps total: 114061 epoch: 790/2500 frames: 84475904
+fps step: 143767 fps step and policy inference: 126986 fps total: 117660 epoch: 791/2500 frames: 84541440
+fps step: 147634 fps step and policy inference: 131604 fps total: 121985 epoch: 792/2500 frames: 84606976
+fps step: 144952 fps step and policy inference: 129324 fps total: 120333 epoch: 793/2500 frames: 84672512
+fps step: 138592 fps step and policy inference: 120256 fps total: 107957 epoch: 794/2500 frames: 84738048
+fps step: 132245 fps step and policy inference: 114137 fps total: 101383 epoch: 795/2500 frames: 84803584
+fps step: 131142 fps step and policy inference: 112291 fps total: 100405 epoch: 796/2500 frames: 84869120
+fps step: 130199 fps step and policy inference: 112528 fps total: 100493 epoch: 797/2500 frames: 84934656
+fps step: 136786 fps step and policy inference: 117276 fps total: 103917 epoch: 798/2500 frames: 85000192
+fps step: 131733 fps step and policy inference: 113806 fps total: 102959 epoch: 799/2500 frames: 85065728
+fps step: 137035 fps step and policy inference: 117370 fps total: 104486 epoch: 800/2500 frames: 85131264
+fps step: 130670 fps step and policy inference: 113328 fps total: 101962 epoch: 801/2500 frames: 85196800
+fps step: 131213 fps step and policy inference: 113101 fps total: 102324 epoch: 802/2500 frames: 85262336
+fps step: 135725 fps step and policy inference: 117200 fps total: 108168 epoch: 803/2500 frames: 85327872
+fps step: 134226 fps step and policy inference: 116351 fps total: 103366 epoch: 804/2500 frames: 85393408
+fps step: 142119 fps step and policy inference: 120803 fps total: 107268 epoch: 805/2500 frames: 85458944
+fps step: 140668 fps step and policy inference: 119221 fps total: 105880 epoch: 806/2500 frames: 85524480
+fps step: 134332 fps step and policy inference: 114183 fps total: 102859 epoch: 807/2500 frames: 85590016
+fps step: 138647 fps step and policy inference: 120216 fps total: 105945 epoch: 808/2500 frames: 85655552
+fps step: 135280 fps step and policy inference: 116177 fps total: 107949 epoch: 809/2500 frames: 85721088
+fps step: 138479 fps step and policy inference: 122388 fps total: 111117 epoch: 810/2500 frames: 85786624
+fps step: 135600 fps step and policy inference: 118351 fps total: 105312 epoch: 811/2500 frames: 85852160
+fps step: 134209 fps step and policy inference: 114719 fps total: 102363 epoch: 812/2500 frames: 85917696
+fps step: 140078 fps step and policy inference: 121982 fps total: 109551 epoch: 813/2500 frames: 85983232
+fps step: 147015 fps step and policy inference: 125146 fps total: 110678 epoch: 814/2500 frames: 86048768
+fps step: 134379 fps step and policy inference: 116066 fps total: 107875 epoch: 815/2500 frames: 86114304
+fps step: 148624 fps step and policy inference: 129080 fps total: 113650 epoch: 816/2500 frames: 86179840
+fps step: 137842 fps step and policy inference: 116861 fps total: 107551 epoch: 817/2500 frames: 86245376
+fps step: 149545 fps step and policy inference: 127861 fps total: 111961 epoch: 818/2500 frames: 86310912
+fps step: 140293 fps step and policy inference: 119315 fps total: 105952 epoch: 819/2500 frames: 86376448
+fps step: 140346 fps step and policy inference: 120660 fps total: 107373 epoch: 820/2500 frames: 86441984
+fps step: 144837 fps step and policy inference: 122585 fps total: 109092 epoch: 821/2500 frames: 86507520
+saving next best successes:  8.001589
+=> saving checkpoint 'runs/AntGPTMLT2R1C3S2-2026-10-27_02-04-15/nn/AntGPTMLT2R1C3S2.pth'
+fps step: 136895 fps step and policy inference: 120278 fps total: 106314 epoch: 822/2500 frames: 86573056
+saving next best successes:  8.016895
+=> saving checkpoint 'runs/AntGPTMLT2R1C3S2-2026-10-27_02-04-15/nn/AntGPTMLT2R1C3S2.pth'
+fps step: 142896 fps step and policy inference: 122754 fps total: 110013 epoch: 823/2500 frames: 86638592
+saving next best successes:  8.019129
+=> saving checkpoint 'runs/AntGPTMLT2R1C3S2-2026-10-27_02-04-15/nn/AntGPTMLT2R1C3S2.pth'
+fps step: 146260 fps step and policy inference: 126301 fps total: 112865 epoch: 824/2500 frames: 86704128
+saving next best successes:  8.023586
+=> saving checkpoint 'runs/AntGPTMLT2R1C3S2-2026-10-27_02-04-15/nn/AntGPTMLT2R1C3S2.pth'
+fps step: 147277 fps step and policy inference: 123877 fps total: 114371 epoch: 825/2500 frames: 86769664
+fps step: 140816 fps step and policy inference: 125460 fps total: 112618 epoch: 826/2500 frames: 86835200
+fps step: 142200 fps step and policy inference: 123112 fps total: 109038 epoch: 827/2500 frames: 86900736
+fps step: 141619 fps step and policy inference: 119325 fps total: 108242 epoch: 828/2500 frames: 86966272
+fps step: 141826 fps step and policy inference: 121936 fps total: 108951 epoch: 829/2500 frames: 87031808
+fps step: 140578 fps step and policy inference: 120500 fps total: 108869 epoch: 830/2500 frames: 87097344
+fps step: 144402 fps step and policy inference: 124802 fps total: 115358 epoch: 831/2500 frames: 87162880
+fps step: 147134 fps step and policy inference: 127921 fps total: 118273 epoch: 832/2500 frames: 87228416
+fps step: 149153 fps step and policy inference: 135086 fps total: 125111 epoch: 833/2500 frames: 87293952
+fps step: 148053 fps step and policy inference: 130766 fps total: 121860 epoch: 834/2500 frames: 87359488
+fps step: 151225 fps step and policy inference: 132574 fps total: 122981 epoch: 835/2500 frames: 87425024
+fps step: 132831 fps step and policy inference: 117069 fps total: 103903 epoch: 836/2500 frames: 87490560
+fps step: 140741 fps step and policy inference: 119608 fps total: 105728 epoch: 837/2500 frames: 87556096
+fps step: 144044 fps step and policy inference: 123595 fps total: 108844 epoch: 838/2500 frames: 87621632
+fps step: 140046 fps step and policy inference: 119308 fps total: 105738 epoch: 839/2500 frames: 87687168
+fps step: 137233 fps step and policy inference: 115910 fps total: 102334 epoch: 840/2500 frames: 87752704
+fps step: 134378 fps step and policy inference: 112787 fps total: 99929 epoch: 841/2500 frames: 87818240
+fps step: 133666 fps step and policy inference: 112517 fps total: 98660 epoch: 842/2500 frames: 87883776
+fps step: 140755 fps step and policy inference: 121067 fps total: 108992 epoch: 843/2500 frames: 87949312
+fps step: 150035 fps step and policy inference: 128319 fps total: 115312 epoch: 844/2500 frames: 88014848
+fps step: 140866 fps step and policy inference: 121672 fps total: 113275 epoch: 845/2500 frames: 88080384
+fps step: 135154 fps step and policy inference: 118132 fps total: 104421 epoch: 846/2500 frames: 88145920
+fps step: 139370 fps step and policy inference: 119544 fps total: 105780 epoch: 847/2500 frames: 88211456
+fps step: 148497 fps step and policy inference: 126881 fps total: 118446 epoch: 848/2500 frames: 88276992
+fps step: 143587 fps step and policy inference: 127425 fps total: 114873 epoch: 849/2500 frames: 88342528
+fps step: 146935 fps step and policy inference: 125490 fps total: 112884 epoch: 850/2500 frames: 88408064
+fps step: 142082 fps step and policy inference: 121428 fps total: 107125 epoch: 851/2500 frames: 88473600
+fps step: 135931 fps step and policy inference: 116634 fps total: 103904 epoch: 852/2500 frames: 88539136
+fps step: 145069 fps step and policy inference: 122967 fps total: 110926 epoch: 853/2500 frames: 88604672
+fps step: 143846 fps step and policy inference: 123436 fps total: 112462 epoch: 854/2500 frames: 88670208
+fps step: 151078 fps step and policy inference: 133683 fps total: 123168 epoch: 855/2500 frames: 88735744
+fps step: 144675 fps step and policy inference: 129538 fps total: 120369 epoch: 856/2500 frames: 88801280
+fps step: 154502 fps step and policy inference: 137816 fps total: 127763 epoch: 857/2500 frames: 88866816
+fps step: 153157 fps step and policy inference: 136324 fps total: 126329 epoch: 858/2500 frames: 88932352
+fps step: 149830 fps step and policy inference: 135501 fps total: 125029 epoch: 859/2500 frames: 88997888
+fps step: 144655 fps step and policy inference: 126947 fps total: 114266 epoch: 860/2500 frames: 89063424
+fps step: 147771 fps step and policy inference: 125502 fps total: 110434 epoch: 861/2500 frames: 89128960
+fps step: 137910 fps step and policy inference: 117802 fps total: 104515 epoch: 862/2500 frames: 89194496
+fps step: 142618 fps step and policy inference: 121617 fps total: 107555 epoch: 863/2500 frames: 89260032
+fps step: 140884 fps step and policy inference: 121440 fps total: 107827 epoch: 864/2500 frames: 89325568
+fps step: 146836 fps step and policy inference: 126243 fps total: 111521 epoch: 865/2500 frames: 89391104
+fps step: 137226 fps step and policy inference: 120723 fps total: 113266 epoch: 866/2500 frames: 89456640
+fps step: 151766 fps step and policy inference: 131615 fps total: 117614 epoch: 867/2500 frames: 89522176
+fps step: 141097 fps step and policy inference: 122842 fps total: 114876 epoch: 868/2500 frames: 89587712
+fps step: 145837 fps step and policy inference: 128235 fps total: 118906 epoch: 869/2500 frames: 89653248
+fps step: 146872 fps step and policy inference: 131680 fps total: 121845 epoch: 870/2500 frames: 89718784
+fps step: 146455 fps step and policy inference: 128191 fps total: 119792 epoch: 871/2500 frames: 89784320
+fps step: 146353 fps step and policy inference: 130714 fps total: 122031 epoch: 872/2500 frames: 89849856
+fps step: 154110 fps step and policy inference: 134695 fps total: 120693 epoch: 873/2500 frames: 89915392
