@@ -1,0 +1,51 @@
+{
+  "task_spec": {
+    "task": "Humanoid",
+    "env": "humanoid",
+    "num_envs": null
+  },
+  "task": "humanoid",
+  "arm": "indep",
+  "call": 0,
+  "function": null,
+  "model_used": "minimax/minimax-m3.1-flash",
+  "usage": {
+    "prompt_tokens": 1303,
+    "completion_tokens": 10230,
+    "total_tokens": 11533,
+    "cost": 0.00615768,
+    "is_byok": false,
+    "prompt_tokens_details": {
+      "cached_tokens": 1302,
+      "audio_tokens": 0,
+      "video_tokens": 0
+    },
+    "cost_details": {
+      "upstream_inference_cost": null,
+      "upstream_inference_prompt_cost": 0,
+      "upstream_inference_completions_cost": 0
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 9345,
+      "image_tokens": 0
+    },
+    "cache_creation_input_tokens": 0,
+    "market_cost": 0.00615768,
+    "gateway_cost": 0.00615768
+  },
+  "finish_reason": "stop",
+  "functions_in_reply": 1,
+  "generation_seconds": 107.687253416,
+  "response_text": "```python\nfrom typing import Dict, Tuple\nimport torch\n\n\n@torch.jit.script\ndef compute_reward(\n    root_states: torch.Tensor,\n    dof_vel: torch.Tensor,\n    dof_vel_scale: torch.Tensor,\n    actions: torch.Tensor\n) -> Tuple[torch.Tensor, Dict[str, torch.Tensor]]:\n    # Root-state linear velocity is in world coordinates.\n    planar_velocity = root_states[:, 7:9]\n    angular_velocity = root_states[:, 10:13]\n\n    # Isaac Gym root-state quaternions are ordered (qx, qy, qz, qw).\n    quaternion = root_states[:, 3:7]\n    qx = quaternion[:, 0]\n    qy = quaternion[:, 1]\n    qz = quaternion[:, 2]\n    qw = quaternion[:, 3]\n\n    # World-space projection of the torso's local forward (+x) axis.\n    heading_x = 1.0 - 2.0 * (qy * qy + qz * qz)\n    heading_y = 2.0 * (qx * qy + qz * qw)\n    heading_norm = torch.sqrt(\n        heading_x * heading_x + heading_y * heading_y + 1.0e-6\n    )\n    heading_x = heading_x / heading_norm\n    heading_y = heading_y / heading_norm\n\n    signed_forward_speed = (\n        planar_velocity[:, 0] * heading_x\n        + planar_velocity[:, 1] * heading_y\n    )\n    forward_speed = torch.clamp(signed_forward_speed, min=0.0)\n    backward_speed = torch.clamp(-signed_forward_speed, min=0.0)\n\n    # Velocity perpendicular to the direction the torso is facing.\n    lateral_speed = (\n        planar_velocity[:, 0] * heading_y\n        - planar_velocity[:, 1] * heading_x\n    )\n\n    # Positive when upright; independent of yaw.\n    upright_score = torch.clamp(\n        1.0 - 2.0 * (qx * qx + qy * qy), min=0.0, max=1.0\n    )\n\n    # Gating speed by uprightness prevents reward from exploiting falls.\n    running_speed_reward = forward_speed * upright_score\n    upright_reward = upright_score\n    backward_velocity_penalty = backward_speed * backward_speed\n    lateral_velocity_penalty = lateral_speed * lateral_speed\n    angular_velocity_penalty = torch.mean(\n        angular_velocity * angular_velocity, dim=1\n    )\n    action_penalty = torch.mean(actions * actions, dim=1)\n\n    scaled_joint_velocity = dof_vel * dof_vel_scale\n    joint_velocity_penalty = torch.mean(\n        scaled_joint_velocity * scaled_joint_velocity, dim=1\n    )\n\n    speed_weight = 2.0\n    upright_weight = 0.25\n    backward_penalty_weight = 0.5\n    lateral_penalty_weight = 0.05\n    angular_penalty_weight = 0.02\n    action_penalty_weight = 0.01\n    joint_velocity_penalty_weight = 0.002\n\n    speed_component = speed_weight * running_speed_reward\n    upright_component = upright_weight * upright_reward\n    backward_component = -backward_penalty_weight * backward_velocity_penalty\n    lateral_component = -lateral_penalty_weight * lateral_velocity_penalty\n    angular_component = -angular_penalty_weight * angular_velocity_penalty\n    action_component = -action_penalty_weight * action_penalty\n    joint_velocity_component = (\n        -joint_velocity_penalty_weight * joint_velocity_penalty\n    )\n\n    total_reward = (\n        speed_component\n        + upright_component\n        + backward_component\n        + lateral_component\n        + angular_component\n        + action_component\n        + joint_velocity_component\n    )\n\n    components: Dict[str, torch.Tensor] = {\n        \"forward_speed\": speed_component,\n        \"upright\": upright_component,\n        \"backward_velocity\": backward_component,\n        \"lateral_velocity\": lateral_component,\n        \"angular_velocity\": angular_component,\n        \"action_magnitude\": action_component,\n        \"joint_velocity\": joint_velocity_component,\n    }\n\n    return total_reward, components\n```",
+  "validation": {
+    "valid": true,
+    "suffix": "GPTMIhumanoidindepcall0",
+    "environment_call": "compute_reward(self.root_states, self.dof_vel, self.dof_vel_scale, self.actions)",
+    "inputs": [
+      "root_states",
+      "dof_vel",
+      "dof_vel_scale",
+      "actions"
+    ]
+  }
+}

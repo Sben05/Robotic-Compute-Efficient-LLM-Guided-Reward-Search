@@ -1,0 +1,51 @@
+{
+  "task_spec": {
+    "task": "Humanoid",
+    "env": "humanoid",
+    "num_envs": null
+  },
+  "task": "humanoid",
+  "arm": "indep",
+  "call": 2,
+  "function": null,
+  "model_used": "minimax/minimax-m3.1-flash",
+  "usage": {
+    "prompt_tokens": 1303,
+    "completion_tokens": 11823,
+    "total_tokens": 13126,
+    "cost": 0.00711348,
+    "is_byok": false,
+    "prompt_tokens_details": {
+      "cached_tokens": 1302,
+      "audio_tokens": 0,
+      "video_tokens": 0
+    },
+    "cost_details": {
+      "upstream_inference_cost": null,
+      "upstream_inference_prompt_cost": 0,
+      "upstream_inference_completions_cost": 0
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 11334,
+      "image_tokens": 0
+    },
+    "cache_creation_input_tokens": 0,
+    "market_cost": 0.00711348,
+    "gateway_cost": 0.00711348
+  },
+  "finish_reason": "stop",
+  "functions_in_reply": 1,
+  "generation_seconds": 158.9027125,
+  "response_text": "```python\nfrom typing import Dict, Tuple\nimport torch\n\n\n@torch.jit.script\ndef compute_reward(\n    root_states: torch.Tensor,\n    actions: torch.Tensor,\n    up_vec: torch.Tensor,\n    heading_vec: torch.Tensor,\n) -> Tuple[torch.Tensor, Dict[str, torch.Tensor]]:\n    # World-space horizontal velocity of the torso.\n    horizontal_velocity = root_states[:, 7:9]\n\n    # Direction the humanoid is currently facing, projected onto the ground plane.\n    horizontal_heading = heading_vec[:, 0:2]\n    heading_norm = torch.norm(horizontal_heading, p=2, dim=1, keepdim=True)\n    horizontal_heading = horizontal_heading / (heading_norm + 1.0e-6)\n\n    # Only forward motion is rewarded; backward motion can be made useful by turning.\n    forward_speed = torch.sum(horizontal_velocity * horizontal_heading, dim=1)\n    forward_speed = torch.clamp(forward_speed, min=0.0)\n\n    # Bounded speed reward retains a gradient over useful humanoid running speeds.\n    speed_temperature: float = 4.0\n    normalized_speed = torch.tanh(forward_speed / speed_temperature)\n\n    # Falling or excessive leaning removes most of the running reward.\n    uprightness = torch.clamp(up_vec[:, 2], min=0.0, max=1.0)\n    running_reward = normalized_speed * uprightness\n\n    # Small regularizers discourage energy-wasting motion and unstable exploits.\n    action_penalty = 5.0e-4 * torch.sum(torch.square(actions), dim=-1)\n    vertical_velocity_penalty = 5.0e-3 * torch.square(root_states[:, 9])\n    angular_velocity_penalty = 1.0e-4 * torch.sum(\n        torch.square(root_states[:, 10:13]), dim=1\n    )\n\n    total_reward = (\n        running_reward\n        - action_penalty\n        - vertical_velocity_penalty\n        - angular_velocity_penalty\n    )\n\n    reward_components = {\n        \"forward_running_reward\": running_reward,\n        \"action_penalty\": -action_penalty,\n        \"vertical_velocity_penalty\": -vertical_velocity_penalty,\n        \"angular_velocity_penalty\": -angular_velocity_penalty,\n    }\n\n    return total_reward, reward_components\n```",
+  "validation": {
+    "valid": true,
+    "suffix": "GPTMIhumanoidindepcall2",
+    "environment_call": "compute_reward(self.root_states, self.actions, self.up_vec, self.heading_vec)",
+    "inputs": [
+      "root_states",
+      "actions",
+      "up_vec",
+      "heading_vec"
+    ]
+  }
+}

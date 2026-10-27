@@ -1,0 +1,52 @@
+{
+  "task_spec": {
+    "task": "BallBalance",
+    "env": "ball_balance",
+    "num_envs": null
+  },
+  "task": "ballbalance",
+  "arm": "indep",
+  "call": 0,
+  "function": null,
+  "model_used": "minimax/minimax-m3.1-flash",
+  "usage": {
+    "prompt_tokens": 857,
+    "completion_tokens": 20239,
+    "total_tokens": 21096,
+    "cost": 0.012246705,
+    "is_byok": false,
+    "prompt_tokens_details": {
+      "cached_tokens": 187,
+      "audio_tokens": 0,
+      "video_tokens": 0
+    },
+    "cost_details": {
+      "upstream_inference_cost": null,
+      "upstream_inference_prompt_cost": 0,
+      "upstream_inference_completions_cost": 0
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 18713,
+      "image_tokens": 0
+    },
+    "cache_creation_input_tokens": 0,
+    "market_cost": 0.012246705,
+    "gateway_cost": 0.012246705
+  },
+  "finish_reason": "stop",
+  "functions_in_reply": 1,
+  "generation_seconds": 137.378547709,
+  "response_text": "Below is a reward function that uses only environment attributes that appear in `compute_observations` (`ball_positions`, `ball_linvels`, `sensor_forces`, `sensor_torques`, `dof_velocities`).\n\n**Design rationale**\n\n| component | idea |\n|---|---|\n| `alive` | constant bonus \u2192 the agent is rewarded for *not* ending the episode (ball still up) |\n| `contact` | normal (z) component of the force sensors, max over sensors \u2192 tanh of the magnitude. This is high only while the ball actually rests on the table top and drops to ~0 the moment the ball leaves the surface |\n| `still` | exp(\u2212\u2016v_ball\u2016\u00b2/T): a rolling/flying ball is bad, a calm ball is good \u2192 this is the main signal that teaches the agent to arrest the ball instead of letting it run to the edge |\n| `center` | exp(\u2212\u2016p_xy \u2212 p_table\u2016\u00b2/T): keeps the ball over the middle of the table (weak, wide temperature so a slightly offset table is not fatal) |\n| `fall_speed` | hinge on downward ball velocity \u2192 immediate, geometry\u2011independent detection of the ball leaving the table |\n| `fall_height` | hinge on the ball sinking below the table/ground level |\n| `control_effort` / `torque_effort` | tiny smoothness terms that discourage violent, jerky reactions |\n\n```python\nfrom typing import Dict, Tuple\n\nimport torch\n\n\n@torch.jit.script\ndef compute_reward(\n    ball_positions: torch.Tensor,   # (N, 3) world position of the ball\n    ball_linvels: torch.Tensor,     # (N, 3) linear velocity of the ball\n    sensor_forces: torch.Tensor,    # (N, S, 3) force sensor readings\n    sensor_torques: torch.Tensor,   # (N, S, 3) torque sensor readings\n    dof_velocities: torch.Tensor,   # (N, num_dofs)\n) -> Tuple[torch.Tensor, Dict[str, torch.Tensor]]:\n    # ------------------------- fixed constants -------------------------\n    table_center_x: float = 0.0     # assumed centre of the table top (world frame)\n    table_center_y: float = 0.0\n    floor_z: float = 0.25           # below this height the ball has reached the ground\n    fall_speed_thresh: float = 0.2  # downward speed (m/s) that counts as \"falling\"\n    force_ref: float = 5.0          # normal force (N) that counts as a solid contact\n\n    # ------------------------- temperatures -----------------------------\n    temp_contact: float = 5.0       # 1/force scale of the tanh transform\n    temp_still: float = 0.5         # (m/s)^2\n    temp_center: float = 0.5        # m^2\n    temp_torque: float = 20.0       # normaliser of the torque effort term\n\n    # ------------------------- reward weights --------------------------\n    w_alive: float = 1.0\n    w_contact: float = 2.0\n    w_still: float = 1.0\n    w_center: float = 0.5\n    w_fall_speed: float = 3.0\n    w_fall_height: float = 2.0\n    w_ctrl: float = 0.01\n    w_torque: float = 0.0005\n\n    # ------------------------- ball state ------------------------------\n    bx = ball_positions[:, 0] - table_center_x\n    by = ball_positions[:, 1] - table_center_y\n    bz = ball_positions[:, 2]\n\n    vx = ball_linvels[:, 0]\n    vy = ball_linvels[:, 1]\n    vz = ball_linvels[:, 2]\n\n    xy_dist_sq = bx * bx + by * by\n    speed_sq = vx * vx + vy * vy + vz * vz\n\n    # ------------------------- contact with the table -------------------\n    # normal (z) component of every force sensor, strongest one is used\n    fz = torch.abs(sensor_forces[:, :, 2])\n    f_contact = torch.max(fz, dim=1)[0]\n    r_contact = torch.tanh(f_contact / temp_contact)\n\n    # ------------------------- ball should be calm ----------------------\n    r_still = torch.exp(-speed_sq / temp_still)\n\n    # ------------------------- ball should stay on the table ------------\n    r_center = torch.exp(-xy_dist_sq / temp_center)\n\n    # ------------------------- fall penalties ---------------------------\n    fall_v = torch.clamp(-vz - fall_speed_thresh, min=0.0)\n    p_fall_speed = fall_v * fall_v\n\n    fall_h = torch.clamp(floor_z - bz, min=0.0)\n    p_fall_height = fall_h * fall_h\n\n    # ------------------------- effort / smoothness ----------------------\n    actuated_dof_indices = torch.tensor([1, 3, 5], device=ball_positions.device)\n    dof_vel = dof_velocities[:, actuated_dof_indices]\n    p_ctrl = torch.sum(dof_vel * dof_vel, dim=1)\n\n    torque_sq = torch.sum(sensor_torques * sensor_torques, dim=2)\n    p_torque = torch.sum(torque_sq, dim=1) / temp_torque\n\n    # ------------------------- total reward -----------------------------\n    r_alive = torch.ones_like(bz)\n\n    reward = (\n        w_alive * r_alive\n        + w_contact * r_contact\n        + w_still * r_still\n        + w_center * r_center\n        - w_fall_speed * p_fall_speed\n        - w_fall_height * p_fall_height\n        - w_ctrl * p_ctrl\n        - w_torque * p_torque\n    )\n\n    components: Dict[str, torch.Tensor] = {\n        \"alive\": r_alive,\n        \"contact\": r_contact,\n        \"still\": r_still,\n        \"center\": r_center,\n        \"fall_speed\": p_fall_speed,\n        \"fall_height\": p_fall_height,\n        \"control_effort\": p_ctrl,\n        \"torque_effort\": p_torque,\n    }\n    return reward, components\n```\n\n**Why this should learn the task**\n\n* `contact` gives a strong, immediate signal that the ball is *on* the table top; as soon as the ball leaves the surface the reading vanishes, so the agent is directly rewarded for keeping the ball supported.\n* `still` + `center` shape the balancing behaviour: the agent learns to counteract the ball's drift (rolling) and to bring it back towards the middle of the table instead of letting it accelerate to the edge.\n* `fall_speed` / `fall_height` punish the actual failure mode (ball leaving the table and dropping), which is what terminates the episode, so the policy learns to avoid it rather than merely to \"stand still\".\n* The effort terms are deliberately tiny so they only break ties between valid strategies and never prevent the fast corrections required for balancing.",
+  "validation": {
+    "valid": true,
+    "suffix": "GPTMIballbalanceindepcall0",
+    "environment_call": "compute_reward(self.ball_positions, self.ball_linvels, self.sensor_forces, self.sensor_torques, self.dof_velocities)",
+    "inputs": [
+      "ball_positions",
+      "ball_linvels",
+      "sensor_forces",
+      "sensor_torques",
+      "dof_velocities"
+    ]
+  }
+}

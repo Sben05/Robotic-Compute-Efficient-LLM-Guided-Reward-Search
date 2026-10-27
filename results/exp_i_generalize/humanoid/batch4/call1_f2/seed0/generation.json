@@ -1,0 +1,52 @@
+{
+  "task_spec": {
+    "task": "Humanoid",
+    "env": "humanoid",
+    "num_envs": null
+  },
+  "task": "humanoid",
+  "arm": "batch4",
+  "call": 1,
+  "function": 2,
+  "model_used": "minimax/minimax-m3.1-flash",
+  "usage": {
+    "prompt_tokens": 1331,
+    "completion_tokens": 16199,
+    "total_tokens": 17530,
+    "cost": 0.00989394,
+    "is_byok": false,
+    "prompt_tokens_details": {
+      "cached_tokens": 186,
+      "audio_tokens": 0,
+      "video_tokens": 0
+    },
+    "cost_details": {
+      "upstream_inference_cost": null,
+      "upstream_inference_prompt_cost": 0,
+      "upstream_inference_completions_cost": 0
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 13050,
+      "image_tokens": 0
+    },
+    "cache_creation_input_tokens": 0,
+    "market_cost": 0.00989394,
+    "gateway_cost": 0.00989394
+  },
+  "finish_reason": "stop",
+  "functions_in_reply": 4,
+  "generation_seconds": 102.022999875,
+  "response_text": "```python\n\nfrom typing import Dict, Tuple\nimport torch\n\n\n@torch.jit.script\ndef compute_reward(root_states: torch.Tensor, up_vec: torch.Tensor, dof_vel: torch.Tensor,\n                     actions: torch.Tensor, dt: float) -> Tuple[torch.Tensor, Dict[str, torch.Tensor]]:\n    \"\"\"Exponential (temperature shaped) running reward with stability / fall penalties.\"\"\"\n    vel = root_states[:, 7:10]\n    ang_vel = root_states[:, 10:13]\n    quat = root_states[:, 3:7]\n    qw = quat[:, 0:1]\n    qxyz = quat[:, 1:4]\n\n    zeros = torch.zeros_like(qw)\n    e_x = torch.cat((torch.ones_like(zeros), zeros, zeros), dim=-1)\n    t1 = torch.cross(qxyz, e_x, dim=-1)\n    t2 = torch.cross(qxyz, t1, dim=-1)\n    fwd = e_x + 2.0 * (qw * t1 + t2)\n    world_up = torch.cat((zeros, zeros, torch.ones_like(zeros)), dim=-1)\n    side = torch.cross(fwd, world_up, dim=-1)          # horizontal, perpendicular to heading\n\n    speed = torch.sum(vel * fwd, dim=-1)\n    lateral = torch.sum(vel * side, dim=-1)\n    up_proj = up_vec[:, 2]\n\n    # temperature parameters (one per transformed component)\n    temp_speed: float = 0.5\n    temp_upright: float = 4.0\n    temp_lateral: float = 2.0\n\n    speed_reward = torch.exp(temp_speed * speed) - 1.0\n    upright_reward = torch.exp(temp_upright * (up_proj - 1.0))\n    lateral_penalty = -temp_lateral * torch.clamp(lateral, min=0.0) \\\n        - 0.05 * torch.clamp(-lateral, min=0.0)\n    twist_penalty = -0.02 * torch.sum(ang_vel * ang_vel, dim=-1)\n    bob_penalty = -0.05 * torch.abs(vel[:, 2])\n    fall_penalty = -5.0 * torch.clamp(-up_proj, min=0.0) \\\n        - 2.0 * torch.clamp(0.8 - root_states[:, 2], min=0.0)\n    effort_penalty = -0.005 * torch.sum(actions * actions, dim=-1) \\\n        - 0.002 * torch.sum(dof_vel * dof_vel, dim=-1)\n    alive_bonus = 0.5 * torch.ones_like(speed)\n\n    reward = 2.0 * speed_reward + 0.5 * upright_reward + alive_bonus \\\n        + lateral_penalty + twist_penalty + bob_penalty + fall_penalty + effort_penalty\n\n    components: Dict[str, torch.Tensor] = {}\n    components[\"speed_exp\"] = 2.0 * speed_reward\n    components[\"upright_exp\"] = 0.5 * upright_reward\n    components[\"alive_bonus\"] = alive_bonus\n    components[\"lateral_drift\"] = lateral_penalty\n    components[\"twist_penalty\"] = twist_penalty\n    components[\"vertical_bob\"] = bob_penalty\n    components[\"fall_penalty\"] = fall_penalty\n    components[\"effort_penalty\"] = effort_penalty\n    return reward, components\n\n```",
+  "validation": {
+    "valid": true,
+    "suffix": "GPTMIhumanoidbatch4call1f2",
+    "environment_call": "compute_reward(self.root_states, self.up_vec, self.dof_vel, self.actions, self.dt)",
+    "inputs": [
+      "root_states",
+      "up_vec",
+      "dof_vel",
+      "actions",
+      "dt"
+    ]
+  }
+}

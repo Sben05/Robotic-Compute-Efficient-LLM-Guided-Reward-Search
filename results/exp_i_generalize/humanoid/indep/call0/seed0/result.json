@@ -1,0 +1,14 @@
+{
+  "trained": true,
+  "exit_code": 1,
+  "training_seconds": 10.944764137268066,
+  "seed": 0,
+  "concurrent_runs_on_gpu": 3,
+  "num_envs": "task default (see Hydra config.yaml)",
+  "max_iterations": 1000,
+  "traceback": "Traceback (most recent call last):\n  File \"/root/MSThesis/Eureka/isaacgymenvs/isaacgymenvs/train.py\", line 203, in launch_rlg_hydra\n    statistics = runner.run({\n  File \"/root/MSThesis/Eureka/rl_games/rl_games/torch_runner.py\", line 124, in run\n    self.run_train(args)\n  File \"/root/MSThesis/Eureka/rl_games/rl_games/torch_runner.py\", line 101, in run_train\n    self.agent.train()\n  File \"/root/MSThesis/Eureka/rl_games/rl_games/common/a2c_common.py\", line 1251, in train\n    step_time, play_time, update_time, sum_time, a_losses, c_losses, b_losses, entropies, kls, last_lr, lr_mul = self.train_epoch()\n  File \"/root/MSThesis/Eureka/rl_games/rl_games/common/a2c_common.py\", line 1115, in train_epoch\n    batch_dict = self.play_steps()\n  File \"/root/MSThesis/Eureka/rl_games/rl_games/common/a2c_common.py\", line 686, in play_steps\n    self.obs, rewards, self.dones, infos = self.env_step(res_dict['actions'])\n  File \"/root/MSThesis/Eureka/rl_games/rl_games/common/a2c_common.py\", line 504, in env_step\n    obs, rewards, dones, infos = self.vec_env.step(actions)\n  File \"/root/MSThesis/Eureka/isaacgymenvs/isaacgymenvs/utils/rlgames_utils.py\", line 256, in step\n    return  self.env.step(actions)\n  File \"/root/MSThesis/Eureka/isaacgymenvs/isaacgymenvs/tasks/base/vec_task.py\", line 355, in step\n    self.post_physics_step()\n  File \"/root/MSThesis/Eureka/isaacgymenvs/isaacgymenvs/tasks/humanoidgptmihumanoidindepcall0.py\", line 267, in post_physics_step\n    self.compute_reward(self.actions)\n  File \"/root/MSThesis/Eureka/isaacgymenvs/isaacgymenvs/tasks/humanoidgptmihumanoidindepcall0.py\", line 187, in compute_reward\n    self.rew_buf[:], self.rew_dict = compute_reward(self.root_states, self.dof_vel, self.dof_vel_scale, self.actions)\nRuntimeError: compute_reward() Expected a value of type 'Tensor' for argument 'dof_vel_scale' but instead found type 'float'.\nPosition: 2\nValue: 0.1\nDeclaration: compute_reward(Tensor root_states, Tensor dof_vel, Tensor dof_vel_scale, Tensor actions) -> ((Tensor, Dict(str, Tensor)))\nCast error details: Unable to cast 0.1 to Tensor\n",
+  "iterations_logged": 0,
+  "peak_task_score": null,
+  "final_task_score": null,
+  "peak_iteration": null
+}

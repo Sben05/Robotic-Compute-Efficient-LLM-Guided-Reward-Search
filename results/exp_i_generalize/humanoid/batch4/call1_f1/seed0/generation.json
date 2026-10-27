@@ -1,0 +1,51 @@
+{
+  "task_spec": {
+    "task": "Humanoid",
+    "env": "humanoid",
+    "num_envs": null
+  },
+  "task": "humanoid",
+  "arm": "batch4",
+  "call": 1,
+  "function": 1,
+  "model_used": "minimax/minimax-m3.1-flash",
+  "usage": {
+    "prompt_tokens": 1331,
+    "completion_tokens": 16199,
+    "total_tokens": 17530,
+    "cost": 0.00989394,
+    "is_byok": false,
+    "prompt_tokens_details": {
+      "cached_tokens": 186,
+      "audio_tokens": 0,
+      "video_tokens": 0
+    },
+    "cost_details": {
+      "upstream_inference_cost": null,
+      "upstream_inference_prompt_cost": 0,
+      "upstream_inference_completions_cost": 0
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 13050,
+      "image_tokens": 0
+    },
+    "cache_creation_input_tokens": 0,
+    "market_cost": 0.00989394,
+    "gateway_cost": 0.00989394
+  },
+  "finish_reason": "stop",
+  "functions_in_reply": 4,
+  "generation_seconds": 102.022999875,
+  "response_text": "```python\n\nfrom typing import Dict, Tuple\nimport torch\n\n\n@torch.jit.script\ndef compute_reward(root_states: torch.Tensor, up_vec: torch.Tensor, dof_vel: torch.Tensor,\n                     actions: torch.Tensor) -> Tuple[torch.Tensor, Dict[str, torch.Tensor]]:\n    \"\"\"Baseline running reward: forward speed, uprightness and small control penalties.\"\"\"\n    # torso linear velocity (world frame) and torso orientation (quaternion w,x,y,z)\n    vel = root_states[:, 7:10]\n    quat = root_states[:, 3:7]\n    qw = quat[:, 0:1]\n    qxyz = quat[:, 1:4]\n\n    # body x-axis (forward) expressed in the world frame\n    zeros = torch.zeros_like(qw)\n    e_x = torch.cat((torch.ones_like(zeros), zeros, zeros), dim=-1)\n    t1 = torch.cross(qxyz, e_x, dim=-1)\n    t2 = torch.cross(qxyz, t1, dim=-1)\n    fwd = e_x + 2.0 * (qw * t1 + t2)\n\n    fwd_speed = torch.sum(vel * fwd, dim=-1)          # forward running speed [m/s]\n\n    up_proj = up_vec[:, 2]                            # torso up axis vs. world up\n    upright = torch.clamp(up_proj, min=0.0, max=1.0)\n    fallen = torch.clamp(-up_proj, min=0.0)            # >0 when inverted\n    torso_height = root_states[:, 2]\n\n    # reward components\n    speed_reward = 1.0 * fwd_speed\n    upright_reward = 0.5 * upright\n    fall_penalty = -3.0 * fallen - 1.0 * torch.clamp(0.8 - torso_height, min=0.0)\n    height_reward = 0.2 * torch.exp(-torch.abs(torso_height - 1.3) / 0.3)\n    energy_penalty = -0.002 * torch.sum(dof_vel * dof_vel, dim=-1)\n    action_penalty = -0.01 * torch.sum(actions * actions, dim=-1)\n\n    reward = speed_reward + upright_reward + fall_penalty + height_reward \\\n        + energy_penalty + action_penalty\n\n    components: Dict[str, torch.Tensor] = {}\n    components[\"forward_speed\"] = speed_reward\n    components[\"upright_bonus\"] = upright_reward\n    components[\"fall_penalty\"] = fall_penalty\n    components[\"torso_height\"] = height_reward\n    components[\"joint_energy\"] = energy_penalty\n    components[\"action_magnitude\"] = action_penalty\n    return reward, components\n\n```",
+  "validation": {
+    "valid": true,
+    "suffix": "GPTMIhumanoidbatch4call1f1",
+    "environment_call": "compute_reward(self.root_states, self.up_vec, self.dof_vel, self.actions)",
+    "inputs": [
+      "root_states",
+      "up_vec",
+      "dof_vel",
+      "actions"
+    ]
+  }
+}

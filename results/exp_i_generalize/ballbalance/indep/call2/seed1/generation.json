@@ -1,0 +1,51 @@
+{
+  "task_spec": {
+    "task": "BallBalance",
+    "env": "ball_balance",
+    "num_envs": null
+  },
+  "task": "ballbalance",
+  "arm": "indep",
+  "call": 2,
+  "function": null,
+  "model_used": "minimax/minimax-m3.1-flash",
+  "usage": {
+    "prompt_tokens": 859,
+    "completion_tokens": 17750,
+    "total_tokens": 18609,
+    "cost": 0.01077885,
+    "is_byok": false,
+    "prompt_tokens_details": {
+      "cached_tokens": 0,
+      "audio_tokens": 0,
+      "video_tokens": 0
+    },
+    "cost_details": {
+      "upstream_inference_cost": null,
+      "upstream_inference_prompt_cost": 0,
+      "upstream_inference_completions_cost": 0
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 17054,
+      "image_tokens": 0
+    },
+    "cache_creation_input_tokens": 0,
+    "market_cost": 0.01077885,
+    "gateway_cost": 0.01077885
+  },
+  "finish_reason": "stop",
+  "functions_in_reply": 1,
+  "generation_seconds": 112.349533,
+  "response_text": "```python\nfrom typing import Dict, Tuple\n\nimport torch\n\n\n@torch.jit.script\ndef compute_reward(\n    ball_positions: torch.Tensor,\n    ball_linvels: torch.Tensor,\n    sensor_forces: torch.Tensor,\n    sensor_torques: torch.Tensor,\n) -> Tuple[torch.Tensor, Dict[str, torch.Tensor]]:\n    num_envs = ball_positions.shape[0]\n\n    ball_pos = ball_positions.reshape(num_envs, 3)\n    ball_vel = ball_linvels.reshape(num_envs, 3)\n\n    # Use the whole force/torque reading so the reward does not depend on the\n    # sensor's sign convention or which force axis is reported.\n    force_values = sensor_forces.reshape(num_envs, -1)\n    torque_values = sensor_torques.reshape(num_envs, -1)[:, 0:3]\n\n    force_magnitude = torch.sqrt(\n        torch.sum(force_values * force_values, dim=1) + 1.0e-8\n    )\n    torque_squared = torch.sum(torque_values * torque_values, dim=1)\n    velocity_squared = torch.sum(ball_vel * ball_vel, dim=1)\n\n    contact_temperature = 10.0\n    stability_temperature = 0.10\n    centering_temperature = 0.20\n    downward_velocity_temperature = 0.10\n    height_temperature = 0.25\n\n    # The force sensor is used as a proxy for ball-table contact. Saturating\n    # this term rewards support without rewarding excessive impact force.\n    contact_quality = 1.0 - torch.exp(-force_magnitude / contact_temperature)\n    contact_component = 4.0 * contact_quality\n\n    # A low ball speed indicates that the ball is settled rather than rolling,\n    # bouncing, or being thrown.\n    stability_component = torch.exp(-velocity_squared / stability_temperature)\n\n    # Contact away from the sensor center produces a larger reaction torque.\n    # This softly encourages the ball to remain in the safer central region.\n    centering_quality = torch.exp(-torque_squared / centering_temperature)\n    centering_component = 0.5 * contact_quality * centering_quality\n\n    # Downward motion is a strong early indicator of slipping or falling.\n    downward_speed = torch.clamp(-ball_vel[:, 2], min=0.0)\n    downward_quality = 1.0 - torch.exp(\n        -(downward_speed * downward_speed) / downward_velocity_temperature\n    )\n    downward_velocity_component = -2.0 * downward_quality\n\n    # A weak height preference helps distinguish the tabletop from the floor,\n    # but is gated by contact so the agent cannot gain height by throwing the ball.\n    height_quality = torch.sigmoid(ball_pos[:, 2] / height_temperature)\n    height_component = 0.25 * contact_quality * height_quality\n\n    reward = (\n        contact_component\n        + stability_component\n        + centering_component\n        + downward_velocity_component\n        + height_component\n    )\n\n    components: Dict[str, torch.Tensor] = {\n        \"table_contact\": contact_component,\n        \"ball_stability\": stability_component,\n        \"centered_contact\": centering_component,\n        \"downward_velocity\": downward_velocity_component,\n        \"table_height\": height_component,\n    }\n\n    return reward, components\n```",
+  "validation": {
+    "valid": true,
+    "suffix": "GPTMIballbalanceindepcall2",
+    "environment_call": "compute_reward(self.ball_positions, self.ball_linvels, self.sensor_forces, self.sensor_torques)",
+    "inputs": [
+      "ball_positions",
+      "ball_linvels",
+      "sensor_forces",
+      "sensor_torques"
+    ]
+  }
+}

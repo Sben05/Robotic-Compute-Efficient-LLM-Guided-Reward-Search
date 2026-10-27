@@ -1,0 +1,51 @@
+{
+  "task_spec": {
+    "task": "BallBalance",
+    "env": "ball_balance",
+    "num_envs": null
+  },
+  "task": "ballbalance",
+  "arm": "indep",
+  "call": 4,
+  "function": null,
+  "model_used": "minimax/minimax-m3.1-flash",
+  "usage": {
+    "prompt_tokens": 835,
+    "completion_tokens": 20590,
+    "total_tokens": 21425,
+    "cost": 0.01241013,
+    "is_byok": false,
+    "prompt_tokens_details": {
+      "cached_tokens": 512,
+      "audio_tokens": 0,
+      "video_tokens": 0
+    },
+    "cost_details": {
+      "upstream_inference_cost": null,
+      "upstream_inference_prompt_cost": 0,
+      "upstream_inference_completions_cost": 0
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 19309,
+      "image_tokens": 0
+    },
+    "cache_creation_input_tokens": 0,
+    "market_cost": 0.01241013,
+    "gateway_cost": 0.01241013
+  },
+  "finish_reason": "stop",
+  "functions_in_reply": 1,
+  "generation_seconds": 91.379006584,
+  "response_text": "Below is a reward function that keeps the ball supported at table height, close to the table centre, and nearly motionless, with explicit penalties for falling to the floor, fast/downward ball motion, and excessive joint effort. The table height is estimated from the batch (the balls rest on the table), so the reward does not depend on hard-coded table geometry, while the radial term assumes the table centre is at the origin of the observation frame.\n\n```python\nfrom typing import Dict, Tuple\n\nimport torch\n\n\n@torch.jit.script\ndef compute_reward(\n    ball_positions: torch.Tensor,\n    ball_linvels: torch.Tensor,\n    dof_positions: torch.Tensor,\n    dof_velocities: torch.Tensor,\n) -> Tuple[torch.Tensor, Dict[str, torch.Tensor]]:\n    \"\"\"\n    BallBalance: keep the ball on the table top without letting it fall.\n\n    ball_positions : [N, 3] world (or env-frame) position of the ball\n    ball_linvels   : [N, 3] linear velocity of the ball\n    dof_positions  : [N, D] joint positions (actuated joints are 1, 3, 5)\n    dof_velocities : [N, D] joint velocities (actuated joints are 1, 3, 5)\n    \"\"\"\n\n    # ------------------------------------------------------------------\n    # Named hyper-parameters (internal to the reward, not inputs)\n    # ------------------------------------------------------------------\n    radial_temperature: float = 0.40     # m, softness of the \"close to table centre\" term\n    height_temperature: float = 0.12     # m, softness of the \"at table height\" term\n    floor_temperature: float = 0.03      # m, softness of the floor gate\n    fall_reference_height: float = 0.08  # m, below this the ball lies on the floor\n    speed_reference: float = 1.0         # m/s, normalisation of the ball speed\n\n    weight_support: float = 1.0          # ball resting on the table top\n    weight_centre: float = 0.3           # ball close to the table centre\n    weight_fall: float = 2.0             # ball close to / on the floor\n    weight_ball_speed: float = 0.2       # ball moving fast (will roll off)\n    weight_fall_speed: float = 0.5       # ball moving downwards (falling)\n    weight_effort: float = 0.01          # violent joint motion knocks the ball off\n    weight_posture: float = 0.005        # stay close to the neutral (level) pose\n\n    # ------------------------------------------------------------------\n    # Ball kinematics\n    # ------------------------------------------------------------------\n    ball_x = ball_positions[:, 0]\n    ball_y = ball_positions[:, 1]\n    ball_z = ball_positions[:, 2]\n\n    vel_x = ball_linvels[:, 0]\n    vel_y = ball_linvels[:, 1]\n    vel_z = ball_linvels[:, 2]\n\n    # ------------------------------------------------------------------\n    # Reference geometry (estimated, so the reward is not tied to a fixed table)\n    # ------------------------------------------------------------------\n    # Height of the table top: estimated from the batch, since the balls rest on it.\n    table_height_ref = torch.mean(ball_positions[:, 2])\n    # Table centre: assumed to be at the origin of the observation frame.\n    dist_from_centre = torch.sqrt(ball_x * ball_x + ball_y * ball_y)\n\n    # ------------------------------------------------------------------\n    # Positive terms\n    # ------------------------------------------------------------------\n    # (a) the ball is at the height of the table top -> it is supported by it\n    support_score = torch.exp(-torch.pow((ball_z - table_height_ref) / height_temperature, 2.0))\n    # a ball that already reached the floor is never supported by the table\n    floor_gate = torch.sigmoid((ball_z - fall_reference_height) / floor_temperature)\n    support_score = support_score * floor_gate\n\n    # (b) the ball is close to the centre of the table (stays away from the edges)\n    centre_score = torch.exp(-torch.pow(dist_from_centre / radial_temperature, 2.0))\n\n    # ------------------------------------------------------------------\n    # Negative terms\n    # ------------------------------------------------------------------\n    fall_penalty = torch.clamp(fall_reference_height - ball_z, min=0.0)\n\n    speed_sq = vel_x * vel_x + vel_y * vel_y + vel_z * vel_z\n    speed_cost = speed_sq / (speed_reference * speed_reference)\n\n    fall_speed = torch.clamp(-vel_z, min=0.0) / speed_reference\n\n    effort = (\n        torch.pow(dof_velocities[:, 1], 2.0)\n        + torch.pow(dof_velocities[:, 3], 2.0)\n        + torch.pow(dof_velocities[:, 5], 2.0)\n    )\n    posture = (\n        torch.pow(dof_positions[:, 1], 2.0)\n        + torch.pow(dof_positions[:, 3], 2.0)\n        + torch.pow(dof_positions[:, 5], 2.0)\n    )\n\n    # ------------------------------------------------------------------\n    # Total reward\n    # ------------------------------------------------------------------\n    reward = (\n        weight_support * support_score\n        + weight_centre * centre_score\n        - weight_fall * fall_penalty\n        - weight_ball_speed * speed_cost\n        - weight_fall_speed * fall_speed\n        - weight_effort * effort\n        - weight_posture * posture\n    )\n\n    components: Dict[str, torch.Tensor] = {\n        \"support\": weight_support * support_score,\n        \"centre\": weight_centre * centre_score,\n        \"fall\": -weight_fall * fall_penalty,\n        \"ball_speed\": -weight_ball_speed * speed_cost,\n        \"fall_speed\": -weight_fall_speed * fall_speed,\n        \"effort\": -weight_effort * effort,\n        \"posture\": -weight_posture * posture,\n    }\n\n    return reward, components\n```",
+  "validation": {
+    "valid": true,
+    "suffix": "GPTMIballbalanceindepcall4",
+    "environment_call": "compute_reward(self.ball_positions, self.ball_linvels, self.dof_positions, self.dof_velocities)",
+    "inputs": [
+      "ball_positions",
+      "ball_linvels",
+      "dof_positions",
+      "dof_velocities"
+    ]
+  }
+}

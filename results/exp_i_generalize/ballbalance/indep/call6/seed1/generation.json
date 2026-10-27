@@ -1,0 +1,50 @@
+{
+  "task_spec": {
+    "task": "BallBalance",
+    "env": "ball_balance",
+    "num_envs": null
+  },
+  "task": "ballbalance",
+  "arm": "indep",
+  "call": 6,
+  "function": null,
+  "model_used": "minimax/minimax-m3.1-flash",
+  "usage": {
+    "prompt_tokens": 835,
+    "completion_tokens": 12435,
+    "total_tokens": 13270,
+    "cost": 0.00758625,
+    "is_byok": false,
+    "prompt_tokens_details": {
+      "cached_tokens": 0,
+      "audio_tokens": 0,
+      "video_tokens": 0
+    },
+    "cost_details": {
+      "upstream_inference_cost": null,
+      "upstream_inference_prompt_cost": 0,
+      "upstream_inference_completions_cost": 0
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 11033,
+      "image_tokens": 0
+    },
+    "cache_creation_input_tokens": 0,
+    "market_cost": 0.00758625,
+    "gateway_cost": 0.00758625
+  },
+  "finish_reason": "stop",
+  "functions_in_reply": 1,
+  "generation_seconds": 56.348313375,
+  "response_text": "Below is a reward function that keeps the ball resting on the table surface (correct height), near the middle of the table, and nearly motionless, with a strong penalty as soon as the ball drops below the table top (i.e. falls) and a penalty for tossing the ball into the air.\n\n```python\nfrom typing import Dict, Tuple\n\nimport torch\n\n\n@torch.jit.script\ndef compute_reward(\n    ball_positions: torch.Tensor,   # self.ball_positions  (N, 3)\n    ball_linvels: torch.Tensor,     # self.ball_linvels    (N, 3)\n    dof_velocities: torch.Tensor,   # self.dof_velocities  (N, num_dofs)\n) -> Tuple[torch.Tensor, Dict[str, torch.Tensor]]:\n    \"\"\"\n    Reward for \"keep the ball on the table top without letting it fall\".\n\n    The reward is built from four ideas:\n      1. the ball must sit at the height of the table surface (rest height),\n      2. the ball must stay close to the middle of the table (so it cannot\n         slowly roll over the edge),\n      3. the ball must stay almost at rest (a fast rolling ball leaves the\n         table much faster),\n      4. a large penalty is paid as soon as the ball drops below the table\n         top (it fell off), and a smaller penalty if it is lifted off the\n         table (tossed in the air).\n\n    NOTE: `table_surface_z` must match the height of the table top in the\n    frame used by `self.ball_positions` (0.0 if the observation frame has the\n    table top at its origin), and `table_center_xy` / `table_half_extent`\n    must match the table geometry.  They are hard-coded constants (not\n    environment inputs) and are meant to be tuned.\n    \"\"\"\n\n    # ------------------------------------------------------------------\n    # Tunable constants (defined inside the function -> not extra inputs)\n    # ------------------------------------------------------------------\n    table_surface_z: float = 0.0      # z of the table top in the observation frame\n    ball_radius: float = 0.05         # nominal radius of the ball\n    table_center_xy: float = 0.0      # xy position of the table centre\n    table_half_extent: float = 0.30   # half width of the (square) table top\n    edge_margin: float = 0.05         # width of the soft transition bands\n\n    # One temperature per exponentially shaped component\n    temp_height: float = 0.05\n    temp_center: float = 0.15\n    temp_velocity: float = 0.25\n\n    # Reward weights\n    w_height: float = 1.0\n    w_center: float = 0.5\n    w_velocity: float = 0.5\n    w_on_table: float = 1.0\n    w_fall: float = 5.0\n    w_air: float = 1.0\n    w_dof: float = 0.005\n\n    # ------------------------------------------------------------------\n    # Derived quantities\n    # ------------------------------------------------------------------\n    ball_z = ball_positions[..., 2]\n    ball_xy = ball_positions[..., 0:2]\n    rest_z = table_surface_z + ball_radius\n\n    dist_xy = torch.sqrt(torch.sum((ball_xy - table_center_xy) ** 2, dim=-1) + 1e-8)\n    speed_sq = torch.sum(ball_linvels * ball_linvels, dim=-1)\n\n    # (1) Height: reward 1 when the ball is at (or slightly above) the\n    #     resting height, decaying smoothly when it sinks below the table.\n    height_err = torch.clamp(rest_z - ball_z, min=0.0)\n    r_height = torch.exp(-(height_err ** 2) / (2.0 * temp_height ** 2))\n\n    # (2) Centre: keep the ball close to the middle of the table top.\n    r_center = torch.exp(-dist_xy / temp_center)\n\n    # (3) Velocity: a still ball stays on the table, a moving one rolls off.\n    r_velocity = torch.exp(-speed_sq / (2.0 * temp_velocity ** 2))\n\n    # (4) Smooth \"ball is on the table\" indicator:\n    #     inside the table footprint AND at/above the table surface.\n    inside_xy = torch.clamp((table_half_extent - dist_xy) / edge_margin, min=0.0, max=1.0)\n    above_surface = torch.clamp(\n        (ball_z - (table_surface_z - 0.5 * ball_radius)) / (ball_radius + edge_margin),\n        min=0.0, max=1.0,\n    )\n    r_on_table = inside_xy * above_surface\n\n    # (5) Fall penalty: the ball has dropped below the top of the table.\n    fall = torch.clamp(\n        (table_surface_z - 0.5 * ball_radius - ball_z) / edge_margin, min=0.0, max=1.0\n    )\n    r_fall = -fall\n\n    # (6) Airborne penalty: the ball must not be tossed up in the air.\n    airborne = torch.clamp((ball_z - (rest_z + edge_margin)) / edge_margin, min=0.0, max=1.0)\n    r_air = -airborne\n\n    # (7) Small joint-velocity regularisation -> gentle, stable corrections.\n    r_dof = -torch.sum(\n        dof_velocities[:, 1] ** 2 + dof_velocities[:, 3] ** 2 + dof_velocities[:, 5] ** 2,\n        dim=-1,\n    )\n\n    # ------------------------------------------------------------------\n    # Total reward and components\n    # ------------------------------------------------------------------\n    total_reward = (\n        w_height * r_height\n        + w_center * r_center\n        + w_velocity * r_velocity\n        + w_on_table * r_on_table\n        + w_fall * r_fall\n        + w_air * r_air\n        + w_dof * r_dof\n    )\n\n    components: Dict[str, torch.Tensor] = {\n        \"ball_height\": r_height,\n        \"ball_center\": r_center,\n        \"ball_velocity\": r_velocity,\n        \"on_table\": r_on_table,\n        \"fall_penalty\": r_fall,\n        \"airborne_penalty\": r_air,\n        \"dof_regularization\": r_dof,\n    }\n\n    return total_reward, components\n```",
+  "validation": {
+    "valid": true,
+    "suffix": "GPTMIballbalanceindepcall6",
+    "environment_call": "compute_reward(self.ball_positions, self.ball_linvels, self.dof_velocities)",
+    "inputs": [
+      "ball_positions",
+      "ball_linvels",
+      "dof_velocities"
+    ]
+  }
+}
