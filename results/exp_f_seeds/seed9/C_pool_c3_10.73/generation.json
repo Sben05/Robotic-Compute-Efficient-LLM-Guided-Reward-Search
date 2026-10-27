@@ -1,0 +1,41 @@
+{
+  "model_requested": "minimaxai/minimax-m3.1-flash",
+  "provider": "https://integrate.api.nvidia.com/v1/chat/completions",
+  "temperature": 1.0,
+  "candidate_count": 1,
+  "round": 1,
+  "index": 3,
+  "request_attempts": 2,
+  "api_errors": [
+    {
+      "attempt": 1,
+      "http": 504,
+      "body": ""
+    }
+  ],
+  "generation_seconds": 560.3378032725304,
+  "response_text": "```python\nfrom typing import Dict, Tuple\nimport torch\n\n\n@torch.jit.script\ndef compute_reward(\n    root_states: torch.Tensor,\n    dof_vel: torch.Tensor,\n    actions: torch.Tensor,\n) -> Tuple[torch.Tensor, Dict[str, torch.Tensor]]:\n    \"\"\"\n    Reward the ant for moving quickly along the environment's forward (+X) axis.\n\n    Speed is gated by an uprightness term so the ant cannot obtain a large\n    reward by falling over or turning upside down. Small joint-action and\n    joint-velocity penalties discourage unnecessarily violent motion.\n    \"\"\"\n\n    # Root-state layout: [position(3), quaternion(4), linear_velocity(3),\n    #                      angular_velocity(3)].\n    lin_vel_x = root_states[:, 7]\n    quat = root_states[:, 3:7]\n\n    qx = quat[:, 0]\n    qy = quat[:, 1]\n    qz = quat[:, 2]\n    qw = quat[:, 3]\n\n    # World-space Z component of the torso's local up axis.\n    # This is 1 when upright and -1 when upside down.\n    up_z = 1.0 - 2.0 * (qx * qx + qy * qy)\n\n    # Smooth uprightness in [0, 1].\n    uprightness = torch.clamp(0.5 + 0.5 * up_z, 0.0, 1.0)\n\n    # Raw forward running speed; negative values indicate backward motion.\n    forward_speed = lin_vel_x\n\n    # Only an upright ant receives the full speed reward.\n    gated_forward_speed = forward_speed * uprightness\n\n    # Mild regularization to promote an efficient, stable gait.\n    action_cost = torch.mean(actions * actions, dim=-1)\n    dof_velocity_cost = torch.mean(dof_vel * dof_vel, dim=-1)\n\n    upright_bonus = 0.25 * uprightness\n    action_penalty = -0.01 * action_cost\n    dof_velocity_penalty = -1.0e-6 * dof_velocity_cost\n\n    reward = (\n        gated_forward_speed\n        + upright_bonus\n        + action_penalty\n        + dof_velocity_penalty\n    )\n\n    components = {\n        \"forward_speed\": gated_forward_speed,\n        \"upright_bonus\": upright_bonus,\n        \"action_penalty\": action_penalty,\n        \"dof_velocity_penalty\": dof_velocity_penalty,\n    }\n\n    return reward, components\n```",
+  "model_used": "minimaxai/minimax-m3.1-flash",
+  "usage": {
+    "prompt_tokens": 1215,
+    "completion_tokens": 5317,
+    "total_tokens": 6532,
+    "prompt_tokens_details": {
+      "cached_tokens": 1152
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 4781
+    }
+  },
+  "finish_reason": "stop",
+  "validation": {
+    "valid": true,
+    "suffix": "GPTMDR1C3",
+    "environment_call": "compute_reward(self.root_states, self.dof_vel, self.actions)",
+    "inputs": [
+      "root_states",
+      "dof_vel",
+      "actions"
+    ]
+  }
+}

@@ -1,0 +1,48 @@
+{
+  "model_requested": "minimax/minimax-m3.1-flash",
+  "provider": "https://ai-gateway.vercel.sh/v1/chat/completions",
+  "temperature": 1.0,
+  "candidate_count": 1,
+  "round": 2,
+  "index": 0,
+  "request_attempts": 1,
+  "api_errors": [],
+  "generation_seconds": 79.5520121846348,
+  "response_text": "## Analysis of the current reward\n\n| Component | Diagnosis | Fix |\n|---|---|---|\n| `forward_speed` (tanh(v/3)) | Learned well (0.01 \u2192 0.92) but **saturating**: 0.92\u20130.96 of a 1.0 max \u21d2 v \u2248 6 m/s and the gradient has almost vanished. The plateau in `task_score` comes from here. | Raise the temperature to 6 (so the reward is still \u22480.76 and still has gradient at 6 m/s) and add a **wide, linear high-speed ramp** so there is a constant pull per m/s well beyond the current speed. |\n| `surge_speed` (clamp((v\u22122)/2)) | Effective only in [2, 4] m/s \u2192 already saturated (0.46/0.5) at the current speed, so it can no longer push. | Shift the start to 2.5 m/s and widen the range to 7 m/s (linear gradient 1/7 per m/s up to ~9.5 m/s). |\n| `upright` | Value \u22480.98 \u2013 but it was computed from a **scrambled quaternion** (`qw = root_states[:,3]` instead of `qx = root_states[:,3]`), so it actually measured *forward-axis alignment*, not body tilt. It never measured what it claimed. | Fix the quaternion index mapping (`qx=states[:,3], qy=states[:,4], qz=states[:,5], qw=states[:,6]`) so `up_z` is the true vertical component of the body up-axis. |\n| `alive` | Constant 0.50 for the whole run \u2192 **no gradient** (it was a hard clamp of the same broken `up_z`). | Re-base it on the true torso height with a smooth ramp (keeps the ant from lying down at high speed). |\n| `heading_align` | Frozen at exactly \u22120.20 for all epochs \u21d2 the term was a **constant artifact of the quaternion bug**, and it also measured alignment with the velocity vector instead of world +x. | Recompute the body x-axis correctly and reward it pointing along world +x (linear \u21d2 real gradient). |\n| `action_cost / dof_vel_cost / lateral / vertical / ang_vel` | All tiny (\u22120.01 \u2026 \u22120.2) and shrinking to near zero; they no longer regularize but do slow early learning. | Keep them but with smaller coefficients so they don't oppose higher speeds (especially vertical/lateral, which a hopping gait needs). |\n| `episode_lengths` | At the 999-step cap \u2192 the ant never falls, so termination is not the bottleneck; the only bottleneck is the **speed gradient**. | Keep upright/alive terms (now correct) to protect posture once speeds rise. |\n\nNet effect: the new reward keeps a strong, non-vanishing gradient on forward speed (0.07 from the tanh + 0.14 from the ramp per m/s at 6 m/s), fixes the two broken posture terms, and removes the constant/dead components.\n\n```python\nfrom typing import Dict, Tuple\n\nimport torch\n\n\n@torch.jit.script\ndef compute_reward(root_states: torch.Tensor,\n                   dof_vel: torch.Tensor,\n                   actions: torch.Tensor) -> Tuple[torch.Tensor, Dict[str, torch.Tensor]]:\n    \"\"\"\n    Ant: run forward (world +x) as fast as possible.\n\n    root_states : [N, 13] -> pos[0:3], quat(x,y,z,w)[3:7], lin_vel[7:10], ang_vel[10:13]\n    dof_vel     : [N, num_dof]\n    actions     : [N, num_actions]\n    \"\"\"\n\n    # ------------------------- hyper parameters -------------------------\n    speed_weight: float = 1.5\n    speed_temperature: float = 6.0        # [m/s] tanh scale of the forward-speed reward\n    surge_weight: float = 1.0\n    surge_start: float = 2.5              # [m/s] where the high-speed ramp starts\n    surge_range: float = 7.0              # [m/s] width of the high-speed ramp\n    body_speed_weight: float = 0.5\n    body_speed_temperature: float = 6.0\n    upright_weight: float = 0.6\n    upright_temperature: float = 0.3\n    heading_weight: float = 0.4\n    alive_weight: float = 0.3\n    alive_height_offset: float = 0.25     # [m]\n    alive_height_range: float = 0.25      # [m]\n    action_cost_coeff: float = -0.01\n    dof_vel_cost_coeff: float = -5.0e-05\n    lateral_cost_coeff: float = -0.02\n    vertical_cost_coeff: float = -0.01\n    ang_vel_cost_coeff: float = -5.0e-04\n\n    # ------------------------- state extraction -------------------------\n    # root quaternion is stored as (x, y, z, w)\n    qx = root_states[:, 3]\n    qy = root_states[:, 4]\n    qz = root_states[:, 5]\n    qw = root_states[:, 6]\n\n    lin_vel = root_states[:, 7:10]\n    ang_vel = root_states[:, 10:13]\n    torso_z = root_states[:, 2]\n\n    # body x-axis (forward) expressed in world frame\n    fwd_x = 1.0 - 2.0 * (qy * qy + qz * qz)\n    fwd_y = 2.0 * (qx * qy + qz * qw)\n    fwd_z = 2.0 * (qx * qz - qy * qw)\n\n    # body z-axis (up) expressed in world frame\n    up_x = 2.0 * (qx * qz + qy * qw)\n    up_y = 2.0 * (qy * qz - qx * qw)\n    up_z = 1.0 - 2.0 * (qx * qx + qy * qy)\n\n    # ------------------------- reward components -------------------------\n    # 1) main term: world-frame forward running speed (soft, wide temperature)\n    forward_speed = lin_vel[:, 0]\n    speed_reward = speed_weight * torch.tanh(forward_speed / speed_temperature)\n\n    # 2) high-speed ramp: constant gradient well beyond the current speed\n    surge_reward = surge_weight * torch.clamp((forward_speed - surge_start) / surge_range,\n                                              min=0.0, max=1.0)\n\n    # 3) speed along the body's own forward axis (running, not sliding sideways)\n    body_forward_speed = (lin_vel[:, 0] * fwd_x +\n                          lin_vel[:, 1] * fwd_y +\n                          lin_vel[:, 2] * fwd_z)\n    body_speed_reward = body_speed_weight * torch.tanh(body_forward_speed / body_speed_temperature)\n\n    # 4) stay upright (true body up-axis vs world vertical)\n    upright_reward = upright_weight * torch.exp((up_z - 1.0) / upright_temperature)\n\n    # 5) keep the body facing the running direction (world +x)\n    heading_reward = heading_weight * fwd_x\n\n    # 6) alive: torso must stay at a sensible height\n    alive_reward = alive_weight * torch.clamp((torso_z - alive_height_offset) / alive_height_range,\n                                               min=0.0, max=1.0)\n\n    # 7) mild regularizers (kept small so they do not cap the speed)\n    action_cost = action_cost_coeff * torch.sum(actions * actions, dim=1)\n    dof_vel_cost = dof_vel_cost_coeff * torch.sum(dof_vel * dof_vel, dim=1)\n    lateral_cost = lateral_cost_coeff * lin_vel[:, 1] * lin_vel[:, 1]\n    vertical_cost = vertical_cost_coeff * lin_vel[:, 2] * lin_vel[:, 2]\n    ang_vel_cost = ang_vel_cost_coeff * torch.sum(ang_vel * ang_vel, dim=1)\n\n    total = (speed_reward + surge_reward + body_speed_reward + upright_reward +\n             heading_reward + alive_reward + action_cost + dof_vel_cost +\n             lateral_cost + vertical_cost + ang_vel_cost)\n\n    reward_dict = {\"forward_speed\": speed_reward}\n    reward_dict[\"surge_speed\"] = surge_reward\n    reward_dict[\"body_forward_speed\"] = body_speed_reward\n    reward_dict[\"upright\"] = upright_reward\n    reward_dict[\"heading_align\"] = heading_reward\n    reward_dict[\"alive\"] = alive_reward\n    reward_dict[\"action_cost\"] = action_cost\n    reward_dict[\"dof_vel_cost\"] = dof_vel_cost\n    reward_dict[\"lateral_vel_cost\"] = lateral_cost\n    reward_dict[\"vertical_vel_cost\"] = vertical_cost\n    reward_dict[\"ang_vel_cost\"] = ang_vel_cost\n\n    return total, reward_dict\n```",
+  "model_used": "minimax/minimax-m3.1-flash",
+  "usage": {
+    "prompt_tokens": 3859,
+    "completion_tokens": 12428,
+    "total_tokens": 16287,
+    "cost": 0.00751482,
+    "is_byok": false,
+    "prompt_tokens_details": {
+      "cached_tokens": 3858,
+      "audio_tokens": 0,
+      "video_tokens": 0
+    },
+    "cost_details": {
+      "upstream_inference_cost": null,
+      "upstream_inference_prompt_cost": 0,
+      "upstream_inference_completions_cost": 0
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 10480,
+      "image_tokens": 0
+    },
+    "cache_creation_input_tokens": 0,
+    "market_cost": 0.00751482,
+    "gateway_cost": 0.00751482
+  },
+  "finish_reason": "stop",
+  "validation": {
+    "valid": true,
+    "suffix": "GPTMLT1R2C0",
+    "environment_call": "compute_reward(self.root_states, self.dof_vel, self.actions)",
+    "inputs": [
+      "root_states",
+      "dof_vel",
+      "actions"
+    ]
+  }
+}
