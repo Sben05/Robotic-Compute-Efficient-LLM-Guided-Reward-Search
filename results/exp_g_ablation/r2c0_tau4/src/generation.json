@@ -1,0 +1,43 @@
+{
+  "model_requested": "minimaxai/minimax-m3.1-flash",
+  "provider": "https://integrate.api.nvidia.com/v1/chat/completions",
+  "temperature": 1.0,
+  "candidate_count": 1,
+  "round": 2,
+  "index": 0,
+  "request_attempts": 1,
+  "api_errors": [],
+  "generation_seconds": 278.5824020784348,
+  "response_text": "## Analysis of the current reward\n\n| Component | Observed | Diagnosis | Change |\n|---|---|---|---|\n| `forward_speed` | 0.92\u20130.93 (max \u2248 0.93), mean 0.88 | `tanh(v/4)` is **saturated** at v \u2248 6.4 m/s, so the gradient at the plateau is only \u2248 0.037 / (m/s) \u2014 the policy has hit the ceiling of the shaping function, not of its ability. | Loosen the temperature to 10 m/s (keeps signed backward penalty, much less saturation) **and** add an explicit *incremental bonus that only activates above 5 m/s*, giving a constant gradient in the 5\u201314 m/s range (\u2248 3\u00d7 stronger speed gradient at the plateau). |\n| `upright_posture` | constant 0.24\u20130.25 | Pinned at its maximum (up_z \u2248 1) \u2192 no gradient, cannot be optimized (as written it is just a constant bonus). | Rewrite as a *tilt-sensitive* term `clamp((up_z\u22120.5)/0.5)` (\u2248 0.92 while upright, but now responsive to leaning) + a dedicated **tilt cost** that only activates when the ant actually tips over (up_z < 0.4). Keeps stability without forbidding the forward lean used in fast gaits. |\n| `control_cost` | \u22120.03 \u2026 \u22120.08 | Small but slightly fights speed. | Reduce weight 0.02 \u2192 0.005 (keep only as a mild regularizer). |\n| `lateral_velocity_cost` | constant \u22120.03/\u22120.04 | \u2016v_y\u2016 \u2248 0.7 m/s, constant \u2192 mild drag on the policy with little shaping value. | Halve weight (0.05 \u2192 0.02) so it guides straightness without limiting speed. |\n| `roll_pitch_angular_velocity_cost` | \u22120.07 \u2192 \u22120.01 | Penalizes exactly the body oscillation needed for an aggressive gait; already negligible. | Reduce weight 0.005 \u2192 0.002 (guardrail only). |\n| `joint_limit_cost` | identically 0.00 | Hard limit is never violated \u2192 dead term. | **Discard** the hard term; replace with an *always-active soft* joint-limit penalty on normalized joint positions (|scaled| > 0.9). |\n\nOverall the agent is stable (episode length \u2248 990/1000) and fast; the only real bottleneck is the **speed-saturation plateau**, which is what the new reward removes.\n\n```python\nfrom typing import Dict, Tuple\n\nimport torch\n\n\n@torch.jit.script\ndef compute_reward(root_states: torch.Tensor,\n                   actions: torch.Tensor,\n                   dof_pos: torch.Tensor,\n                   dof_limits_lower: torch.Tensor,\n                   dof_limits_upper: torch.Tensor,\n                   up_vec: torch.Tensor) -> Tuple[torch.Tensor, Dict[str, torch.Tensor]]:\n    \"\"\"\n    Ant task: run forward (+x world frame) as fast as possible.\n\n    Changes w.r.t. the previous reward:\n      * forward speed shaping is much less saturated (temperature 4 -> 10 m/s)\n      * an extra, incremental \"faster than 5 m/s\" bonus provides a constant\n        gradient in the 5-14 m/s range (breaks the previous ~6 m/s plateau)\n      * upright term is now tilt-sensitive instead of pinned at its maximum,\n        plus a separate penalty that only fires when the ant actually tips over\n      * control / lateral / roll-pitch weights reduced (they were limiting the\n        aggressive gait without providing shaping)\n      * hard (always zero) joint-limit term replaced by an active soft one\n    \"\"\"\n\n    # ---------------- named shaping scales / temperatures ----------------\n    forward_speed_temperature = 10.0   # m/s, tanh scale of the signed speed term\n    high_speed_threshold = 5.0         # m/s, speed where the extra bonus starts\n    high_speed_cap = 14.0              # m/s, speed where the extra bonus saturates\n    upright_temperature = 0.5          # up_z range mapped to [0, 1]\n    tilt_threshold = 0.4               # up_z below this counts as tipped over\n\n    # ---------------- weights ----------------\n    forward_weight = 1.0\n    high_speed_weight = 0.30\n    upright_weight = 0.15\n    tilt_penalty_weight = 1.0\n    control_weight = 0.005\n    lateral_velocity_weight = 0.02\n    roll_pitch_angular_velocity_weight = 0.002\n    soft_joint_limit_weight = 0.05\n\n    # ---------------- state extraction ----------------\n    lin_vel = root_states[:, 7:10]     # world-frame linear velocity\n    ang_vel = root_states[:, 10:13]    # world-frame angular velocity\n    forward_vel = lin_vel[:, 0]        # +x running speed (m/s)\n    lateral_vel = lin_vel[:, 1]        # sideways drift (m/s)\n    up_z = up_vec[:, 2]                # world-z component of torso up axis\n\n    # ---------------- reward components ----------------\n    # Signed forward speed, weakly saturating: still negative when moving\n    # backwards, but keeps a useful gradient at high speeds.\n    forward_reward = forward_weight * torch.tanh(forward_vel / forward_speed_temperature)\n\n    # Incremental bonus that only switches on above the speed the policy\n    # currently plateaus at -> constant pressure towards a faster gait.\n    high_speed = torch.clamp(forward_vel - high_speed_threshold, min=0.0,\n                              max=high_speed_cap - high_speed_threshold)\n    high_speed_reward = high_speed_weight * high_speed / (high_speed_cap - high_speed_threshold)\n\n    # Upright posture: responsive to leaning instead of being pinned at max.\n    upright_reward = upright_weight * torch.clamp(\n        (up_z - (1.0 - upright_temperature)) / upright_temperature, min=0.0, max=1.0)\n\n    # Strong penalty only when the ant really tips over (guards against\n    # \"dive and tumble\" exploits of the speed reward).\n    tilt_cost = tilt_penalty_weight * torch.relu(tilt_threshold - up_z) ** 2\n\n    # Control effort (mild regularizer).\n    control_cost = control_weight * torch.sum(actions * actions, dim=-1)\n\n    # Sideways drift.\n    lateral_velocity_cost = lateral_velocity_weight * torch.abs(lateral_vel)\n\n    # Excessive roll/pitch rates (tumbling), very mild so fast gaits are allowed.\n    roll_pitch_angular_velocity_cost = roll_pitch_angular_velocity_weight * (\n        ang_vel[:, 0] * ang_vel[:, 0] + ang_vel[:, 1] * ang_vel[:, 1])\n\n    # Always-active soft joint-limit penalty on normalized joint positions.\n    dof_range = torch.clamp(dof_limits_upper - dof_limits_lower, min=1e-6)\n    scaled_dof_pos = 2.0 * (dof_pos - dof_limits_lower) / dof_range - 1.0\n    soft_joint_limit_cost = soft_joint_limit_weight * torch.sum(\n        torch.relu(torch.abs(scaled_dof_pos) - 0.9) ** 2, dim=-1)\n\n    # ---------------- total reward ----------------\n    total_reward = (forward_reward\n                    + high_speed_reward\n                    + upright_reward\n                    - tilt_cost\n                    - control_cost\n                    - lateral_velocity_cost\n                    - roll_pitch_angular_velocity_cost\n                    - soft_joint_limit_cost)\n\n    reward_components: Dict[str, torch.Tensor] = {}\n    reward_components[\"forward_speed\"] = forward_reward\n    reward_components[\"high_speed_bonus\"] = high_speed_reward\n    reward_components[\"upright_posture\"] = upright_reward\n    reward_components[\"tilt_cost\"] = -tilt_cost\n    reward_components[\"control_cost\"] = -control_cost\n    reward_components[\"lateral_velocity_cost\"] = -lateral_velocity_cost\n    reward_components[\"roll_pitch_angular_velocity_cost\"] = -roll_pitch_angular_velocity_cost\n    reward_components[\"soft_joint_limit_cost\"] = -soft_joint_limit_cost\n\n    return total_reward, reward_components\n```",
+  "model_used": "minimaxai/minimax-m3.1-flash",
+  "usage": {
+    "prompt_tokens": 3127,
+    "completion_tokens": 8536,
+    "total_tokens": 11663,
+    "prompt_tokens_details": {
+      "cached_tokens": 128
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 6757
+    }
+  },
+  "finish_reason": "stop",
+  "validation": {
+    "valid": true,
+    "suffix": "GPTMGR2C0T4",
+    "environment_call": "compute_reward(self.root_states, self.actions, self.dof_pos, self.dof_limits_lower, self.dof_limits_upper, self.up_vec)",
+    "inputs": [
+      "root_states",
+      "actions",
+      "dof_pos",
+      "dof_limits_lower",
+      "dof_limits_upper",
+      "up_vec"
+    ]
+  },
+  "ablation": {
+    "source": "exp_b_minimax/round2/cand0",
+    "edit": "forward_speed_temperature = 10.0 -> forward_speed_temperature = 4.0",
+    "note": "only this constant changed (both code files); task suffix renamed"
+  }
+}

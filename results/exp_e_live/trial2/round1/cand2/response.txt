@@ -1,0 +1,106 @@
+## Reward Function Design
+
+**Task:** Make the ant run forward (+x) as fast as possible.
+
+**Key ideas:**
+1. **Forward speed** (world +x velocity) is the primary objective — a saturating `tanh` term (keeps scale bounded) plus a small *linear* term (keeps pushing for ever-faster running, since the joint/energy costs naturally limit the top speed).
+2. **Speed along the facing direction** (computed from the torso quaternion) discourages the ant from learning to back‑pedal while still getting rewarded for +x progress.
+3. **Heading alignment + uprightness** (also from the quaternion) keep the ant facing +x and standing, so speed is not achieved by tumbling.
+4. **Regularizers:** action magnitude, mean squared joint velocity (smooth gait / energy), lateral drift, and a fall penalty based on torso height.
+
+```python
+import torch
+from typing import Dict, Tuple
+
+
+@torch.jit.script
+def compute_reward(root_states: torch.Tensor, actions: torch.Tensor, dof_vel: torch.Tensor
+                   ) -> Tuple[torch.Tensor, Dict[str, torch.Tensor]]:
+
+    # ----------------------------- hyper-parameters -----------------------------
+    speed_temperature: float = 4.0      # m/s, soft-saturation scale of the forward speed term
+    facing_temperature: float = 4.0     # m/s, soft-saturation scale of the facing-direction speed
+    align_temperature: float = 1.0      # dimensionless scale of the heading alignment term
+    upright_temperature: float = 1.0    # dimensionless scale of the torso-upright term
+    lateral_temperature: float = 1.0    # m/s, scale of the lateral drift penalty
+    fall_height: float = 0.35           # m, torso height below which the ant is considered fallen
+
+    speed_weight: float = 2.0           # weight of tanh(forward speed)
+    linear_speed_weight: float = 0.5    # weight of the (unbounded) linear forward speed
+    facing_weight: float = 1.0
+    align_weight: float = 0.5
+    upright_weight: float = 0.5
+    lateral_weight: float = 0.2
+    alive_weight: float = 0.5
+    action_cost_scale: float = 0.01
+    joint_vel_cost_scale: float = 0.002
+    fall_weight: float = 1.0
+
+    n_envs = root_states.shape[0]
+
+    # ----------------------------- state extraction -----------------------------
+    quat = root_states[:, 3:7]          # Isaac Gym: quaternion (x, y, z, w)
+    vel = root_states[:, 7:10]          # world-frame linear velocity of the torso
+    pos_z = root_states[:, 2]            # world-frame height of the torso
+
+    qx = quat[:, 0]
+    qy = quat[:, 1]
+    qz = quat[:, 2]
+    qw = quat[:, 3]
+
+    # body axes expressed in the world frame
+    fwd_x = 1.0 - 2.0 * (qy * qy + qz * qz)   # torso forward (body +x) , world x
+    fwd_y = 2.0 * (qx * qy + qw * qz)          # torso forward            , world y
+    fwd_z = 2.0 * (qx * qz - qw * qy)          # torso forward            , world z
+    up_zz = 1.0 - 2.0 * (qx * qx + qy * qy)    # torso up (body +z) along world z
+
+    # horizontal projection of the torso forward axis (unit length, xy plane)
+    horiz = torch.sqrt(fwd_x * fwd_x + fwd_y * fwd_y + 1.0e-8)
+    fwd_hx = fwd_x / horiz
+    fwd_hy = fwd_y / horiz
+
+    vx = vel[:, 0]
+    vy = vel[:, 1]
+
+    # speed along the direction the ant is actually facing
+    facing_speed = vx * fwd_hx + vy * fwd_hy
+
+    # ----------------------------- reward components ----------------------------
+    forward_speed = torch.tanh(vx / speed_temperature)              # saturating speed bonus
+    forward_speed_linear = vx                                        # linear push for max speed
+    facing_speed_term = torch.tanh(facing_speed / facing_temperature)
+    heading_align = torch.tanh(fwd_hx / align_temperature)           # ~1 when facing +x
+    upright = torch.tanh(up_zz / upright_temperature)                # ~1 when standing upright
+    lateral_drift = torch.tanh(vy / lateral_temperature)
+    alive = torch.ones(n_envs, device=root_states.device, dtype=root_states.dtype)
+    action_cost = torch.sum(actions * actions, dim=-1)
+    joint_vel_cost = torch.mean(dof_vel * dof_vel, dim=-1)
+    fall = torch.clamp(fall_height - pos_z, min=0.0)
+
+    speed_term = speed_weight * forward_speed + linear_speed_weight * forward_speed_linear
+    facing_term = facing_weight * facing_speed_term
+    align_term = align_weight * heading_align
+    upright_term = upright_weight * upright
+    alive_term = alive_weight * alive
+    lateral_term = -lateral_weight * lateral_drift
+    action_term = -action_cost_scale * action_cost
+    joint_vel_term = -joint_vel_cost_scale * joint_vel_cost
+    fall_term = -fall_weight * fall
+
+    reward = (speed_term + facing_term + align_term + upright_term + alive_term
+              + lateral_term + action_term + joint_vel_term + fall_term)
+
+    components: Dict[str, torch.Tensor] = {
+        "forward_speed": speed_term,
+        "facing_speed": facing_term,
+        "heading_align": align_term,
+        "upright": upright_term,
+        "alive": alive_term,
+        "lateral_drift": lateral_term,
+        "action_cost": action_term,
+        "joint_vel_cost": joint_vel_term,
+        "fall_penalty": fall_term,
+    }
+
+    return reward, components
+```

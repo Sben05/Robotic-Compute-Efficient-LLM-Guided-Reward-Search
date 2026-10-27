@@ -1,0 +1,48 @@
+{
+  "model_requested": "minimax/minimax-m3.1-flash",
+  "provider": "https://ai-gateway.vercel.sh/v1/chat/completions",
+  "temperature": 1.0,
+  "candidate_count": 1,
+  "round": 2,
+  "index": 3,
+  "request_attempts": 1,
+  "api_errors": [],
+  "generation_seconds": 145.66104194894433,
+  "response_text": "## Analysis of the current reward\n\n| component | diagnosis | fix |\n|---|---|---|\n| **forward_speed** | Works (0.92 \u2192 \u22484.8 m/s) but **saturates**: `tanh(v/3)` gives a gradient of only \u22480.05 / (m/s) at 5 m/s, so the policy stops pushing. | Bigger tanh temperature (4 m/s) + larger weight, **plus** a *linear* \"excess\u2011speed\" bonus with a constant gradient in the 3\u20137 m/s band. |\n| **surge_speed** | Only 0.47 of its max \u2192 threshold (2 m/s) too low, and the ramp saturates. | Raise threshold to 3 m/s and make it a **linear ramp** (constant slope) out to 7 m/s. |\n| **upright** | Good (0.98) and still has gradient. | Keep, sharpen temperature (0.5 \u2192 0.3) for stronger posture control. |\n| **alive** | **Constant 0.50 for the whole run** \u2192 fully saturated, zero gradient, dead weight. | **Delete.** Replace with a *torso\u2011height* term that still has gradient and prevents crawling/sliding. |\n| **heading_align** | **Constant \u20130.20** = worst possible value for the whole run. The torso yaw sits exactly at \u03c0 w.r.t. world\u2011x, so `fwd_x = \u20131` and its derivative w.r.t. yaw is **exactly zero** \u2192 a saddle the policy can never escape. It only adds a constant penalty. | **Delete** (speed is measured in world frame anyway). Replace with a straight\u2011running (yaw\u2011rate) penalty. |\n| **action_cost** | Magnitude steadily shrinking (\u20110.21 \u2192 \u20110.10): the policy is *suppressing* its effort, which throttles speed. | Halve the coefficient (\u20110.05 \u2192 \u20110.02) so vigorous gaits are not punished. |\n| **dof_vel_cost** | Fine (\u20110.05), mild. | Keep coefficient, slightly larger to smooth the gait. |\n| **lateral/vertical/ang_vel costs** | Magnitudes \u2248\u20110.01\u2026\u20110.02 \u2192 practically no signal. | Strengthen angular\u2011velocity & lateral penalties (posture/straight\u2011line running), keep vertical small (bouncing is needed for running). |\n\nAlso added: a **torso height** reward (gradient alive where the old `alive` term was saturated) and a **yaw\u2011rate penalty** in place of the broken heading term.\n\n```python\nfrom typing import Dict, Tuple\n\nimport torch\n\n\n@torch.jit.script\ndef compute_reward(root_states: torch.Tensor,\n                   dof_vel: torch.Tensor,\n                   actions: torch.Tensor) -> Tuple[torch.Tensor, Dict[str, torch.Tensor]]:\n    \"\"\"\n    Ant: run forward (+x world) as fast as possible.\n\n    root_states : [N, 13]  pos[0:3], quat (x,y,z,w)[3:7], lin_vel[7:10], ang_vel[10:13]\n    dof_vel     : [N, D]   joint velocities\n    actions     : [N, A]   last applied actions\n    \"\"\"\n\n    # ------------------------- hyper parameters -------------------------\n    speed_weight: float = 2.0           # main forward-speed reward\n    speed_temperature: float = 4.0      # [m/s] tanh scale (keeps gradient at high speed)\n    surge_weight: float = 1.0           # extra push for really fast running\n    surge_threshold: float = 3.0        # [m/s] where the surge bonus starts\n    surge_range: float = 4.0            # [m/s] linear ramp length of the surge bonus\n    upright_weight: float = 1.0\n    upright_temperature: float = 0.3    # sharper posture control\n    height_weight: float = 0.5\n    height_min: float = 0.30            # [m] below this the torso is considered collapsed\n    height_range: float = 0.35          # [m] ramp up to full credit\n    lateral_cost_coeff: float = -0.05   # straight running\n    yaw_cost_coeff: float = -0.01       # no turning / spinning\n    vertical_cost_coeff: float = -0.02\n    ang_vel_cost_coeff: float = -0.005  # smooth torso motion\n    dof_vel_cost_coeff: float = -0.0003\n    action_cost_coeff: float = -0.02    # light: do not choke the gait\n\n    # ------------------------- state extraction -------------------------\n    lin_vel = root_states[:, 7:10]\n    ang_vel = root_states[:, 10:13]\n    torso_z = root_states[:, 2]\n\n    qw = root_states[:, 3]\n    qx = root_states[:, 4]\n    qy = root_states[:, 5]\n    qz = root_states[:, 6]\n\n    # world-z component of the body up axis (1.0 == perfectly upright)\n    up_z = 1.0 - 2.0 * (qx * qx + qy * qy)\n\n    forward_speed = lin_vel[:, 0]\n\n    # ------------------------- reward components -------------------------\n    # 1) main forward speed (softly saturated, still ~0.14 grad/(m/s) at 5 m/s)\n    speed_reward = speed_weight * torch.tanh(forward_speed / speed_temperature)\n\n    # 2) linear \"sprint\" bonus: constant slope between 3 and 7 m/s\n    excess = torch.clamp(forward_speed - surge_threshold, min=0.0)\n    surge_reward = surge_weight * torch.clamp(excess / surge_range, min=0.0, max=1.0)\n\n    # 3) posture: keep the torso upright (replaces the saturated 'alive' term)\n    upright_reward = upright_weight * torch.exp((up_z - 1.0) / upright_temperature)\n\n    # 4) keep the torso off the ground (prevents crawling / diving forward)\n    height_reward = height_weight * torch.clamp((torso_z - height_min) / height_range,\n                                                min=0.0, max=1.0)\n\n    # 5) regularizers\n    lateral_cost = lateral_cost_coeff * lin_vel[:, 1] * lin_vel[:, 1]\n    yaw_cost = yaw_cost_coeff * ang_vel[:, 2] * ang_vel[:, 2]\n    vertical_cost = vertical_cost_coeff * lin_vel[:, 2] * lin_vel[:, 2]\n    ang_vel_cost = ang_vel_cost_coeff * torch.sum(ang_vel * ang_vel, dim=1)\n    dof_vel_cost = dof_vel_cost_coeff * torch.sum(dof_vel * dof_vel, dim=1)\n    action_cost = action_cost_coeff * torch.sum(actions * actions, dim=1)\n\n    total = (speed_reward + surge_reward + upright_reward + height_reward +\n             lateral_cost + yaw_cost + vertical_cost + ang_vel_cost +\n             dof_vel_cost + action_cost)\n\n    reward_dict = {\"forward_speed\": speed_reward}\n    reward_dict[\"surge_speed\"] = surge_reward\n    reward_dict[\"upright\"] = upright_reward\n    reward_dict[\"torso_height\"] = height_reward\n    reward_dict[\"lateral_vel_cost\"] = lateral_cost\n    reward_dict[\"yaw_rate_cost\"] = yaw_cost\n    reward_dict[\"vertical_vel_cost\"] = vertical_cost\n    reward_dict[\"ang_vel_cost\"] = ang_vel_cost\n    reward_dict[\"dof_vel_cost\"] = dof_vel_cost\n    reward_dict[\"action_cost\"] = action_cost\n\n    return total, reward_dict\n```",
+  "model_used": "minimax/minimax-m3.1-flash",
+  "usage": {
+    "prompt_tokens": 3859,
+    "completion_tokens": 22187,
+    "total_tokens": 26046,
+    "cost": 0.01372419,
+    "is_byok": false,
+    "prompt_tokens_details": {
+      "cached_tokens": 1236,
+      "audio_tokens": 0,
+      "video_tokens": 0
+    },
+    "cost_details": {
+      "upstream_inference_cost": null,
+      "upstream_inference_prompt_cost": 0,
+      "upstream_inference_completions_cost": 0
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 20515,
+      "image_tokens": 0
+    },
+    "cache_creation_input_tokens": 0,
+    "market_cost": 0.01372419,
+    "gateway_cost": 0.01372419
+  },
+  "finish_reason": "stop",
+  "validation": {
+    "valid": true,
+    "suffix": "GPTMLT1R2C3",
+    "environment_call": "compute_reward(self.root_states, self.dof_vel, self.actions)",
+    "inputs": [
+      "root_states",
+      "dof_vel",
+      "actions"
+    ]
+  }
+}

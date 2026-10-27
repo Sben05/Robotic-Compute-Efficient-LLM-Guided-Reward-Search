@@ -44,7 +44,7 @@ if LLM == "minimax" and os.environ.get("EUREKA_ENDPOINT") == "vercel":  # same m
                key_file="vercel_ai_gateway_key", min_interval=0)
 MODEL, URL, MIN_INTERVAL = ARM["model"], ARM["url"], ARM["min_interval"]
 KEY_FILE = Path.home() / ".config/msthesis" / ARM["key_file"] if ARM["key_file"] else None
-MAX_TOKENS = 16384  # explicit room for reasoning plus code
+MAX_TOKENS = int(os.environ.get("EUREKA_MAX_TOKENS", "16384"))  # explicit room for reasoning plus code
 OUT = ROOT / ("results/exp_b_" + LLM)
 SCREEN = ROOT / ("results/exp_c_screening_" + LLM)
 TEMPERATURE = 1.0

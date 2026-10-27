@@ -1,0 +1,51 @@
+{
+  "model_requested": "minimax/minimax-m3.1-flash",
+  "provider": "https://ai-gateway.vercel.sh/v1/chat/completions",
+  "temperature": 1.0,
+  "candidate_count": 1,
+  "round": 1,
+  "index": 0,
+  "request_attempts": 1,
+  "api_errors": [],
+  "generation_seconds": 52.6106135956943,
+  "response_text": "## Reward Design\n\n**Goal:** maximize forward running speed.\n\n**Components:**\n1. **Forward speed** \u2013 project the torso linear velocity onto the torso's own forward axis (body +x rotated into world frame using the root quaternion). This is the true \"how fast am I running in the direction I face\" signal, and it correctly rewards the agent for turning to face the direction of travel.\n2. **Upright bonus** \u2013 the torso's up axis (body +z) z-component in world frame, so the agent must stay on its legs rather than lunge/fall forward.\n3. **Alive bonus** \u2013 small constant so the agent does not intentionally terminate.\n4. **Regularization** \u2013 action magnitude, joint velocity, angular velocity, joint-limit violation, lateral drift and yaw-rate penalties. These keep the gait smooth/energy efficient and prevent \"shaking\" or spinning tricks from producing spurious speed.\n\n```python\n@torch.jit.script\ndef compute_reward(root_states: torch.Tensor,\n                   actions: torch.Tensor,\n                   dof_vel: torch.Tensor,\n                   dof_pos: torch.Tensor,\n                   dof_limits_lower: torch.Tensor,\n                   dof_limits_upper: torch.Tensor) -> Tuple[torch.Tensor, Dict[str, torch.Tensor]]:\n    # ---------------- torso orientation (quaternion -> world axes) ----------------\n    quat = root_states[:, 3:7]          # (w, x, y, z)\n    qw = quat[:, 0]\n    qx = quat[:, 1]\n    qy = quat[:, 2]\n    qz = quat[:, 3]\n\n    # body +x axis expressed in world frame (the ant's heading / forward direction)\n    fwd_x = 1.0 - 2.0 * (qy * qy + qz * qz)\n    fwd_y = 2.0 * (qw * qz + qx * qy)\n    fwd_z = 2.0 * (qx * qz - qw * qy)\n    forward_dir = torch.stack((fwd_x, fwd_y, fwd_z), dim=-1)\n\n    # body +z axis expressed in world frame (the ant's up direction)\n    up_x = 2.0 * (qw * qy + qx * qz)\n    up_y = 2.0 * (qy * qz - qw * qx)\n    up_z = 1.0 - 2.0 * (qx * qx + qy * qy)\n    up_vec = torch.stack((up_x, up_y, up_z), dim=-1)\n\n    lin_vel = root_states[:, 7:10]\n    ang_vel = root_states[:, 10:13]\n\n    # ---------------- task specific signals ----------------\n    forward_vel = torch.sum(lin_vel * forward_dir, dim=-1)     # speed along own heading\n    upright = up_vec[:, 2]                                     # 1.0 perfectly upright\n    yaw_rate = torch.sum(ang_vel * up_vec, dim=-1)             # spinning about vertical\n    lateral_vel = lin_vel[:, 0] * forward_dir[:, 1] - lin_vel[:, 1] * forward_dir[:, 0]\n\n    # ---------------- penalties ----------------\n    action_pen = torch.sum(torch.square(actions), dim=-1)\n    dof_vel_pen = torch.sum(torch.square(dof_vel), dim=-1)\n    ang_vel_pen = torch.sum(torch.square(ang_vel), dim=-1)\n    lower_viol = torch.clamp(dof_pos - dof_limits_lower, min=0.0)\n    upper_viol = torch.clamp(dof_pos - dof_limits_upper, min=0.0)\n    limit_pen = torch.sum(torch.square(lower_viol) + torch.square(upper_viol), dim=-1)\n\n    # ---------------- weights ----------------\n    w_speed = 1.0\n    w_upright = 1.0\n    w_alive = 0.1\n    w_action = 0.005\n    w_dof_vel = 0.00025\n    w_ang_vel = 0.005\n    w_limit = 0.01\n    w_lateral = 0.02\n    w_yaw = 0.01\n\n    # ---------------- reward components ----------------\n    reward_speed = w_speed * forward_vel\n    reward_upright = w_upright * upright\n    reward_alive = w_alive * torch.ones_like(forward_vel)\n    penalty_action = -w_action * action_pen\n    penalty_dof_vel = -w_dof_vel * dof_vel_pen\n    penalty_ang_vel = -w_ang_vel * ang_vel_pen\n    penalty_limit = -w_limit * limit_pen\n    penalty_lateral = -w_lateral * torch.square(lateral_vel)\n    penalty_yaw = -w_yaw * torch.square(yaw_rate)\n\n    total_reward = (reward_speed + reward_upright + reward_alive\n                    + penalty_action + penalty_dof_vel + penalty_ang_vel\n                    + penalty_limit + penalty_lateral + penalty_yaw)\n\n    components: Dict[str, torch.Tensor] = {\n        \"forward_speed\": reward_speed,\n        \"upright\": reward_upright,\n        \"alive\": reward_alive,\n        \"action_penalty\": penalty_action,\n        \"dof_vel_penalty\": penalty_dof_vel,\n        \"ang_vel_penalty\": penalty_ang_vel,\n        \"joint_limit_penalty\": penalty_limit,\n        \"lateral_penalty\": penalty_lateral,\n        \"yaw_penalty\": penalty_yaw,\n    }\n\n    return total_reward, components\n```\n\n**Why this works for \"run as fast as possible\":**\n- The dominant term is the *linear* forward velocity (not an exponential/normalized one), so every extra m/s directly increases the return \u2014 the agent is pushed to sprint rather than to a fixed target speed.\n- Speed is measured along the ant's own heading axis, so the agent must learn to orient its body into the direction of motion and then produce a fast, coordinated leg gait.\n- The upright term (max +1) and the alive bonus prevent degenerate solutions (lying flat, belly-sliding, or collapsing), while the small quadratic penalties discourage high-frequency shaking, spinning and joint-limit slamming, which yields a stable and much higher achievable top speed.",
+  "model_used": "minimax/minimax-m3.1-flash",
+  "usage": {
+    "prompt_tokens": 1237,
+    "completion_tokens": 8626,
+    "total_tokens": 9863,
+    "cost": 0.005335905,
+    "is_byok": false,
+    "prompt_tokens_details": {
+      "cached_tokens": 187,
+      "audio_tokens": 0,
+      "video_tokens": 0
+    },
+    "cost_details": {
+      "upstream_inference_cost": null,
+      "upstream_inference_prompt_cost": 0,
+      "upstream_inference_completions_cost": 0
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 7280,
+      "image_tokens": 0
+    },
+    "cache_creation_input_tokens": 0,
+    "market_cost": 0.005335905,
+    "gateway_cost": 0.005335905
+  },
+  "finish_reason": "stop",
+  "validation": {
+    "valid": true,
+    "suffix": "GPTMLT1R1C0",
+    "environment_call": "compute_reward(self.root_states, self.actions, self.dof_vel, self.dof_pos, self.dof_limits_lower, self.dof_limits_upper)",
+    "inputs": [
+      "root_states",
+      "actions",
+      "dof_vel",
+      "dof_pos",
+      "dof_limits_lower",
+      "dof_limits_upper"
+    ]
+  }
+}
