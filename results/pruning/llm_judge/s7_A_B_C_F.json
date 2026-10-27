@@ -1,0 +1,40 @@
+{
+  "set": {
+    "seed": 7,
+    "order": [
+      "A_round2c0_10.93",
+      "F_live2_r2c3_9.61_winner",
+      "C_pool_c3_10.73",
+      "B_round2c1_10.75"
+    ],
+    "id": "s7_A_B_C_F"
+  },
+  "attempts": 1,
+  "errors": [],
+  "seconds": 95.19284716599999,
+  "usage": {
+    "prompt_tokens": 6660,
+    "completion_tokens": 12658,
+    "total_tokens": 19318,
+    "cost": 0.008568555,
+    "is_byok": false,
+    "prompt_tokens_details": {
+      "cached_tokens": 187,
+      "audio_tokens": 0,
+      "video_tokens": 0
+    },
+    "cost_details": {
+      "upstream_inference_cost": null,
+      "upstream_inference_prompt_cost": 0,
+      "upstream_inference_completions_cost": 0
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 11932,
+      "image_tokens": 0
+    },
+    "cache_creation_input_tokens": 0,
+    "market_cost": 0.008568555,
+    "gateway_cost": 0.008568555
+  },
+  "text": "## Analysis\n\n**Reading the logs (task_score \u2248 forward speed in m/s):**\n\n| Cand | iter 500 task_score | recent trend (last 200 it) | key structural property |\n|---|---|---|---|\n| C1 | **7.45** (max 8.10) | +1.6, noisy but climbing | tanh temp 10 (nearly linear at 7 m/s) **+ linear high-speed bonus above 5 m/s** |\n| C2 | 6.38 | +1.0, decelerating | tanh(3) fully saturated; Gaussian tracking hump **caps the optimum at ~9.5 m/s** |\n| C3 | 5.25 | +1.6, steady, non-decelerating | **linear** in vx (gated by uprightness), no saturation, no meaningful penalties |\n| C4 | 5.98 | +1.1, decelerating | tanh(6) saturating + linear clipped at 15 m/s, several regularizers |\n\n**Why C1 wins:**\n- It starts from a clear lead (7.45 vs 6.38/5.98/5.25) and its *shaping gradient is still healthy at its current speed*: d/dv[tanh(v/10)] \u2248 0.06/m/s plus the high-speed bonus \u2248 0.033/m/s, i.e. roughly linear, so there is no plateau to fall into.\n- Its penalty terms are deliberately tiny (control 0.005, lateral 0.02, joint-limit soft 0.05), so they don't brake an aggressive gait; the tilt penalty fires only below up_z = 0.4, so it blocks tumbling exploits without capping speed.\n- The high-speed bonus is already active (0.09 at iter 500) and grows linearly to 14 m/s, giving a persistent push that the other candidates lack in the 6\u201310 m/s band.\n\n**Why C3 is the runner-up:** its reward is essentially the metric itself (gated_forward_speed \u2248 task_score in the log), the gradient never flattens (no tanh, no tracking hump that switches sign past its target), and its regularizers are negligible \u2014 so it has the highest asymptotic ceiling and the most consistent improvement rate (+0.4 / 50 it, not decaying). It only trails because it started 2.2 m/s behind; the remaining 2,500 iterations are enough to close that gap.\n\n**C2 third:** it starts ahead of C4 but its dominant term is a Gaussian tracking bump peaking at 9 m/s \u2014 the policy is actively *rewarded for stopping there* (gradient \u2192 0 and then negative above 9). Its lateral-drift penalty is also growing (-0.33), further damping speed.\n\n**C4 last:** weakest combination \u2014 a saturating tanh(6) plus a clipped linear term, plus the largest control/lateral/angular regularizer set; it shows the clearest deceleration (last 100 it: +0.29) and no mechanism to keep pushing at high speed.\n\n**Projection at 3,000 iters:** C1 \u2248 10\u201312 m/s, C3 \u2248 9\u201312 m/s, C2 \u2248 9\u201310 m/s (capped), C4 \u2248 8\u201310 m/s.\n\n```json\n{\"ranking\": [\"C1\", \"C3\", \"C2\", \"C4\"]}\n```"
+}

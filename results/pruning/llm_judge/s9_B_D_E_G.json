@@ -1,0 +1,40 @@
+{
+  "set": {
+    "seed": 9,
+    "order": [
+      "B_round2c1_10.75",
+      "G_live1_r2c0_9.29_winner",
+      "E_live2_r1c3_9.62",
+      "D_live2_r2c2_10.43"
+    ],
+    "id": "s9_B_D_E_G"
+  },
+  "attempts": 1,
+  "errors": [],
+  "seconds": 18.42548899999997,
+  "usage": {
+    "prompt_tokens": 7569,
+    "completion_tokens": 2746,
+    "total_tokens": 10315,
+    "cost": 0.002548725,
+    "is_byok": false,
+    "prompt_tokens_details": {
+      "cached_tokens": 1735,
+      "audio_tokens": 0,
+      "video_tokens": 0
+    },
+    "cost_details": {
+      "upstream_inference_cost": null,
+      "upstream_inference_prompt_cost": 0,
+      "upstream_inference_completions_cost": 0
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 2248,
+      "image_tokens": 0
+    },
+    "cache_creation_input_tokens": 0,
+    "market_cost": 0.002548725,
+    "gateway_cost": 0.002548725
+  },
+  "text": "```json\n{\"ranking\": [\"C4\", \"C1\", \"C2\", \"C3\"]}\n```\n\n**Reasoning (based on 500-iteration trends + reward-gradient structure):**\n\n- **C4** leads already (task_score 7.19, max 7.45) and is still climbing fast (last-50 increment +0.42, the largest of any candidate). Crucially, it has the *strongest sustained gradient at high speed*: clipped-linear main term (3.0/12 m/s \u2248 0.25 per m/s) **plus** raw linear term (0.5 per m/s) **plus** an active sprint ramp above 5 m/s (\u22480.14 per m/s) \u2014 roughly 3\u20134\u00d7 the high-speed gradient of the others. The `upright \u00d7 tanh(vx)` coupling keeps the ant from trading posture for speed, so it converts gradient into actual running rather than lunging.\n- **C1** is a close second (6.54). Its speed gradient at ~7 m/s is only \u22480.23 per m/s (0.2 linear + a nearly saturated 6 m/s-temp tanh), and its task_score increments had already collapsed to +0.10 by iter 500, so it is flattening; it will likely saturate well below C4.\n- **C2** (6.00) has a saturated tanh (1.5 weight, 6 m/s temp) plus a surge ramp that fully flattens at 9.5 m/s, so its high-speed gradient collapses to ~0.07 per m/s. Its heading/upright bonuses also mildly discourage leaning into a sprint. Better than C3 but limited.\n- **C3** (5.83) trails despite an unbounded linear speed term: the upright (0.5) and height-preference terms reward a conservative, upright gait (body_forward decays to 0, up_z \u2248 0.84), and its score increments are the flattest (+0.22 in the last 50). Its speed shaping (1 m/s temp) is also nearly saturated, so the extra linear weight mostly buys reward scale rather than extra speed.\n\nAll four have comparable action/joint regularizer strength, so the differentiator is high-speed reward gradient and posture\u2013speed coupling, both of which favor C4."
+}

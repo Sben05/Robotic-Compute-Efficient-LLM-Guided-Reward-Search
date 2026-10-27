@@ -1,0 +1,40 @@
+{
+  "set": {
+    "seed": 8,
+    "order": [
+      "E_live2_r1c3_9.62",
+      "B_round2c1_10.75",
+      "A_round2c0_10.93",
+      "C_pool_c3_10.73"
+    ],
+    "id": "s8_A_B_C_E"
+  },
+  "attempts": 1,
+  "errors": [],
+  "seconds": 35.22114887499998,
+  "usage": {
+    "prompt_tokens": 5996,
+    "completion_tokens": 4546,
+    "total_tokens": 10542,
+    "cost": 0.003584205,
+    "is_byok": false,
+    "prompt_tokens_details": {
+      "cached_tokens": 317,
+      "audio_tokens": 0,
+      "video_tokens": 0
+    },
+    "cost_details": {
+      "upstream_inference_cost": null,
+      "upstream_inference_prompt_cost": 0,
+      "upstream_inference_completions_cost": 0
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 3897,
+      "image_tokens": 0
+    },
+    "cache_creation_input_tokens": 0,
+    "market_cost": 0.003584205,
+    "gateway_cost": 0.003584205
+  },
+  "text": "## Analysis\n\n**Reading the logs (task_score at iter 500 / max):**\n- C4: 7.18 / 7.56 (leading by a wide margin)\n- C2: 6.01 / 6.31\n- C3: 5.61 / 6.15\n- C1: 4.54 / 4.81\n\n**Reward-gradient reasoning (why the ordering is not just a snapshot):**\n\n| Candidate | Effective d(reward)/d(forward speed) in the 5\u201312 m/s regime | Issues |\n|---|---|---|\n| **C4** | `gated_forward_speed = v\u00b7uprightness` \u2192 **\u22480.9\u20131.0 per m/s**, essentially *linear and unsaturated* | Uprightness gate blocks tumble/dive exploits (no reward when up_z<0); regularizers (`0.01\u00b7mean(a\u00b2)`, `1e-6\u00b7mean(\u1e8b\u00b2)`) are negligible \u2192 no speed cap |\n| **C2** | `0.2` (linear) + `0.6/6\u00b7sech\u00b2` (tanh, \u03c4=6) \u2192 **\u22480.21\u20130.25 per m/s** | tanh saturates above ~8 m/s, but the 0.2 linear weight keeps pressure on; all penalties tiny |\n| **C3** | `1/10\u00b7sech\u00b2` + high-speed bonus `0.30/9` \u2192 **\u22480.075\u20130.12 per m/s** | \u03c4=10 tanh is very flat; the high-speed bonus is a good anti-plateau device but its slope is small; soft joint-limit term always active |\n| **C1** | linear `1.0\u00b7v` (strong) but coupled to a **saturated** `0.5\u00b7tanh(v/1)` and, crucially, an `upright` bonus + `height` preference | `body_forward` collapses 0.06\u21920.01 (posture misalignment), `height` term pins the torso at 0.5 m (caps aggressive gait), `joint_vel` penalty penalizes exactly the fast, high-knee gait needed \u2192 lowest speed |\n\n**Key insight for extrapolation:** C4's reward is *linear in measured forward speed with an uprightness gate*, so the PPO advantage signal stays proportional to the metric being optimized (the task_score itself) at every speed \u2014 no saturation plateau, no posture constraint that conflicts with sprinting. C2 has a strong but sub-linear signal (\u22480.2/m/s) that stays positive beyond 10 m/s, so it remains the runner-up. C3's very flat \u03c4=10 tanh means its marginal gradient at high speed is roughly half of C2's, and C1's coupled posture/height terms actively fight the fast gait it needs.\n\nPrediction of final ordering: **C4 > C2 > C3 > C1**.\n\n```json\n{\"ranking\": [\"C4\", \"C2\", \"C3\", \"C1\"]}\n```"
+}

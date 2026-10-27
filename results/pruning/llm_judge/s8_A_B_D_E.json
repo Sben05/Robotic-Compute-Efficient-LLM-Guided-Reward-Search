@@ -1,0 +1,40 @@
+{
+  "set": {
+    "seed": 8,
+    "order": [
+      "A_round2c0_10.93",
+      "D_live2_r2c2_10.43",
+      "B_round2c1_10.75",
+      "E_live2_r1c3_9.62"
+    ],
+    "id": "s8_A_B_D_E"
+  },
+  "attempts": 1,
+  "errors": [],
+  "seconds": 35.46920983399997,
+  "usage": {
+    "prompt_tokens": 7330,
+    "completion_tokens": 4616,
+    "total_tokens": 11946,
+    "cost": 0.00366282,
+    "is_byok": false,
+    "prompt_tokens_details": {
+      "cached_tokens": 1528,
+      "audio_tokens": 0,
+      "video_tokens": 0
+    },
+    "cost_details": {
+      "upstream_inference_cost": null,
+      "upstream_inference_prompt_cost": 0,
+      "upstream_inference_completions_cost": 0
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 4140,
+      "image_tokens": 0
+    },
+    "cache_creation_input_tokens": 0,
+    "market_cost": 0.00366282,
+    "gateway_cost": 0.00366282
+  },
+  "text": "Looking at the training logs and the gradient structure of each reward:\n\n**C2** shows the strongest continuing speed gradient at high speeds: clipped-linear speed (3.0 weight \u2192 0.25/m/s), raw capped linear speed (0.5/m/s up to 15 m/s), a sprint bonus with a constant 0.14/m/s slope above 5 m/s, plus upright\u00d7speed coupling. Total marginal push is ~0.9 reward per m/s at 10 m/s, roughly 4\u00d7 C1 and 4\u00d7 C3. It also retains stability guards (fall penalty on torso height, uprightness, heading alignment), so it can convert that push into a real gait rather than a tumble. Its task_score is already leading (6.27, still climbing, best single value 6.52).\n\n**C3** has a decent constant gradient (0.2/m/s from the clipped linear term up to 15 m/s) but only a tilt penalty for posture \u2014 no upright/height anchoring, so it's slightly less efficient per unit of speed shaping; it trails C2 (6.01 vs 6.27) and is likely to stay behind once the strong-gradient regimes diverge.\n\n**C1**'s primary tanh term (temp 10 m/s) is nearly flat at fast speeds and the \"faster than 5 m/s\" bonus contributes only ~0.03/m/s, while it pays extra posture/soft-joint-limit costs. This produces the early ~6 m/s plateau it was designed to break, but only weakly \u2014 5.61 at iteration 500 and flattening.\n\n**C4** learns slowest (4.54): its shaping term saturates at ~1 m/s, the gaussian torso-height target (0.5 m \u00b1 0.3) heavily constrains stride length, and the upright/height bonuses plus larger action penalty blunt the speed pressure. Its unbounded linear term helps only marginally relative to those anchors.\n\nExtrapolating the observed ordering (C2 > C3 > C1 > C4 at iteration 500) with C2's much larger high-speed gradient, C2 should finish highest by iteration 3,000.\n\n{\"ranking\": [\"C2\", \"C3\", \"C1\", \"C4\"]}"
+}

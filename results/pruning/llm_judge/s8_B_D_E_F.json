@@ -1,0 +1,40 @@
+{
+  "set": {
+    "seed": 8,
+    "order": [
+      "D_live2_r2c2_10.43",
+      "B_round2c1_10.75",
+      "F_live2_r2c3_9.61_winner",
+      "E_live2_r1c3_9.62"
+    ],
+    "id": "s8_B_D_E_F"
+  },
+  "attempts": 1,
+  "errors": [],
+  "seconds": 62.4820507500001,
+  "usage": {
+    "prompt_tokens": 7660,
+    "completion_tokens": 8696,
+    "total_tokens": 16356,
+    "cost": 0.006319755,
+    "is_byok": false,
+    "prompt_tokens_details": {
+      "cached_tokens": 347,
+      "audio_tokens": 0,
+      "video_tokens": 0
+    },
+    "cost_details": {
+      "upstream_inference_cost": null,
+      "upstream_inference_prompt_cost": 0,
+      "upstream_inference_completions_cost": 0
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 8093,
+      "image_tokens": 0
+    },
+    "cache_creation_input_tokens": 0,
+    "market_cost": 0.006319755,
+    "gateway_cost": 0.006319755
+  },
+  "text": "## Analysis\n\n**Key diagnostic:** for every candidate, `task_score` \u2248 the mean forward (+x) velocity implied by the logged components (e.g. C1: `linear_speed` 3.14 / 0.5 = 6.28 m/s \u2194 `task_score` 6.27; C4: 4.58 \u2194 4.54). So `task_score` is essentially \"current speed\", and the ranking hinges on **how much reward gradient each design still has per extra m/s at high speed**, plus whether the shaping terms fight or help fast running.\n\n**Speed pressure at ~8 m/s (marginal reward per m/s):**\n- **C1:** 0.75 (clipped-linear, up to 12 m/s) + 0.04 (tanh) + 0.19 (upright\u00d7speed product) + 0.14 (sprint slope) \u2248 **1.1/m/s** \u2014 the only design with a *hard, sustained* linear gradient far beyond the current speed, plus a sprint term that switches on above 5 m/s.\n- **C2:** 0.2 + 0.6\u00b7sech\u00b2(8/6) \u2248 **0.31/m/s** \u2014 gradient is already decaying; nothing distinguishes fast from fast-ish.\n- **C3:** 0.2 + 0.02 (tanh, T=3) + 0.30 (tracking) \u2248 **0.5/m/s**, and the Gaussian tracking bonus *dies past its 9 m/s target*, so the \"sprint\" region is weakly rewarded.\n- **C4:** 1.0 (linear) but with tanh(T=1) fully saturated and **no usable body-frame term** (its quaternion is read as (w,x,y,z) instead of (x,y,z,w), so `body_forward` \u2248 0 and `upright` is really a scrambled heading term); its height term (target 0.5 m) plus the mis-scrambled \"upright\" term penalize the forward lean that fast running requires \u2014 consistent with its slow climb (4.54 at iter 500 despite a nominally large gradient).\n\n**Current state at iter 500:** C1 6.27 > C2 6.01 > C3 5.69 > C4 4.54. C1's curve is decelerating but from the highest base and with the strongest remaining gradient; C2/C3 have weaker high-speed gradients, so their asymptotes should land below C1's; C4 is both behind and actively penalized for the posture needed to sprint.\n\n**Prediction:** C1 ends highest (~8\u201310), then C2, then C3, with C4 last.\n\n{\"ranking\": [\"C1\", \"C2\", \"C3\", \"C4\"]}"
+}

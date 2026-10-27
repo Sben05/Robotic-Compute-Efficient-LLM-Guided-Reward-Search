@@ -1,0 +1,40 @@
+{
+  "set": {
+    "seed": 9,
+    "order": [
+      "C_pool_c3_10.73",
+      "G_live1_r2c0_9.29_winner",
+      "E_live2_r1c3_9.62",
+      "A_round2c0_10.93"
+    ],
+    "id": "s9_A_C_E_G"
+  },
+  "attempts": 1,
+  "errors": [],
+  "seconds": 24.42188062499997,
+  "usage": {
+    "prompt_tokens": 6655,
+    "completion_tokens": 3229,
+    "total_tokens": 9884,
+    "cost": 0.00282171,
+    "is_byok": false,
+    "prompt_tokens_details": {
+      "cached_tokens": 844,
+      "audio_tokens": 0,
+      "video_tokens": 0
+    },
+    "cost_details": {
+      "upstream_inference_cost": null,
+      "upstream_inference_prompt_cost": 0,
+      "upstream_inference_completions_cost": 0
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 2765,
+      "image_tokens": 0
+    },
+    "cache_creation_input_tokens": 0,
+    "market_cost": 0.00282171,
+    "gateway_cost": 0.00282171
+  },
+  "text": "```json\n{\"ranking\": [\"C1\", \"C4\", \"C2\", \"C3\"]}\n```\n\n**Reasoning:**\n\n- **C1 (best):** Its speed term is *linear* in forward velocity with an uprightness multiplier, so the speed gradient stays at ~1.0 per m/s at any velocity \u2014 no saturation plateau is possible. Its regularizers are negligible (mean-based action penalty, 1e-6 joint-velocity term), so nothing opposes higher speed. It already leads at iteration 500 (task_score 7.15) and has the strongest sustained learning signal of all four, so it should keep pushing forward speed through 3,000 iterations.\n\n- **C4 (second):** Well-designed for the long run \u2014 tanh with a 10 m/s scale plus a linear \"surge\" bonus above 5 m/s guarantees a constant gradient in the high-speed regime, and its penalties are weak (tilt penalty only fires when actually tipped). However, its total reward scale is tiny (~0.7) and its speed gradient is roughly 10x weaker than C1's, so it trails C1 and would need to close the gap via the high-speed bonus.\n\n- **C2 (third):** The tanh(6 m/s) term saturates quickly (gradient collapses as speed grows), leaving only the surge ramp and body-speed term. Extra heading/lateral/vertical penalties and a joint-velocity cost further blunt the speed incentive. Progress is real but slower and will likely asymptote lower.\n\n- **C4 vs C2 aside:** C4's high-speed ramp and lack of saturating penalties make it structurally better at high velocity despite a lower current score.\n\n- **C3 (worst):** It misreads the Isaac Gym quaternion layout (treats (x,y,z,w) as (w,x,y,z)), corrupting the upright and body-forward terms (note `body_forward` collapsed to ~0.00); the tight height preference (target 0.5 m, temp 0.3 m) fights an aggressive gait; and the 1e-4 joint-velocity penalty grows quadratically with running speed, directly cancelling the speed reward as the gait gets faster."
+}

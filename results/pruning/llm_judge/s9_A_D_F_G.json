@@ -1,0 +1,40 @@
+{
+  "set": {
+    "seed": 9,
+    "order": [
+      "D_live2_r2c2_10.43",
+      "F_live2_r2c3_9.61_winner",
+      "A_round2c0_10.93",
+      "G_live1_r2c0_9.29_winner"
+    ],
+    "id": "s9_A_D_F_G"
+  },
+  "attempts": 1,
+  "errors": [],
+  "seconds": 91.20227383300005,
+  "usage": {
+    "prompt_tokens": 8665,
+    "completion_tokens": 12976,
+    "total_tokens": 21641,
+    "cost": 0.009038505,
+    "is_byok": false,
+    "prompt_tokens_details": {
+      "cached_tokens": 347,
+      "audio_tokens": 0,
+      "video_tokens": 0
+    },
+    "cost_details": {
+      "upstream_inference_cost": null,
+      "upstream_inference_prompt_cost": 0,
+      "upstream_inference_completions_cost": 0
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 12391,
+      "image_tokens": 0
+    },
+    "cache_creation_input_tokens": 0,
+    "market_cost": 0.009038505,
+    "gateway_cost": 0.009038505
+  },
+  "text": "```json\n{\"ranking\": [\"C1\", \"C2\", \"C3\", \"C4\"]}\n```\n\n**Reasoning:**\n\n**C1 (best).** Its speed terms are essentially *monotone and unsaturated* in the regime that matters: clipped\u2011linear forward speed (0.25/m/s up to 12 m/s), raw linear speed (0.5/m/s up to 15 m/s), plus the sprint ramp above 5 m/s (0.14/m/s) \u2014 a total marginal speed gradient of \u22480.9 per m/s between ~5 and 12 m/s, with no internal optimum. Regularizer drag is the lowest of the four (action cost 0.005, joint\u2011vel 0.0005\u00b7mean), the lateral term is tanh\u2011saturating (capped at 0.1, so it never fights the gait), and the upright/fall terms keep the ant from exploiting a diving exploit (logs confirm upright stays at max, fall penalty \u22480). Its task_score growth was still accelerating at iter 500 (6.50\u21926.77\u21927.19).\n\n**C2 (second).** Best early learning (7.54 at 500) thanks to the Gaussian tracking bonus, but that bonus is a *hidden speed cap*: total reward peaks at \u22489\u201310 m/s and the tracking term becomes a brake in the 10\u201313 m/s band, flattening the gradient (\u22480.07\u20130.12 per m/s vs C1's 0.9). It also carries double the joint\u2011velocity/angular\u2011velocity costs and a lateral hinge that is actively fighting a real 1.5 m/s side\u2011drift in the log, so its gait is less efficient in the +x direction. Expect it to stall around 9\u201310 m/s.\n\n**C3 (third).** Reward is essentially linear in vx (no internal optimum, low drag) but the marginal speed gradient is tiny (\u22480.10/m/s at 6 m/s, only 0.033 above 5 m/s), so it learns slowly (6.16 at 500, growth stalling). It has no height/alive term, so a fast, tilted posture is cheap \u2014 good for asymptote, bad for early learning speed.\n\n**C4 (last).** Weakest shaping for top speed: the forward tanh(\u00b7/6) saturates and the surge ramp flattens completely at 9.5 m/s, so the speed incentive nearly vanishes above that, while the sensitive `exp((up_z\u22121)/0.3)` upright term actively discourages the forward lean needed for faster running. Heavier action cost and dof\u2011velocity cost on top. Slowest progress (6.00 at 500)."
+}

@@ -1,0 +1,40 @@
+{
+  "set": {
+    "seed": 8,
+    "order": [
+      "E_live2_r1c3_9.62",
+      "G_live1_r2c0_9.29_winner",
+      "A_round2c0_10.93",
+      "C_pool_c3_10.73"
+    ],
+    "id": "s8_A_C_E_G"
+  },
+  "attempts": 1,
+  "errors": [],
+  "seconds": 23.866481458999942,
+  "usage": {
+    "prompt_tokens": 6655,
+    "completion_tokens": 2888,
+    "total_tokens": 9543,
+    "cost": 0.00268839,
+    "is_byok": false,
+    "prompt_tokens_details": {
+      "cached_tokens": 316,
+      "audio_tokens": 0,
+      "video_tokens": 0
+    },
+    "cost_details": {
+      "upstream_inference_cost": null,
+      "upstream_inference_prompt_cost": 0,
+      "upstream_inference_completions_cost": 0
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 2370,
+      "image_tokens": 0
+    },
+    "cache_creation_input_tokens": 0,
+    "market_cost": 0.00268839,
+    "gateway_cost": 0.00268839
+  },
+  "text": "```json\n{\"ranking\": [\"C4\", \"C2\", \"C3\", \"C1\"]}\n```\n\n**Reasoning (based on the 500-iteration logs):**\n\n- **C4** leads on both current task_score (7.18 @ iter 500, max 7.56) and current learning rate (~+0.4 per 50 iters, still rising). Its reward is essentially *linear* in world-frame forward velocity (gated by a soft uprightness factor) with only negligible penalties (action \u2248 0.00, dof_vel \u2248 0.00), so there is no saturation or regularizer drag capping the gait. Actual achieved speed \u2248 7.0 m/s, the highest of all four. It also has the simplest credit assignment (no posture/height/heading conflicts), so continued improvement to 3,000 iters is most likely.\n\n- **C2** is second (5.98 @ 500, ~+0.37/50). Its tanh speed term (T=6) plus the linear \"surge\" ramp (2.5\u21929.5 m/s, still only 0.51/1.0 used) keeps a strong constant gradient, and it has useful posture shaping (upright, heading align) with only mild velocity penalties. However, the tanh saturates and the surge term caps at 9.5 m/s, so its growth rate is decaying faster than C4's.\n\n- **C3** is third (5.61 @ 500). The high-speed bonus is barely engaged (0.04 at iter 500), so at iteration 500 it is effectively a weakly-saturating tanh(T=10) plus a tilt penalty \u2014 good design, but it is behind C2 in both score and rate, and the extra upright/tilt constraints give it slightly more friction.\n\n- **C1** is last (4.54 @ 500). Its speed term is linear but its remaining terms actively conflict with speed: fixed height target (0.5 m) reward, an uprightness bonus that penalizes the forward lean needed for fast running, and the largest joint-velocity penalty (1e-4, magnitude \u2248 -0.08). Its body_forward bonus has collapsed to ~0.01 (the ant is running at a yaw/heading mismatch), confirming the heading/height shaping is hurting it. Lowest speed (\u22484.6 m/s) and slowest effective progress rate."
+}

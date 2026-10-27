@@ -1,0 +1,40 @@
+{
+  "set": {
+    "seed": 9,
+    "order": [
+      "B_round2c1_10.75",
+      "E_live2_r1c3_9.62",
+      "G_live1_r2c0_9.29_winner",
+      "F_live2_r2c3_9.61_winner"
+    ],
+    "id": "s9_B_E_F_G"
+  },
+  "attempts": 1,
+  "errors": [],
+  "seconds": 14.579382584000086,
+  "usage": {
+    "prompt_tokens": 7496,
+    "completion_tokens": 2281,
+    "total_tokens": 9777,
+    "cost": 0.00205722,
+    "is_byok": false,
+    "prompt_tokens_details": {
+      "cached_tokens": 3228,
+      "audio_tokens": 0,
+      "video_tokens": 0
+    },
+    "cost_details": {
+      "upstream_inference_cost": null,
+      "upstream_inference_prompt_cost": 0,
+      "upstream_inference_completions_cost": 0
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 1730,
+      "image_tokens": 0
+    },
+    "cache_creation_input_tokens": 0,
+    "market_cost": 0.00205722,
+    "gateway_cost": 0.00205722
+  },
+  "text": "## Analysis\n\n**Task score at iteration 500 (and max seen):**\n| Candidate | task_score @500 | max | growth (last 100 it) |\n|---|---|---|---|\n| C4 | **7.54** | 7.77 | +1.31 (strong, non-saturating) |\n| C1 | 6.54 | 6.86 | +0.10 (flattening) |\n| C3 | 6.00 | 6.38 | +0.31 |\n| C2 | 5.83 | 6.09 | +0.22 |\n\n**Reward-gradient reasoning (what matters for continued speed improvement):**\n\n- **C4** has the strongest persistent gradient at high speed. `2.0\u00b7tanh(v/3)` has almost saturated by ~5 m/s, but the **Gaussian tracking term** (`2.0\u00b7exp(-((v-9)/3.5)\u00b2)`) is *still rising* as the ant speeds up (log shows 0.03 \u2192 1.46 and climbing), and `0.2\u00b7v` adds a linear push. Effective dR/dv \u2248 0.5/m/s at 8 m/s \u2014 roughly double the others. It also only penalizes tilt *beyond* a threshold (hinge), so it doesn't cap top speed, and the fall/tilt penalties are effectively inactive.\n- **C1** has a reasonable linear term, but the total reward is dominated by a saturating tanh plus a small linear push; it plateaued in the last 100 iterations (+0.10), suggesting the gait/speed has converged for this shaping.\n- **C3** has a good high-speed \"surge\" ramp, but it saturates at 9.5 m/s, and its `body_forward_speed` + `heading_align` + `alive` terms add constraints. It is improving at a modest rate but started behind C1.\n- **C2** has `tanh(v/1.0)` shaping that saturates almost immediately, plus a `height` target and `upright` bonus that discourage the low, lunging, high-speed postures that yield maximum ant speed. It has the weakest high-speed gradient and the lowest score throughout.\n\n**Prediction:** C4's non-saturating speed-tracking gradient keeps pushing speed upward through iteration 3,000, so it finishes clearly on top; C1's plateau leaves it second, with C3 slightly behind C1 and C2 last.\n\n```json\n{\"ranking\": [\"C4\", \"C1\", \"C3\", \"C2\"]}\n```"
+}

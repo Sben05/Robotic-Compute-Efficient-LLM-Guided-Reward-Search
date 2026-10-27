@@ -1,0 +1,40 @@
+{
+  "set": {
+    "seed": 8,
+    "order": [
+      "A_round2c0_10.93",
+      "B_round2c1_10.75",
+      "D_live2_r2c2_10.43",
+      "G_live1_r2c0_9.29_winner"
+    ],
+    "id": "s8_A_B_D_G"
+  },
+  "attempts": 1,
+  "errors": [],
+  "seconds": 31.678939999999955,
+  "usage": {
+    "prompt_tokens": 7915,
+    "completion_tokens": 4135,
+    "total_tokens": 12050,
+    "cost": 0.00362532,
+    "is_byok": false,
+    "prompt_tokens_details": {
+      "cached_tokens": 318,
+      "audio_tokens": 0,
+      "video_tokens": 0
+    },
+    "cost_details": {
+      "upstream_inference_cost": null,
+      "upstream_inference_prompt_cost": 0,
+      "upstream_inference_completions_cost": 0
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 3651,
+      "image_tokens": 0
+    },
+    "cache_creation_input_tokens": 0,
+    "market_cost": 0.00362532,
+    "gateway_cost": 0.00362532
+  },
+  "text": "{\"ranking\": [\"C3\", \"C2\", \"C4\", \"C1\"]}\n\n**Reasoning from the logs and reward structure:**\n\nAll four candidates reach roughly the same forward speed (~6\u20136.4 m/s) by iteration 500, so the differentiator is the *sustained* speed gradient and the stability shaping that allows continued gains over 2,500 more iterations:\n\n- **C3** has by far the strongest high-speed gradient (clipped-linear speed at 3.0/12 m/s + 0.5 raw linear + sprint ramp \u2248 0.9 reward/m/s around 8 m/s, vs ~0.2 for C2 and ~0.03 for C4). Crucially, it couples speed to posture via the multiplicative `run_quality` term (upright \u00d7 tanh speed) and has heading/fall terms, so it is pushed to a *real* running gait rather than a tumbling exploit. It also led at iteration 500 (task_score 6.27, max 6.52). Minor flaw: the `lateral_drift` term is sign-flipped (rewards \u2212y drift), but its magnitude is small (0.06).\n- **C2** keeps a real linear pressure (0.2 per m/s up to 15 m/s) plus an alive bonus, so it continues to improve steadily (task_score still climbing at 500: 5.71 \u2192 6.01) \u2014 but its speed gradient is ~4\u00d7 weaker than C3's.\n- **C4** learns the gait fastest early (1.63 at iter 50) but almost all of its speed terms are tanh-saturating (temp 6) and its surge ramp clips out at 9.5 m/s; its high-speed gradient nearly vanishes past ~10 m/s, so it is expected to plateau earliest. Its strong upright/alive/vertical constraints also cap aggressive gaits.\n- **C1** has the weakest high-speed pressure (tanh temp 10 plus a 0.033/m/s ramp), the lowest task_score throughout (5.61 at iter 500) and decelerating gains \u2014 the most likely to stall around a modest speed.\n\n**Prediction: C3 (highest), then C2, C4, C1.**"
+}

@@ -1,0 +1,45 @@
+{
+  "set": {
+    "seed": 9,
+    "order": [
+      "G_live1_r2c0_9.29_winner",
+      "F_live2_r2c3_9.61_winner",
+      "A_round2c0_10.93",
+      "B_round2c1_10.75"
+    ],
+    "id": "s9_A_B_F_G"
+  },
+  "attempts": 2,
+  "errors": [
+    {
+      "attempt": 1,
+      "error": "RemoteDisconnected('Remote end closed connection without response')"
+    }
+  ],
+  "seconds": 387.49081675,
+  "usage": {
+    "prompt_tokens": 7842,
+    "completion_tokens": 6426,
+    "total_tokens": 14268,
+    "cost": 0.00498897,
+    "is_byok": false,
+    "prompt_tokens_details": {
+      "cached_tokens": 318,
+      "audio_tokens": 0,
+      "video_tokens": 0
+    },
+    "cost_details": {
+      "upstream_inference_cost": null,
+      "upstream_inference_prompt_cost": 0,
+      "upstream_inference_completions_cost": 0
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 5948,
+      "image_tokens": 0
+    },
+    "cache_creation_input_tokens": 0,
+    "market_cost": 0.00498897,
+    "gateway_cost": 0.00498897
+  },
+  "text": "```json\n{\"ranking\": [\"C2\", \"C4\", \"C1\", \"C3\"]}\n```\n\n**Reasoning:**\n\n- **C2 (clear winner).** It has the strongest sustained speed gradient: a Gaussian \"tracking toward 9 m/s\" term (weight 2.0, \u03c3=3.5) that still yields ~0.4\u20130.5 reward per m/s at current speeds, plus an unclipped linear term (0.2\u00b7v_x), on top of the tanh term. It also has a linear (not just tanh) push beyond the current plateau, plus hinge-style tilt/lateral penalties and a fall penalty that keep the gait stable instead of collapsing. Its task_score is already 7.54 at iter 500 and still climbing steadily (~+0.3/50 iters), well ahead of the pack.\n\n- **C4 (second).** Purely speed-focused with a linear term that keeps pressure all the way to 15 m/s (unlike C1's surge ramp, which saturates at 9.5 m/s). Weak but active tilt cost and negligible regularizers mean little drag on top speed. It already leads the non-C2 candidates (6.54) and, because its speed gradient stays flat/positive at high speed, it should keep improving.\n\n- **C1 (third).** Good posture shaping (upright exp term, heading alignment, alive bonus) that prevents falls, but its speed shaping is the most saturating of the three (tanh temp 6 plus a surge ramp that caps at 9.5 m/s), so beyond ~9 m/s it loses essentially all speed pressure. It was the slowest riser early and its task_score is still climbing only weakly (6.00).\n\n- **C4/C1 vs C3.** C3's speed terms are extremely weakly scaled (tanh temp 10 \u2192 ~0.1/m/s gradient, high-speed bonus only 0.3 over a 9 m/s span \u2248 0.033/m/s), so its reward carries almost no incremental pressure beyond ~6 m/s; its task_score has already flat-lined (6.16 \u2192 6.16) and the always-active soft joint-limit penalty further constrains gait extension. It should end last."
+}

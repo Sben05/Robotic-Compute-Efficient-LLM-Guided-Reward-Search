@@ -1,0 +1,40 @@
+{
+  "set": {
+    "seed": 9,
+    "order": [
+      "B_round2c1_10.75",
+      "E_live2_r1c3_9.62",
+      "C_pool_c3_10.73",
+      "G_live1_r2c0_9.29_winner"
+    ],
+    "id": "s9_B_C_E_G"
+  },
+  "attempts": 1,
+  "errors": [],
+  "seconds": 16.843065291999892,
+  "usage": {
+    "prompt_tokens": 6235,
+    "completion_tokens": 2327,
+    "total_tokens": 8562,
+    "cost": 0.002173635,
+    "is_byok": false,
+    "prompt_tokens_details": {
+      "cached_tokens": 1169,
+      "audio_tokens": 0,
+      "video_tokens": 0
+    },
+    "cost_details": {
+      "upstream_inference_cost": null,
+      "upstream_inference_prompt_cost": 0,
+      "upstream_inference_completions_cost": 0
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 1867,
+      "image_tokens": 0
+    },
+    "cache_creation_input_tokens": 0,
+    "market_cost": 0.002173635,
+    "gateway_cost": 0.002173635
+  },
+  "text": "{\"ranking\": [\"C3\", \"C1\", \"C4\", \"C2\"]}\n\n**Reasoning:**\n\n- **C3** is best because its reward is essentially a *linear* function of the exact quantity being scored (world +x velocity), gated only by uprightness, with negligible penalties (action/dof-velocity costs ~0). The marginal reward per extra m/s is ~1.0, far steeper than any other candidate, so PPO keeps pushing speed for the whole 3,000 iterations. Its log already shows the highest task_score (7.15 @ 500, max 7.39) and the steepest late-stage growth (6.27 \u2192 7.15).\n\n- **C1** is second: it combines a tanh speed term (gradient \u22480.08/m/s at 7 m/s) with a clipped linear term (0.2/m/s), plus a small alive bonus and a mild squared tilt penalty. The speed gradient (~0.28) is weaker than C3, but the shaping is still monotone and unsaturated at realistic speeds, so it keeps improving (6.54 @ 500, second fastest growth).\n\n- **C4** is third: the main tanh term (weight 1.5, temp 6) is quite flat, and although the \"surge\" ramp adds gradient above 2.5 m/s, it saturates near 9.5 m/s. The heading-alignment and upright terms plus lateral/vertical velocity costs further shape (and mildly cap) the gait, so growth is slower (6.00 @ 500, ~0.3/50 iters at the end).\n\n- **C2** is worst: it shares C3's linear speed term but adds many conflicting objectives \u2014 a height preference (target 0.5 m), a saturating shaping term (temp 1.0), and an upright term computed with a mismatched quaternion convention (index 0 read as `qw`, which corrupts `up_z` and `fwd_x`, evidenced by the upright component collapsing to 0.29 early). These constraints suppress raw speed, and its task_score lags (5.83 @ 500)."
+}

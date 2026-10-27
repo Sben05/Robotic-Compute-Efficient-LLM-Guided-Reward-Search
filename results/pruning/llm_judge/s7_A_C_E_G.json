@@ -1,0 +1,40 @@
+{
+  "set": {
+    "seed": 7,
+    "order": [
+      "C_pool_c3_10.73",
+      "E_live2_r1c3_9.62",
+      "A_round2c0_10.93",
+      "G_live1_r2c0_9.29_winner"
+    ],
+    "id": "s7_A_C_E_G"
+  },
+  "attempts": 1,
+  "errors": [],
+  "seconds": 42.23745316700001,
+  "usage": {
+    "prompt_tokens": 6647,
+    "completion_tokens": 5957,
+    "total_tokens": 12604,
+    "cost": 0.004529265,
+    "is_byok": false,
+    "prompt_tokens_details": {
+      "cached_tokens": 311,
+      "audio_tokens": 0,
+      "video_tokens": 0
+    },
+    "cost_details": {
+      "upstream_inference_cost": null,
+      "upstream_inference_prompt_cost": 0,
+      "upstream_inference_completions_cost": 0
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 5365,
+      "image_tokens": 0
+    },
+    "cache_creation_input_tokens": 0,
+    "market_cost": 0.004529265,
+    "gateway_cost": 0.004529265
+  },
+  "text": "```json\n{\"ranking\": [\"C3\", \"C4\", \"C1\", \"C2\"]}\n```\n\n**Reasoning (based on the 500-iteration logs and the shaping math):**\n\n- **C3 is the strongest bet.** Its task_score (7.45 at iter 500, max 8.10) leads the field, and its late slope is still steep (~+0.008/iter vs +0.002/iter for C4). Crucially, its reward keeps a live gradient exactly where the others lose it: the tanh temperature of 10 m/s gives d(reward)/d(v) \u2248 0.06/m/s at 7 m/s and stays meaningful past 10 m/s, and the incremental bonus supplies a constant gradient all the way to 14 m/s. It also barely penalizes leaning (upright term is nearly flat near up_z \u2248 1), so it doesn't fight the aggressive forward-leaning gait that fast running requires.\n\n- **C4 is a close second but is heading into its own ceiling.** Its tanh (temp 6) plus surge ramp (2.5\u21929.5 m/s) gives it a *stronger* marginal incentive around 7 m/s (~0.25/m/s vs C3's ~0.10), which is why it climbs fast early. But both shaping terms saturate near 9\u201310 m/s, and its heavier posture/heading/alive terms (exp uprightness with temp 0.3, heading alignment, height-gated alive bonus) constrain the explosive gait. The log confirms deceleration: increments fall from +0.50/50 iters to +0.18/50 iters by iter 500. It should finish around 9\u201311, but below C3.\n\n- **C1 (3rd)** and **C2 (4th)** are stuck in the ~5\u20136 m/s band. C2's shaping term (tanh with temp 1) is fully saturated (0.49/0.50 for hundreds of iterations), so it contributes no speed gradient; only the raw linear term does, and its heavier joint-velocity (1e-4) and action penalties grow with speed, capping the gait. C1 has the cleaner linear speed gradient and near-negligible penalties (mean-based action cost, 1e-6 dof cost) and is still improving steadily (~+0.45/50 iters), so it edges out C2 over 3,000 iterations despite a lower current score.\n\nThe key discriminator is *where the reward gradient lives*: C1/C2 have almost no shaping gradient above ~5\u20136 m/s, C4's dies near 9\u201310 m/s, and only C3 maintains pressure through the 7\u201314 m/s range where the extra headroom lives."
+}

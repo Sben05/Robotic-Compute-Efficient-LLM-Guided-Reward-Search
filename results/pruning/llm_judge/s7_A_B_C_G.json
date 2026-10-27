@@ -1,0 +1,40 @@
+{
+  "set": {
+    "seed": 7,
+    "order": [
+      "C_pool_c3_10.73",
+      "A_round2c0_10.93",
+      "B_round2c1_10.75",
+      "G_live1_r2c0_9.29_winner"
+    ],
+    "id": "s7_A_B_C_G"
+  },
+  "attempts": 1,
+  "errors": [],
+  "seconds": 85.569020666,
+  "usage": {
+    "prompt_tokens": 6571,
+    "completion_tokens": 11698,
+    "total_tokens": 18269,
+    "cost": 0.007979205,
+    "is_byok": false,
+    "prompt_tokens_details": {
+      "cached_tokens": 187,
+      "audio_tokens": 0,
+      "video_tokens": 0
+    },
+    "cost_details": {
+      "upstream_inference_cost": null,
+      "upstream_inference_prompt_cost": 0,
+      "upstream_inference_completions_cost": 0
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 10927,
+      "image_tokens": 0
+    },
+    "cache_creation_input_tokens": 0,
+    "market_cost": 0.007979205,
+    "gateway_cost": 0.007979205
+  },
+  "text": "## Analysis\n\n**Reading the logs (task_score \u2248 achieved forward speed, in m/s):**\n\n| Candidate | @iter 500 | max | recent growth (last 150 it) | key property |\n|---|---|---|---|---|\n| C2 | 7.45 | 8.10 | +0.5\u2026+0.8 / 50 it | tanh(T=10) + linear ramp to 14 m/s (no early saturation) |\n| C4 | 7.21 | 7.84 | +0.2\u2026+0.5 / 50 it | tanh(T=6) + surge ramp, but **saturates at 9.5 m/s** |\n| C3 | 5.98 | 6.16 | +0.25 / 50 it | tanh(T=6) + 0.2\u00b7v linear, small tilt cost |\n| C1 | 5.25 | 5.49 | +0.38 / 50 it | linear speed **multiplicatively gated by uprightness** |\n\n**Why C2 wins:** it is the only design that keeps a usable speed gradient in the regime that matters. Its tanh(T=10) term plus the \"faster than 5 m/s\" ramp gives ~0.075 reward/m/s at 8 m/s and still ~0.05 at 12 m/s. Crucially, C2 only penalizes *tipped-over* postures (up_z < 0.4) and has weak posture shaping (0.15 weight, linear in up_z), so the ant is free to pitch its torso to sprint \u2014 exactly what is needed to break past ~8\u201310 m/s. Its soft joint-limit term (0.05) is the only meaningful brake and is mild.\n\n**Why C4 is second, not first:** its surge ramp is the strongest single gradient up to ~9.5 m/s (0.14/m/s), which is why it led early (3.08 vs 2.16 at iter 100). But the ramp *clips* at 9.5 m/s, and its tanh(T=6) is nearly flat beyond ~12 m/s; meanwhile `upright` (exp, weight 0.6) and `heading_align` (0.4\u00b7fwd_x) both penalize torso pitch, an increasingly binding brake as the ant tries to sprint. So C4's reward gradient effectively dies around 9\u201311 m/s, while C2's keeps pushing.\n\n**Why C3 > C1:** C3's linear term (0.2\u00b7v, unclipped to 15 m/s) is un-gated and its tilt cost is only quadratic and tiny; it also has an alive bonus protecting episode length. C1's reward is `speed \u00d7 uprightness`, so any forward lean immediately discounts the speed term, plus the `uprightness` bonus keeps the torso pinned vertical \u2014 a self-limiting loop exactly in the sprinting regime. C1's larger raw reward scale also means larger advantages against a fixed PPO clip, which tends to saturate the surrogate and slow progress (consistent with its slower climb). C3 is already ahead by ~0.7 m/s and its shaping degrades more gracefully at high speed.\n\n**Prediction:** C2 (\u224811\u201313 m/s) > C4 (\u22489.5\u201311 m/s) > C3 (\u22487\u20138.5 m/s) > C1 (\u22486\u20137.5 m/s) by iteration 3,000.\n\n```json\n{\"ranking\": [\"C2\", \"C4\", \"C3\", \"C1\"]}\n```"
+}

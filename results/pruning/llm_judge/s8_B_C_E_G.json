@@ -1,0 +1,40 @@
+{
+  "set": {
+    "seed": 8,
+    "order": [
+      "G_live1_r2c0_9.29_winner",
+      "E_live2_r1c3_9.62",
+      "B_round2c1_10.75",
+      "C_pool_c3_10.73"
+    ],
+    "id": "s8_B_C_E_G"
+  },
+  "attempts": 1,
+  "errors": [],
+  "seconds": 21.987810832999912,
+  "usage": {
+    "prompt_tokens": 6235,
+    "completion_tokens": 2963,
+    "total_tokens": 9198,
+    "cost": 0.00249759,
+    "is_byok": false,
+    "prompt_tokens_details": {
+      "cached_tokens": 1596,
+      "audio_tokens": 0,
+      "video_tokens": 0
+    },
+    "cost_details": {
+      "upstream_inference_cost": null,
+      "upstream_inference_prompt_cost": 0,
+      "upstream_inference_completions_cost": 0
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 2465,
+      "image_tokens": 0
+    },
+    "cache_creation_input_tokens": 0,
+    "market_cost": 0.00249759,
+    "gateway_cost": 0.00249759
+  },
+  "text": "```json\n{\"ranking\": [\"C4\", \"C3\", \"C1\", \"C2\"]}\n```\n\n**Reasoning:**\n\n- **C4** is the clear leader and the most likely winner. Its reward is essentially *linear* in world-frame forward velocity (gated by a mild uprightness factor), with almost negligible penalties (action cost ~0, dof-vel cost ~0). Its task_score (7.18 at iter 500) tracks its own reward almost exactly, so the reward is almost perfectly aligned with the forward-progress metric. The gradient never saturates, so there is continuous pressure to keep accelerating \u2014 the largest expected score at 3,000 iterations.\n\n- **C3** is second: it has a persistent linear speed term (0.2/m/s up to 15 m/s) plus a wide-temperature tanh shaping (0.6\u00b7tanh(v/6)), only tiny tilt/control/lateral penalties, and no height or heading constraints fighting the gait. Its high-speed gradient (~0.21/m/s) is actually *larger* than C1's (C1's tanh has nearly saturated by ~10 m/s and its surge ramp clips at 9.5 m/s), and its recent task_score growth (0.19\u20130.30 per 50 iters vs C1's 0.14\u20130.27) is slightly stronger. It trails C4 mainly because its shaping weight is smaller and its per-step reward magnitudes are lower.\n\n- **C1** is third: reasonable shaping and a surge ramp, but the main speed term saturates (temperature 6), and it carries a bundle of conflicting regularizers (dof-vel, ang-vel, lateral, vertical costs plus heading and alive bonuses that discourage the leaning, high-amplitude gaits needed for peak speed). Its growth has clearly decelerated (increments falling to ~0.14 per 50 iters).\n\n- **C2** is last: the linear speed term is swamped by a strong height preference (target 0.5 m, tight tolerance), an upright clamp bonus, a doubled control penalty (0.01, 5\u00d7 C1), and its body-frame term has collapsed to ~0.01 (the body-forward axis isn't tracking +x). Its task_score (4.54) and growth rate are the lowest of the four."
+}

@@ -1,0 +1,40 @@
+{
+  "set": {
+    "seed": 9,
+    "order": [
+      "E_live2_r1c3_9.62",
+      "A_round2c0_10.93",
+      "C_pool_c3_10.73",
+      "D_live2_r2c2_10.43"
+    ],
+    "id": "s9_A_C_D_E"
+  },
+  "attempts": 1,
+  "errors": [],
+  "seconds": 95.965141958,
+  "usage": {
+    "prompt_tokens": 6819,
+    "completion_tokens": 13515,
+    "total_tokens": 20334,
+    "cost": 0.008887365,
+    "is_byok": false,
+    "prompt_tokens_details": {
+      "cached_tokens": 1811,
+      "audio_tokens": 0,
+      "video_tokens": 0
+    },
+    "cost_details": {
+      "upstream_inference_cost": null,
+      "upstream_inference_prompt_cost": 0,
+      "upstream_inference_completions_cost": 0
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 12838,
+      "image_tokens": 0
+    },
+    "cache_creation_input_tokens": 0,
+    "market_cost": 0.008887365,
+    "gateway_cost": 0.008887365
+  },
+  "text": "## Analysis\n\n**Gradient analysis (what actually drives speed improvement):**\n\n| | speed\u2011gradient structure | posture coupling | trend @ iter 500 |\n|---|---|---|---|\n| **C1** | linear in v_x (weight 1.0) \u2192 never saturates | \"upright\" term is actually heading\u2011align (\u2248free for forward lean); height pull is mild | 5.83 (+0.21/100) |\n| **C2** | tanh(v/10) \u2192 only ~0.06/m/s at 7 m/s; high\u2011speed bonus adds ~0.03/m/s | **upright credit = 0 below up_z 0.5 and a strong tilt penalty (weight 1.0) directly punishes the forward lean needed to sprint** | 6.16 (stalled, +0.00/100) |\n| **C3** | linear in v_x \u00d7 uprightness \u2192 uncapped | marginal value of up_z = 0.25 + 0.5\u00b7v_x \u2248 **4.3 per unit up_z at 8 m/s**, i.e. posture dominates speed | 7.15 (+0.28/100) |\n| **C4** | clipped\u2011linear (3.0\u00b7v_x/12) + raw linear (0.5\u00b7v_x to 15) + sprint ramp \u2192 **effective slope \u22480.9\u20131.0/m/s through 12 m/s** | posture marginal \u22481.2 vs speed marginal \u22480.95 \u2192 speed stays the dominant priority; also has heading, lateral, yaw, fall shaping for a cleaner gait | 7.19, max 7.45 (+0.42/100 \u2014 fastest) |\n\n**Reasoning:**\n- **C4** is the only candidate whose *total* speed gradient stays strong well past the current regime (the 0.5\u00b7v_x term keeps paying to 15 m/s, the sprint ramp to 12 m/s), while its posture/heading/lateral terms are scaled small enough not to suppress leaning. It also has the best current task_score and the fastest recent growth. Its main flaw (signed `tanh` lateral/yaw terms mildly bias a -y drift) is too small to matter.\n- **C3** is a clean linear-speed reward, but the multiplicative uprightness gate means that at high speed the reward is *dominated* by staying vertical (marginal posture value \u226b marginal speed value), which caps the achievable sprint speed.\n- **C1** has an uncapped linear speed term and a benign (mis\u2011derived but harmless) posture term, so it keeps creeping up steadily (+0.21/100) but has no extra pressure to break past the ~6 m/s regime.\n- **C2** has the weakest speed gradient and a tilt/upright structure that actively blocks the leaning required to go faster \u2014 it has already stalled.\n\n**Prediction at iteration 3,000:** C4 \u2248 10\u201313, C3 \u2248 9\u201312, C1 \u2248 8\u201310, C2 \u2248 6\u20138.\n\n```json\n{\"ranking\": [\"C4\", \"C3\", \"C1\", \"C2\"]}\n```"
+}

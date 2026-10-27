@@ -1,0 +1,40 @@
+{
+  "set": {
+    "seed": 7,
+    "order": [
+      "D_live2_r2c2_10.43",
+      "E_live2_r1c3_9.62",
+      "B_round2c1_10.75",
+      "C_pool_c3_10.73"
+    ],
+    "id": "s7_B_C_D_E"
+  },
+  "attempts": 1,
+  "errors": [],
+  "seconds": 62.446356458,
+  "usage": {
+    "prompt_tokens": 6388,
+    "completion_tokens": 8540,
+    "total_tokens": 14928,
+    "cost": 0.006035355,
+    "is_byok": false,
+    "prompt_tokens_details": {
+      "cached_tokens": 347,
+      "audio_tokens": 0,
+      "video_tokens": 0
+    },
+    "cost_details": {
+      "upstream_inference_cost": null,
+      "upstream_inference_prompt_cost": 0,
+      "upstream_inference_completions_cost": 0
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 7947,
+      "image_tokens": 0
+    },
+    "cache_creation_input_tokens": 0,
+    "market_cost": 0.006035355,
+    "gateway_cost": 0.006035355
+  },
+  "text": "## Analysis\n\n**Reading the logs:** In every candidate, `task_score` tracks the mean forward speed almost exactly (I verified this by back-solving v_x from each candidate's component values: C1 \u2248 7.3 m/s, C3 \u2248 5.8, C2 \u2248 5.7, C4 \u2248 5.3 at iter 500). So the question reduces to: which reward keeps the strongest, cleanest pressure on v_x, and which plateaus lowest.\n\n**Marginal speed incentive (d reward / d v_x) at current speeds:**\n- **C1:** 0.25 (clipped-linear) + 0.50 (raw linear) + 0.14 (sprint slope) + ~0.06 (tanh terms) \u2248 **0.95\u20131.1 per m/s**, with a constant gradient up to 12 m/s and a sprint bonus that only switches on above 5 m/s (already crossed, so it's actively pulling).\n- **C4:** v_x\u00b7uprightness \u2248 **1.0 per m/s**, effectively unbounded, negligible regularizers (action/joint-vel costs are ~0.00).\n- **C2:** 1.0\u00b7v_x \u2248 **1.0 per m/s**, but diluted by upright (0.45), height preference (0.26), alive bonus and a broken `body_forward` term (logs ~0.00, from a quaternion-order error) \u2014 i.e., much of the reward signal is shape-keeping, not speed.\n- **C3:** 0.2 (linear) + ~0.04 (tanh, T=6 m/s) \u2248 **0.24 per m/s** \u2014 a 4\u00d7 weaker speed gradient than the others.\n\n**Trend extrapolation (last-3-block gain per 50 iters):** C1 \u2248 0.38, C4 \u2248 0.37, C3 \u2248 0.27, C2 \u2248 0.23.\n\n- **C1** leads by ~2.0 in task_score at iteration 500 with a top-tier gradient, and only saturates at 12\u201315 m/s (near the ant's physical limit), so it should keep the lead.\n- **C4** has an uncapped linear speed term and almost no competing shaping; it grows steadily and is the clear runner-up.\n- **C3** is slightly ahead of C2 but its weak 0.24/m/s gradient means it decelerates toward a lower plateau than C2's design would suggest.\n- **C2** is slowest: the height/upright/alive shaping dilutes the speed gradient, and its `body_forward` shaping term is inert.\n\n```json\n{\"ranking\": [\"C1\", \"C4\", \"C3\", \"C2\"]}\n```"
+}

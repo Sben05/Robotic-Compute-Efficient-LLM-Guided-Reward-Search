@@ -1,0 +1,40 @@
+{
+  "set": {
+    "seed": 7,
+    "order": [
+      "C_pool_c3_10.73",
+      "A_round2c0_10.93",
+      "D_live2_r2c2_10.43",
+      "E_live2_r1c3_9.62"
+    ],
+    "id": "s7_A_C_D_E"
+  },
+  "attempts": 1,
+  "errors": [],
+  "seconds": 64.620066791,
+  "usage": {
+    "prompt_tokens": 6809,
+    "completion_tokens": 8839,
+    "total_tokens": 15648,
+    "cost": 0.006299505,
+    "is_byok": false,
+    "prompt_tokens_details": {
+      "cached_tokens": 187,
+      "audio_tokens": 0,
+      "video_tokens": 0
+    },
+    "cost_details": {
+      "upstream_inference_cost": null,
+      "upstream_inference_prompt_cost": 0,
+      "upstream_inference_completions_cost": 0
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 8285,
+      "image_tokens": 0
+    },
+    "cache_creation_input_tokens": 0,
+    "market_cost": 0.006299505,
+    "gateway_cost": 0.006299505
+  },
+  "text": "Looking at the logs and the reward structures:\n\n**Current task_score (iter 500 / max):**\n- C2: 7.45 / 8.10 \u2014 speed \u2248 7.3 m/s\n- C3: 7.29 / 7.65 \u2014 speed \u2248 7.3 m/s\n- C4: 5.69 / 5.87 \u2014 speed \u2248 5.7 m/s\n- C1: 5.25 / 5.49 \u2014 speed \u2248 5.3 m/s\n\n**Analysis of long-run incentive structure:**\n- **C2** leads at every checkpoint and, crucially, its shaping is unsaturated where it matters: `tanh(v/10)` keeps a gradient out to ~10 m/s and the incremental high-speed bonus adds a *constant* gradient from 5\u219214 m/s, which is exactly the region the policy is now in. All of its penalties are well-signed costs (abs lateral velocity, squared angular rates, soft joint limits, tilt-only penalty), so there is no free-reward exploit to dilute the speed signal.\n- **C3** is close but slightly behind, and its `tanh(v/4)`/`tanh(v/6)` shaping saturates early; it relies mostly on the clipped-linear terms to keep pushing. It also contains mis-signed terms (`-0.1*tanh(vy)`, `-0.02*tanh(wz)`) that pay the agent for drifting/spinning, a small but real dilution of the forward signal.\n- **C4** is capped by the height-preference term (crouching at 0.5 m) and by the saturated `tanh(v/1)` shaping, so it is trending toward a ~6 m/s plateau; it is however ahead of C1.\n- **C1** has an intrinsically self-limiting structure: speed is *multiplied* by uprightness while the upright bonus is *added*, so at high speed the marginal value of staying upright (\u2248v) dwarfs the marginal value of a 1 m/s speed increase. The agent prioritizes posture over velocity, which is why it plateaus lowest.\n\n**Projection to iteration 3,000:** C2's combination of sustained high-speed gradient and clean, non-exploitable penalties lets it keep accelerating past the 7 m/s range; C3 follows closely but with weaker high-speed pressure; C4 and C1 stall in the 5\u20137 m/s band, with C4 slightly ahead of C1's posture-dominated plateau.\n\n```json\n{\"ranking\": [\"C2\", \"C3\", \"C4\", \"C1\"]}\n```"
+}

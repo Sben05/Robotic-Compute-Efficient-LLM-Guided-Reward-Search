@@ -1,0 +1,40 @@
+{
+  "set": {
+    "seed": 9,
+    "order": [
+      "D_live2_r2c2_10.43",
+      "E_live2_r1c3_9.62",
+      "G_live1_r2c0_9.29_winner",
+      "F_live2_r2c3_9.61_winner"
+    ],
+    "id": "s9_D_E_F_G"
+  },
+  "attempts": 1,
+  "errors": [],
+  "seconds": 49.41307020799991,
+  "usage": {
+    "prompt_tokens": 8319,
+    "completion_tokens": 7208,
+    "total_tokens": 15527,
+    "cost": 0.00534315,
+    "is_byok": false,
+    "prompt_tokens_details": {
+      "cached_tokens": 1700,
+      "audio_tokens": 0,
+      "video_tokens": 0
+    },
+    "cost_details": {
+      "upstream_inference_cost": null,
+      "upstream_inference_prompt_cost": 0,
+      "upstream_inference_completions_cost": 0
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 6611,
+      "image_tokens": 0
+    },
+    "cache_creation_input_tokens": 0,
+    "market_cost": 0.00534315,
+    "gateway_cost": 0.00534315
+  },
+  "text": "## Analysis\n\n**Reading the logs (task_score \u2248 mean forward velocity, m/s):**\n- C1: 7.19 (max 7.45) \u2014 last\u2011100 gain \u2248 +0.69\n- C4: 7.54 (max 7.77) \u2014 last\u2011100 gain \u2248 +0.63\n- C3: 6.00 \u2014 last\u2011100 gain \u2248 +0.47\n- C2: 5.83 \u2014 last\u2011100 gain \u2248 +0.43\n\n**Gradient structure at the current operating point (~7\u20137.5 m/s):**\n\n- **C1**: the main term `3.0\u00b7clamp(vx/12)` gives a *constant* 0.25/m/s gradient up to 12 m/s, `0.5\u00b7clamp(vx,15)` adds 0.5/m/s, and the sprint ramp adds 0.14/m/s above 5 m/s \u2192 \u22480.9/m/s of sustained push. Quaternion math is correct (upright \u22480.97, heading \u22481). Nothing in the reward puts a ceiling below the ant's physical limit, so it keeps climbing past 9 m/s.\n- **C4**: the tanh speed term (2\u00b7tanh(vx/3)) is fully saturated (grad \u22480.01). The only real speed gradient is the Gaussian *tracking* term centered at 9 m/s: gradient 0.41/m/s at 7.5, **0 at 9 m/s, and negative above it** (offset only by the weak 0.2\u00b7vx term). C4 therefore self\u2011limits to \u22489.3\u20139.6 m/s no matter how long it trains.\n- **C3**: correct quaternion handling, but the speed gradient is tiny (surge ramp 0.14 + tanh \u22480.05 \u2192 \u22480.19/m/s) \u2192 slow, steady but weak growth.\n- **C2**: reads the quaternion as (w,x,y,z) when Isaac Gym stores (x,y,z,w). Consequence: `upright` \u22480.42 (garbage) and `body_forward` is pinned at 0.00 for every ant (dead term, no gradient). The remaining linear 1.0\u00b7vx term should be strong, yet task_score lags and grows slowest \u2192 the malformed posture shaping is actively confusing the gait.\n\n**Projection to iteration 3000:** C1's uncapped, constant-gradient speed terms let it push through C4's implicit 9 m/s ceiling; C4 saturates at its tracking target; C3's weak gradient keeps it behind; C2's broken orientation terms and dead body\u2011forward term keep it last.\n\n{\"ranking\": [\"C1\", \"C4\", \"C3\", \"C2\"]}"
+}

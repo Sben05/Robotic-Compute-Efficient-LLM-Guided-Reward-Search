@@ -1,0 +1,40 @@
+{
+  "set": {
+    "seed": 8,
+    "order": [
+      "A_round2c0_10.93",
+      "B_round2c1_10.75",
+      "F_live2_r2c3_9.61_winner",
+      "G_live1_r2c0_9.29_winner"
+    ],
+    "id": "s8_A_B_F_G"
+  },
+  "attempts": 1,
+  "errors": [],
+  "seconds": 78.49941095800006,
+  "usage": {
+    "prompt_tokens": 7842,
+    "completion_tokens": 10535,
+    "total_tokens": 18377,
+    "cost": 0.00745437,
+    "is_byok": false,
+    "prompt_tokens_details": {
+      "cached_tokens": 318,
+      "audio_tokens": 0,
+      "video_tokens": 0
+    },
+    "cost_details": {
+      "upstream_inference_cost": null,
+      "upstream_inference_prompt_cost": 0,
+      "upstream_inference_completions_cost": 0
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 9965,
+      "image_tokens": 0
+    },
+    "cache_creation_input_tokens": 0,
+    "market_cost": 0.00745437,
+    "gateway_cost": 0.00745437
+  },
+  "text": "{\"ranking\": [\"C2\", \"C4\", \"C1\", \"C3\"]}\n\n**Reasoning:**\n\n- **C2 (best):** It is the only candidate whose primary speed term is *linear and unsaturated up to 15 m/s* (0.2\u00b7v), so the marginal reward for going faster stays large (~0.2/m/s) even at 10\u201314 m/s, on top of a mild tanh term. It also has a small alive bonus (keeps episodes long so high-speed returns are actually collected) and only a *weak, quadratic* tilt cost (\u22480.1 per unit of up_z deficit near up_z\u22480.9), so it does not fight the forward lean needed for sprinting. It also leads on task_score at iter 500 (6.01, max 6.31) with a still-improving trend.\n\n- **C4 (2nd):** Strong mid-range gradients (tanh@T=6 plus the surge ramp) let it learn fast early (max task_score 6.47, best peak so far), but the surge term **saturates at 9.5 m/s** and the tanh term is nearly flat beyond ~10 m/s, so the speed pressure collapses exactly where the late-training gains happen. Its stiff upright term exp((up_z\u22121)/0.3)\u00b70.6 (\u22481.7 per unit up_z deficit) also penalizes the torso pitch used for faster gaits, and the heading/height terms further restrict sprinting. It should plateau slightly below C2.\n\n- **C1 (3rd):** Posture is permissive (upright term saturates, tilt penalty only fires below up_z=0.4), and the high-speed ramp does reach 14 m/s, so it avoids the plateau trap. But the whole speed reward is scaled to only ~1.0 (tanh@T=10) plus a 0.3-weight bonus (\u22480.033/m/s), so its marginal speed gradient (~0.06\u20130.10/m/s) is much weaker than C2's, and it trails at iter 500 (5.61).\n\n- **C3 (worst):** The Gaussian tracking bonus centered at 9 m/s with weight 2.0 becomes *negatively* sloped beyond ~11 m/s (d/dv \u2248 \u22120.48 vs +0.2 from the linear term), actively pulling the policy back toward 9 m/s and creating a hard ceiling. It also carries a growing lateral-drift penalty (already \u22120.29 and rising), extra angular/joint-velocity costs, and is behind at iter 500 (5.69)."
+}

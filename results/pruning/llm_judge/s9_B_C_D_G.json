@@ -1,0 +1,40 @@
+{
+  "set": {
+    "seed": 9,
+    "order": [
+      "C_pool_c3_10.73",
+      "B_round2c1_10.75",
+      "G_live1_r2c0_9.29_winner",
+      "D_live2_r2c2_10.43"
+    ],
+    "id": "s9_B_C_D_G"
+  },
+  "attempts": 1,
+  "errors": [],
+  "seconds": 76.09474320899994,
+  "usage": {
+    "prompt_tokens": 6984,
+    "completion_tokens": 10411,
+    "total_tokens": 17395,
+    "cost": 0.00712896,
+    "is_byok": false,
+    "prompt_tokens_details": {
+      "cached_tokens": 1224,
+      "audio_tokens": 0,
+      "video_tokens": 0
+    },
+    "cost_details": {
+      "upstream_inference_cost": null,
+      "upstream_inference_prompt_cost": 0,
+      "upstream_inference_completions_cost": 0
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 9699,
+      "image_tokens": 0
+    },
+    "cache_creation_input_tokens": 0,
+    "market_cost": 0.00712896,
+    "gateway_cost": 0.00712896
+  },
+  "text": "## Analysis\n\n**Reading the metric:** The `task_score` tracks forward speed almost exactly (C1: forward_speed 7.02 \u2194 task 7.15; C4: linear_speed 3.60/0.5 = 7.2 \u2194 task 7.19; C2: 1.31/0.2 = 6.55 \u2194 task 6.54). So the question is purely \"which reward drives the highest sustained forward velocity by iteration 3000.\"\n\n**Current standings (iteration 500 / max):** C4 7.19/7.45, C1 7.15/7.39, C2 6.54/6.86, C3 6.00/6.38.\n\n**C4 vs C1 (the real contest):**\n- Both have an effectively constant, near-linear speed gradient in the relevant regime (~1.0 total slope at vx\u22487), so neither starves the policy of signal.\n- C4's design *adds* slope exactly in the regime that will dominate iterations 500\u20133000: `sprint_bonus` (+1/7 slope above 5 m/s), unclipped `linear_speed`, and a *saturating* `run_quality` coupling. Because the uprightness coupling saturates with speed, C4 progressively **loosens** the posture constraint as the ant gets faster \u2014 letting it lean and sprint, whereas C1's multiplicative `vx * uprightness` gate keeps a proportional tax on every degree of lean at all speeds (plus its 0.25 uprightness bonus stacks on top of the gate).\n- C4's per-step reward magnitudes (\u22487.5) are comparable to C1's (\u22487.2), so no advantage-normalization/clipping disadvantage.\n- Trend momentum: C1's recent gains are decaying sharply (0.60 \u2192 0.31 \u2192 0.29 \u2192 0.28 per 50 iters), whereas C4 is still net-accelerating (6.14 \u2192 7.19 over the last 100 iters).\n- C4's penalties (action 0.005\u00b7\u03a3a\u00b2, joint-vel 0.0005\u00b7mean) and `fall_penalty` are logged as negligible (fall_penalty \u2248 0.00), so the \"sprint vs. stability\" trade-off is not currently binding.\n\n**C2 vs C3:** C2 is ahead (6.54 vs 6.00) and its `0.2\u00b7clip(vx,\u00b1)` term is unbounded, so it keeps pushing speed indefinitely; C3's speed terms all saturate (surge caps at 9.5 m/s, tanh terms cap at 1.5/0.5) and ~1.2 of its reward is posture/alive filler that dilutes the speed gradient \u2014 the worst long-horizon profile of the four.\n\n**Prediction:** C4's stacked speed terms with a high-speed sprint ramp and a speed-relaxed posture coupling give it the best chance to push past ~7\u20138 m/s by iteration 3000; C1 is a very close second (its unbounded linear term means it degrades gracefully if speed stays in the linear regime).\n\n```json\n{\"ranking\": [\"C4\", \"C1\", \"C2\", \"C3\"]}\n```"
+}

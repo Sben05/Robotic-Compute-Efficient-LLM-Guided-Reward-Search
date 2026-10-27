@@ -1,0 +1,40 @@
+{
+  "set": {
+    "seed": 7,
+    "order": [
+      "G_live1_r2c0_9.29_winner",
+      "D_live2_r2c2_10.43",
+      "B_round2c1_10.75",
+      "C_pool_c3_10.73"
+    ],
+    "id": "s7_B_C_D_G"
+  },
+  "attempts": 1,
+  "errors": [],
+  "seconds": 84.985959667,
+  "usage": {
+    "prompt_tokens": 6971,
+    "completion_tokens": 11125,
+    "total_tokens": 18096,
+    "cost": 0.007397865,
+    "is_byok": false,
+    "prompt_tokens_details": {
+      "cached_tokens": 2391,
+      "audio_tokens": 0,
+      "video_tokens": 0
+    },
+    "cost_details": {
+      "upstream_inference_cost": null,
+      "upstream_inference_prompt_cost": 0,
+      "upstream_inference_completions_cost": 0
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 10630,
+      "image_tokens": 0
+    },
+    "cache_creation_input_tokens": 0,
+    "market_cost": 0.007397865,
+    "gateway_cost": 0.007397865
+  },
+  "text": "```json\n{\"ranking\": [\"C2\", \"C1\", \"C3\", \"C4\"]}\n```\n\n**Reasoning:**\n\n- **C2 (best):** It is the only candidate with a *strong, non\u2011saturating* gradient in the high\u2011speed regime that matters at iteration 3,000: the clipped\u2011linear term (3.0\u00b7vx/12) plus the raw linear term (0.5\u00b7vx) give \u22480.75 reward per m/s sustained all the way to ~12 m/s, and the sprint ramp adds ~0.14/m/s above 5 m/s (\u22480.9 total marginal gradient at current speeds of ~7 m/s). The tanh/quality terms are only *additive shaping*, not gated, so the ant can still lean forward and sprint. The upright/fall/heading terms keep posture without throttling the main driver. It is already leading on task_score (7.29 @ 500) with no sign of the plateau that capped the saturating terms.\n\n- **C1 (second):** Similar multi\u2011term design, but its marginal gradient at ~7 m/s is only \u22480.25/m/s (tanh saturation + the surge ramp clipping at 9.5 m/s), and it adds heading/lateral/ang\u2011vel/dof\u2011vel costs that damp vigorous gaits. Currently neck\u2011and\u2011neck with C2 (7.21 vs 7.29) but with a lower ceiling.\n\n- **C3 (third):** Structurally similar to C2 (speed *not* gated by posture; the tilt cost is effectively inert because (1\u2212up_z)\u00b2 is tiny) but the speed weights are far weaker (0.2 linear + 0.6\u00b7tanh \u21d2 \u22480.25/m/s). The learning curve shows consistent but slower improvement, so it converges to a noticeably lower speed.\n\n- **C4 (worst):** Despite a nominally large 1.0\u00b7vx gradient, the *uprightness gate* (vx\u00b7uprightness) makes leaning/tilting extremely expensive (\u2248vx\u00b70.5 per radian), effectively forbidding the sprint lean that fast running requires. It also lacks any survival/episode\u2011length term. This shows up as the lowest task_score (5.25 @ 500) despite the strong nominal shaping."
+}

@@ -1,0 +1,40 @@
+{
+  "set": {
+    "seed": 9,
+    "order": [
+      "E_live2_r1c3_9.62",
+      "D_live2_r2c2_10.43",
+      "C_pool_c3_10.73",
+      "B_round2c1_10.75"
+    ],
+    "id": "s9_B_C_D_E"
+  },
+  "attempts": 1,
+  "errors": [],
+  "seconds": 56.37923712499992,
+  "usage": {
+    "prompt_tokens": 6399,
+    "completion_tokens": 7670,
+    "total_tokens": 14069,
+    "cost": 0.00540012,
+    "is_byok": false,
+    "prompt_tokens_details": {
+      "cached_tokens": 1198,
+      "audio_tokens": 0,
+      "video_tokens": 0
+    },
+    "cost_details": {
+      "upstream_inference_cost": null,
+      "upstream_inference_prompt_cost": 0,
+      "upstream_inference_completions_cost": 0
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 6926,
+      "image_tokens": 0
+    },
+    "cache_creation_input_tokens": 0,
+    "market_cost": 0.00540012,
+    "gateway_cost": 0.00540012
+  },
+  "text": "## Reasoning\n\n**What the logs tell us (iteration 500 task_score / implied v_x):**\n- C2: 7.19 m/s (leader), C3: 7.15, C4: 6.54, C1: 5.83\n\n**Reward-gradient analysis at high speed (the regime that matters by iter 3000):**\n\n| Candidate | d(reward)/d(v_x) at v_x\u22487 | Saturating / dead terms | Brakes that grow with speed |\n|---|---|---|---|\n| C1 | \u22481.0 (linear) + ~0 (tanh \u03c4=1 saturates) | tanh at \u03c4=1 m/s useless; body_forward collapsed to 0 (dead term) | 0.5\u00b7upright, 0.3\u00b7height prior, 1e-4\u00b7\u03a3dof_vel\u00b2 (grows ~v\u00b2), 0.01\u00b7\u03a3a\u00b2 |\n| C2 | \u22481.05, but **clip-limited**: main term caps at 12 m/s, linear term at 15 m/s, sprint saturates at 12 | everything soft-caps | fall penalty (h<0.30), upright, heading align, lateral/yaw |\n| C3 | \u22480.95 **and unbounded** (no clip, no tanh) | none \u2014 pure v_x\u00b7uprightness gate | essentially none (1e-6\u00b7mean dof_vel\u00b2, 0.01\u00b7mean a\u00b2) |\n| C4 | \u22480.24 only (0.2 linear + 0.6\u00b7tanh \u03c4=6, clipped at 15) | tanh + linear clip at 15 m/s | 0.01\u00b7\u03a3a\u00b2 (sum over 8 joints, relatively heavy), lateral, tilt |\n\n**Predictions:**\n- **C3** is the only candidate whose speed term stays linear and unbounded with negligible regularization. It matched C2 at iter 500 despite a much simpler reward, and it has the most head-room: nothing in it stops the policy from pushing past 12\u201315 m/s, where C2's normalized and sprint terms flat-line. The weak uprightness gate (`0.5+0.5\u00b7up_z`) still prevents upside-down exploitation but permits aggressive lunging gaits. Expected to overtake C2 by 3000.\n- **C2** is a strong runner-up: it already leads, and its clipped-linear + sprint structure gives a consistent gradient to ~15 m/s. But the 12 m/s saturation of the dominant (3.0-weight) term plus the fall/upright/heading penalties make it conservative, so its plateau should be below C3's.\n- **C4** learns reasonably (fast early: 1.43 at iter 50) but its speed pressure is 4\u20135\u00d7 weaker than C1/C3 relative to its control cost, and both speed terms clip near 15 m/s \u2192 lower ceiling. It stays ahead of C1 (better trend, 6.54 vs 5.83).\n- **C1** is worst: the shaping terms that should help are dead or counterproductive (tanh saturates by ~1\u20132 m/s; body_forward collapsed to 0.00, meaning the term provides no gradient at all), while its uprightness bonus, torso-height prior, and sum-based joint-velocity penalty all grow to fight a high-speed gait.\n\n```json\n{\"ranking\": [\"C3\", \"C2\", \"C4\", \"C1\"]}\n```"
+}

@@ -244,8 +244,11 @@ mismatches; home-folder logs archived to `vast/box_logs/box1`). The user is dest
 5. **ORSO baseline (post hoc, tuned on training seeds only):** on held-out seeds, ORSO-D3RB 0.990 retained at 0.475 compute;
    **VoI beats it (+0.007, p = 0.012) with 5% less compute; PID ties it with 6% less compute.**
 6. **LLM-as-judge from early logs** (pre-registered `1703d9c` before any call, ~$1): can MiniMax pick the eventual winner from
-   reward code + 500-it logs, better than fixed@500 at equal compute? Running at the time of writing; result in
-   `results/pruning/llm_judge.json` (to be added below).
+   reward code + 500-it logs, better than fixed@500 at equal compute? LLM judge result (105 sets, all replies parsed, $0.74): at the same compute as fixed@500, the LLM's pick kept **0.987** of
+   the best reward vs **0.975** for fixed@500 and found the winner **74% vs 56%** of the time; difference +0.013 [−0.001, +0.032],
+   **p = 0.057, just missing the pre-registered p < 0.05: promising, not significant.** For context, VoI and PID keep 0.997 on
+   the same seeds but spend ~0.42 compute vs 0.375. Contrast with the earlier blind ranking from code alone, which failed badly:
+   the training logs are what make the LLM a useful judge. `results/pruning/llm_judge.json`.
 
 **Where novelty stands (agreed framing):** no new algorithm is supported by the data. The contribution is a rigorous,
 pre-registered, held-out, multi-seed and live evaluation of compute allocation for LLM reward search, with clear findings
@@ -276,7 +279,7 @@ batched generation is much cheaper) and documented negative results.
 | Strategy hints, "think briefly" | actual | worse rewards (and hints 5× costlier) |
 | Zero-token constant edit (desaturation) | actual, 4 seeds | +1.47 points; not significant after correction |
 | LLM blind pre-ranking (code only) | earlier, actual | failed (best reward ranked last) |
-| LLM judge with early logs | actual, running | pending |
+| LLM judge with early logs | actual (pre-registered), 105 held-out sets | better than fixed@500 at equal compute (0.987 vs 0.975, winner 74% vs 56%), p = 0.057: not significant |
 | Generate-vs-train joint allocation | simulation | no gain at measured prices |
 | Other LLMs (Gemini 2.5 Flash, Qwen-3-32B) | actual | weaker on average; Qwen's best reward 11.32 = best of the project |
 | Generalisation to Cartpole/BallBalance/Humanoid | actual | easy tasks saturate; Humanoid LLM rewards weak |
@@ -289,7 +292,7 @@ batched generation is much cheaper) and documented negative results.
 - **PPO:** 376 completed training phases (280 from scratch, 96 resumed), ~431,000 PPO iterations ≈ 2.8 × 10^10 environment
   steps (`results/LEDGER.json`), plus the live-pruning run and the final Gemini/Qwen resumes.
 - **Vast:** ~$18.5 estimated from wall time across 3 boxes (credit $21). Quest compute was free.
-- **LLM calls this session:** MiniMax 50 ($0.47) + LLM judge 105 (~$1) + Gemini 10 ($0.18) + Qwen 10 ($0.04) + a few cent-level
+- **LLM calls this session:** MiniMax 50 ($0.47) + LLM judge 105 ($0.74) + Gemini 10 ($0.18) + Qwen 10 ($0.04) + a few cent-level
   connectivity probes.
 
 ---
@@ -316,7 +319,7 @@ batched generation is much cheaper) and documented negative results.
 
 ## 11. Open items and next steps
 
-1. LLM-judge result (running).
+1. LLM judge: a follow-up with more held-out sets (it missed significance narrowly, p = 0.057) is cheap (~$1 per 100 sets).
 2. A fresh from-scratch robustness test on new rewards (~$3.5 on a rented A100 rebuilt with `vast/setup_box.sh`): ~4 new batched
    rounds of 8 rewards trained fully once, all rules replayed frozen, to remove the "same 7 rewards" limitation.
 3. More seeds for H4/H5 (~$3); a hard second task with real reward variation (Humanoid with more seeds and an in-task library, or

@@ -1,0 +1,40 @@
+{
+  "set": {
+    "seed": 9,
+    "order": [
+      "B_round2c1_10.75",
+      "D_live2_r2c2_10.43",
+      "G_live1_r2c0_9.29_winner",
+      "F_live2_r2c3_9.61_winner"
+    ],
+    "id": "s9_B_D_F_G"
+  },
+  "attempts": 1,
+  "errors": [],
+  "seconds": 59.331746791999876,
+  "usage": {
+    "prompt_tokens": 8245,
+    "completion_tokens": 8678,
+    "total_tokens": 16923,
+    "cost": 0.00620919,
+    "is_byok": false,
+    "prompt_tokens_details": {
+      "cached_tokens": 1736,
+      "audio_tokens": 0,
+      "video_tokens": 0
+    },
+    "cost_details": {
+      "upstream_inference_cost": null,
+      "upstream_inference_prompt_cost": 0,
+      "upstream_inference_completions_cost": 0
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 8106,
+      "image_tokens": 0
+    },
+    "cache_creation_input_tokens": 0,
+    "market_cost": 0.00620919,
+    "gateway_cost": 0.00620919
+  },
+  "text": "```json\n{\"ranking\": [\"C2\", \"C4\", \"C1\", \"C3\"]}\n```\n\n**Reasoning from the logs:**\n\n- **Speeds implied by the components (at iter 500):** C4 \u2248 7.5 m/s, C2 \u2248 7.2 m/s, C1 \u2248 6.4 m/s, C3 \u2248 5.9 m/s (task_score tracks forward speed almost linearly: 7.54 / 7.19 / 6.54 / 6.00).\n\n- **C2 (best):** It is the only candidate whose speed incentive is *unbounded* in a useful range and free of speed-dependent brakes: normalized clipped-linear speed (grad 0.25/m/s up to 12 m/s), raw linear speed (0.5/m/s up to 15 m/s), a sprint ramp that only just engaged (0.05 \u2192 0.35, still climbing linearly), plus a speed\u00d7uprightness coupling. All penalties are tanh-bounded and tiny (lateral \u22640.1, action 0.005, joint-vel 0.0005). It currently trails C4 by only 0.35 while gaining *faster* over the last 100 iterations (0.42/50 vs C4's 0.31/50), so its higher speed ceiling should overtake C4 by iteration 3000.\n\n- **C4 (2nd):** Fastest early learner (tracking bonus peaks at 9 m/s and provides ~0.4\u20130.5/m/s of gradient), but it is architecturally *capped*: the Gaussian tracking term peaks at 9 m/s and reverses sign above it, giving an effective optimum near ~9.5 m/s, and its hinge penalties (lateral 0.3\u00b7(|vy|\u22120.5)+, ang_vel 0.005\u00b7(roll\u00b2+pitch\u00b2), both growing with speed) actively brake a sprinting gait.\n\n- **C1 (3rd):** Sensible but weak: tanh(T=6) plus only 0.2\u00b7vx as the linear driver, giving ~0.24/m/s of gradient \u2014 ~4\u00d7 less than C2 in the 7\u201310 m/s band \u2014 so it will creep upward but stay behind the two stronger drivers.\n\n- **C3 (4th):** No linear speed term at all (tanh + a surge ramp that saturates at 9.5 m/s), and it spends much of its reward budget on uprightness (T=0.3) and heading alignment, which discourages the aggressive forward lean needed for top speed. Lowest task_score and slowest growth throughout."
+}

@@ -1,0 +1,40 @@
+{
+  "set": {
+    "seed": 9,
+    "order": [
+      "C_pool_c3_10.73",
+      "A_round2c0_10.93",
+      "D_live2_r2c2_10.43",
+      "B_round2c1_10.75"
+    ],
+    "id": "s9_A_B_C_D"
+  },
+  "attempts": 1,
+  "errors": [],
+  "seconds": 51.54496708299996,
+  "usage": {
+    "prompt_tokens": 6745,
+    "completion_tokens": 7160,
+    "total_tokens": 13905,
+    "cost": 0.00519381,
+    "is_byok": false,
+    "prompt_tokens_details": {
+      "cached_tokens": 844,
+      "audio_tokens": 0,
+      "video_tokens": 0
+    },
+    "cost_details": {
+      "upstream_inference_cost": null,
+      "upstream_inference_prompt_cost": 0,
+      "upstream_inference_completions_cost": 0
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 6490,
+      "image_tokens": 0
+    },
+    "cache_creation_input_tokens": 0,
+    "market_cost": 0.00519381,
+    "gateway_cost": 0.00519381
+  },
+  "text": "## Analysis\n\n**task_score \u2248 mean forward velocity (m/s)** \u2014 verifiable by back-solving each candidate's own speed components from the logs (e.g. C3: `forward_speed` 1.80 = 3\u00b7(v/12) \u2192 v \u2248 7.2 m/s, matching task_score 7.19).\n\n**Checkpoint at iter 500:** C1 = 7.15, C3 = 7.19 (statistical tie), C4 = 6.54, C2 = 6.16.\n\n**Why the tie breaks toward C1 \u2014 the shape of the speed gradient dR/dv_x:**\n\n| Candidate | dR/dv_x near v \u2248 7 | at v \u2248 12 | at v \u2248 15 | asymptote |\n|---|---|---|---|---|\n| C1 | ~0.96 (linear, **uncapped**) | ~0.96 | ~0.96 | never saturates |\n| C3 | ~0.93 | ~0.53 (main term clipped at 12, sprint capped) | ~0 | finite ceiling |\n| C4 | ~0.24 | ~0.21 | ~0.20 | weak push |\n| C2 | ~0.12 | ~0.10 | ~0.10 | weakest push |\n\n- **C1**: reward is *exactly* `v_x \u00b7 uprightness` \u2014 a constant 1.0 per m/s gradient at every speed, so marginal incentive to go faster never decays. The uprightness gate blocks the flip/tumble exploit, and its penalties are negligible (action 0.01, joint-vel 1e-6), so nothing competes with speed. Highest achievable ceiling.\n- **C3**: closest rival and slightly ahead at 500, but it is the most saturated design: `clamp(v/12)` main term, `clamp(v, max=15)` linear term, `tanh(v/4)`, `tanh(v/6)`, and a sprint bonus that all flatten by 12\u201315 m/s. Its incentive drops ~40\u201350% exactly in the speed regime it must climb through to win.\n- **C4**: only 0.2/m/s linear + a tanh term at T=6 that is already ~60% saturated at 7 m/s; its log increment has collapsed to +0.10 over the last 50 iters (0.29, 0.33, 0.10) \u2192 plateauing.\n- **C2**: tanh at T=10 is only ~5% of its reward scale; effective gradient ~0.12/m/s, and its last 50 iters show **+0.00** gain (flatlined at 6.16). Weakest of the four.\n\n**Expected ordering at iter 3,000:** C1 keeps a ~2x stronger marginal speed push than C3 in the 10\u201315 m/s band and can keep climbing; C3 plateaus as its bonuses saturate; C4 and especially C2 stall near their current speeds.\n\n```json\n{\"ranking\": [\"C1\", \"C3\", \"C4\", \"C2\"]}\n```"
+}

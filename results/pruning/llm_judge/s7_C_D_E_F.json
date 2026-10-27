@@ -1,0 +1,40 @@
+{
+  "set": {
+    "seed": 7,
+    "order": [
+      "D_live2_r2c2_10.43",
+      "C_pool_c3_10.73",
+      "F_live2_r2c3_9.61_winner",
+      "E_live2_r1c3_9.62"
+    ],
+    "id": "s7_C_D_E_F"
+  },
+  "attempts": 1,
+  "errors": [],
+  "seconds": 61.52700466699997,
+  "usage": {
+    "prompt_tokens": 7136,
+    "completion_tokens": 8104,
+    "total_tokens": 15240,
+    "cost": 0.00558882,
+    "is_byok": false,
+    "prompt_tokens_details": {
+      "cached_tokens": 2548,
+      "audio_tokens": 0,
+      "video_tokens": 0
+    },
+    "cost_details": {
+      "upstream_inference_cost": null,
+      "upstream_inference_prompt_cost": 0,
+      "upstream_inference_completions_cost": 0
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 7662,
+      "image_tokens": 0
+    },
+    "cache_creation_input_tokens": 0,
+    "market_cost": 0.00558882,
+    "gateway_cost": 0.00558882
+  },
+  "text": "**Analysis of the 500\u2011iteration logs (task_score \u2248 forward speed in m/s):**\n\n- **C1** is far ahead (7.29 m/s) and, crucially, its reward still has *live gradient* at high speed: the clipped\u2011linear main term (cap 12 m/s) plus the raw linear term (0.5/m/s up to 15 m/s) plus the sprint bonus (0.14/m/s). No premature saturation; the \"extra\" terms (tanh bonus, upright\u2011gated quality) still shape the mid\u2011speed regime that got it ahead early.\n- **C2** is the cleanest *unbounded* objective (v_x \u00b7 uprightness \u2248 1.0\u00b7v_x gradient at every speed, essentially no regularization), and its marginal gain per 50 iters is still flat (~0.4). It has the highest asymptotic ceiling \u2014 but it starts 2 m/s behind and its unregularized gait (no joint\u2011vel/energy terms) is noisier.\n- **C3** is mid\u2011pack but has a *soft speed target* (Gaussian tracking bonus centered at 9 m/s) whose gradient vanishes past ~9 m/s, plus a growing lateral\u2011drift penalty (\u22120.33 and rising), so it plateaus around its target.\n- **C4**'s tanh shaping (\u03c4=1 m/s) is fully saturated by iteration 500 and its body\u2011forward term is dead (0.00), while its quadratic joint\u2011velocity penalty (1e\u20114\u00b7\u03a3) actively fights fast, high\u2011cadence gaits \u2192 lowest ceiling.\n\n**Projection to iteration 3,000:** C1 keeps its lead (its caps at 12\u201315 m/s sit above the likely achievable speed and its gradient stays strong), C2's unbounded linear reward lets it overtake C3's 9 m/s tracking plateau, C3 lands above C4, which is throttled by saturated shaping + velocity penalties.\n\n```json\n{\"ranking\": [\"C1\", \"C2\", \"C3\", \"C4\"]}\n```"
+}

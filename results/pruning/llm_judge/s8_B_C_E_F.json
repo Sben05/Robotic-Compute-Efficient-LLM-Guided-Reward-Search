@@ -1,0 +1,40 @@
+{
+  "set": {
+    "seed": 8,
+    "order": [
+      "B_round2c1_10.75",
+      "E_live2_r1c3_9.62",
+      "C_pool_c3_10.73",
+      "F_live2_r2c3_9.61_winner"
+    ],
+    "id": "s8_B_C_E_F"
+  },
+  "attempts": 1,
+  "errors": [],
+  "seconds": 55.99689958400006,
+  "usage": {
+    "prompt_tokens": 6326,
+    "completion_tokens": 7731,
+    "total_tokens": 14057,
+    "cost": 0.00554376,
+    "is_byok": false,
+    "prompt_tokens_details": {
+      "cached_tokens": 324,
+      "audio_tokens": 0,
+      "video_tokens": 0
+    },
+    "cost_details": {
+      "upstream_inference_cost": null,
+      "upstream_inference_prompt_cost": 0,
+      "upstream_inference_completions_cost": 0
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 7242,
+      "image_tokens": 0
+    },
+    "cache_creation_input_tokens": 0,
+    "market_cost": 0.00554376,
+    "gateway_cost": 0.00554376
+  },
+  "text": "```json\n{\"ranking\": [\"C3\", \"C1\", \"C4\", \"C2\"]}\n```\n\n**Reasoning (task_score tracks forward speed almost exactly in all logs):**\n\n- **C3 (best).** Its reward is essentially `v_x * uprightness` \u2014 a *purely linear, non-saturating* function of the exact quantity the metric measures, with essentially no conflicting terms (action/dof penalties are negligible). At iter 500 it already leads (score 7.18, ~7.3 m/s) and its increments are still large (+0.36 in the last 50 iters), so the marginal incentive to accelerate never weakens. It also implicitly punishes falling (episodes terminate \u2192 lost future speed reward), so no explicit alive bonus is needed.\n\n- **C1 (2nd).** Also essentially linear in speed (0.2\u00b7v_x plus a wide tanh with temp 6 m/s that has *not* yet saturated), with only tiny regularizers (tilt, control, lateral) \u2014 the \"caps\" it avoids let it keep the highest speed (\u22486.0 m/s at iter 500) among the non-pure candidates. Its recent growth (+0.30/50 iters) still exceeds C4's.\n\n- **C4 (3rd).** Strong in idea (Gaussian tracking bonus toward 9 m/s gives a big gradient at high speed), but it is loaded with competing terms: heading/facing bonuses, lateral-drift penalty that is *growing* (\u22120.14 \u2192 \u22120.25, indicating increasing sideways drift being suppressed), ang-vel/joint-vel costs, plus a soft cap from the tracking Gaussian near 9 m/s. Net result: it trails C1 (5.69 vs 6.01) and its score increments are shrinking fastest (+0.18 in the last 50 iters).\n\n- **C2 (worst).** Slowest (4.54). Its `body_forward` term has collapsed to ~0 (the torso is not aligned with its velocity), and the upright (0.5) + height-target (0.3) bonuses plus a joint-velocity penalty (which directly fights the vigorous gaits needed for speed) cap the incentive to accelerate, despite a nominal weight-1.0 speed term."
+}

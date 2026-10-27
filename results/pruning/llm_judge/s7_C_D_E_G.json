@@ -1,0 +1,40 @@
+{
+  "set": {
+    "seed": 7,
+    "order": [
+      "D_live2_r2c2_10.43",
+      "G_live1_r2c0_9.29_winner",
+      "E_live2_r1c3_9.62",
+      "C_pool_c3_10.73"
+    ],
+    "id": "s7_C_D_E_G"
+  },
+  "attempts": 1,
+  "errors": [],
+  "seconds": 72.009896916,
+  "usage": {
+    "prompt_tokens": 7047,
+    "completion_tokens": 9408,
+    "total_tokens": 16455,
+    "cost": 0.006357195,
+    "is_byok": false,
+    "prompt_tokens_details": {
+      "cached_tokens": 2553,
+      "audio_tokens": 0,
+      "video_tokens": 0
+    },
+    "cost_details": {
+      "upstream_inference_cost": null,
+      "upstream_inference_prompt_cost": 0,
+      "upstream_inference_completions_cost": 0
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 8898,
+      "image_tokens": 0
+    },
+    "cache_creation_input_tokens": 0,
+    "market_cost": 0.006357195,
+    "gateway_cost": 0.006357195
+  },
+  "text": "{\"ranking\": [\"C1\", \"C2\", \"C4\", \"C3\"]}\n\nReasoning:\n- **task_score \u2248 forward velocity (m/s)** in every log (e.g. C1: forward_speed comp 1.82 = 3.0\u00b7(vx/12) \u21d2 vx\u22487.3 \u2248 task_score 7.29). So the winner is whichever reward keeps pushing the ant to the highest vx.\n- **C1** has the strongest *sustained* speed gradient: clipped-linear (grad 0.25/m/s up to 12 m/s) + raw linear (0.5/m/s up to 15 m/s) + sprint ramp (up to 12 m/s) + tanh/quality terms, all in world +x with correct (x,y,z,w) quaternion handling, plus heading/lateral/yaw/fall regularizers that keep a clean gait. Its reward is ~93% speed-driven, so it keeps pulling well past 10 m/s where softer rewards stall. Already highest at 500 (7.29) and still climbing.\n- **C2** is well-designed but its speed terms saturate: the surge ramp clips at 9.5 m/s and the tanh(v/6) gradient at 8 m/s is only ~0.06/m/s; plus quadratic lateral/vertical/dof-vel costs grow with speed and upright/heading/alive terms dilute the speed signal (~1.24 of ~3.3 reward is posture). Ceiling \u2248 9\u201310 m/s \u2192 strong but second.\n- **C3** is limited by (i) mis-ordered quaternion (treats (x,y,z,w) as (w,x,y,z)), so its upright/body-forward shaping is noise (body_forward \u2248 0.00 confirms it), (ii) a tanh(v/1) shaping term that is fully saturated, and (iii) a height-target term that fights stride extension. Its task_score curve has already flattened (\u2248 +0.2 per 50 iters) \u2192 lowest final score.\n- **C4** is a clean, near-linear upright-gated speed reward with negligible costs (uprightness \u2248 0.97, so gating costs little); it starts slow (no early shaping) but is still in its growth phase (+0.4/50 iters) with no saturating speed term, so it should finish ahead of C3."
+}

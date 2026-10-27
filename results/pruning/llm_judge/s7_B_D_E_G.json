@@ -1,0 +1,40 @@
+{
+  "set": {
+    "seed": 7,
+    "order": [
+      "D_live2_r2c2_10.43",
+      "G_live1_r2c0_9.29_winner",
+      "E_live2_r1c3_9.62",
+      "B_round2c1_10.75"
+    ],
+    "id": "s7_B_D_E_G"
+  },
+  "attempts": 1,
+  "errors": [],
+  "seconds": 50.53226074999998,
+  "usage": {
+    "prompt_tokens": 7557,
+    "completion_tokens": 6897,
+    "total_tokens": 14454,
+    "cost": 0.005224905,
+    "is_byok": false,
+    "prompt_tokens_details": {
+      "cached_tokens": 347,
+      "audio_tokens": 0,
+      "video_tokens": 0
+    },
+    "cost_details": {
+      "upstream_inference_cost": null,
+      "upstream_inference_prompt_cost": 0,
+      "upstream_inference_completions_cost": 0
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 6251,
+      "image_tokens": 0
+    },
+    "cache_creation_input_tokens": 0,
+    "market_cost": 0.005224905,
+    "gateway_cost": 0.005224905
+  },
+  "text": "## Analysis\n\n**Reading the logs (speed \u2248 task_score at iter 500):** C1 \u2248 7.3 m/s, C2 \u2248 6.4, C3 \u2248 5.7, C4 \u2248 5.4. C1 leads at *every* logged checkpoint; C2's slightly higher \"max\" (7.84) is a single unsampled-iteration blip.\n\n**Gradient analysis at high speed (the decisive factor for iteration 3,000):**\n\n| | d(reward)/d(v_x) at ~10 m/s |\n|---|---|\n| C1 | ~3.5 (clipped-linear weight 3 + raw linear 0.5 + sprint) \u2192 **pressure persists to 12\u201315 m/s** |\n| C2 | ~0.06 (tanh saturates, surge ramp saturates at 9.5 m/s) \u2192 speed term is **flat**, so upright/heading terms dominate the gradient budget |\n| C3 | ~1.0 (raw linear) but capped by height pin (0.5 m) and a mis-parsed quaternion (order assumed w,x,y,z; actual is x,y,z,w), so \"upright\" is really fwd_x and \"body_forward\" is dead (log \u2248 0) |\n| C4 | ~0.22 (linear 0.2 + heavily saturated tanh) \u2192 earliest plateau of the two clean designs |\n\n**Why C1 wins:** its reward is *dense and non-saturating in forward speed* (clipped-linear at 12 m/s + raw linear at 0.5 + sprint bonus above 5 m/s), while posture is coupled multiplicatively to speed (`upright \u00d7 tanh(v_x/6)`) rather than traded off against it \u2014 the standard formulation for \"as fast as possible.\" Its small costs (action 0.005, joint-vel 0.0005, yaw 0.02) cannot cap top speed. Only flaw is the sign-asymmetric lateral term (rewards \u2212y drift), which costs little forward progress.\n\n**Why C2 second:** well-designed and similarly dense early, but its speed reward saturates (tanh T=6 + ramp clip at 9.5 m/s), so late training loses speed pressure while upright (0.6\u00b7e^(...)) and heading (0.4\u00b7fwd_x) terms still pull.\n\n**Why C4 third:** clean but weak speed gradient (0.2 linear + tanh) \u2014 it will plateau well below C1/C2; tilt-only posture shaping, no \"alive\" gradient beyond a constant bonus.\n\n**Why C4-above C3:** C3's height preference (`exp(-(h-0.5)\u00b2/0.3\u00b2)`, weight 0.3) plus the quaternion-index bug corrupt the posture/speed shaping and its shaping terms saturate at ~2\u20133 m/s; it learned slowest of the four.\n\n```json\n{\"ranking\": [\"C1\", \"C2\", \"C4\", \"C3\"]}\n```"
+}

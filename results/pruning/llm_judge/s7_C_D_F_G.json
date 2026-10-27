@@ -1,0 +1,40 @@
+{
+  "set": {
+    "seed": 7,
+    "order": [
+      "F_live2_r2c3_9.61_winner",
+      "D_live2_r2c2_10.43",
+      "G_live1_r2c0_9.29_winner",
+      "C_pool_c3_10.73"
+    ],
+    "id": "s7_C_D_F_G"
+  },
+  "attempts": 1,
+  "errors": [],
+  "seconds": 179.27940891600002,
+  "usage": {
+    "prompt_tokens": 7719,
+    "completion_tokens": 22891,
+    "total_tokens": 30610,
+    "cost": 0.014849655,
+    "is_byok": false,
+    "prompt_tokens_details": {
+      "cached_tokens": 317,
+      "audio_tokens": 0,
+      "video_tokens": 0
+    },
+    "cost_details": {
+      "upstream_inference_cost": null,
+      "upstream_inference_prompt_cost": 0,
+      "upstream_inference_completions_cost": 0
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 22526,
+      "image_tokens": 0
+    },
+    "cache_creation_input_tokens": 0,
+    "market_cost": 0.014849655,
+    "gateway_cost": 0.014849655
+  },
+  "text": "**Analysis of the trajectories (task_score \u2248 mean forward velocity, m/s):**\n\n- **C1** has a built\u2011in ceiling: the Gaussian tracking bonus peaks at 9 m/s and actively *reduces* reward above that, while the tanh term (temp 3) is nearly dead by 8\u20139 m/s \u2192 expect a plateau around 8\u20139.\n- **C3** keeps a good gradient but its surge ramp saturates at 9.5 m/s and the exponential uprightness term (temp 0.3) strongly penalizes the torso lean needed for sprinting \u2192 plateau ~10\u201311.\n- **C2** has the strongest shaped speed stack (clipped\u2011linear + raw linear + sprint ramp, ~0.9 reward per m/s up to 12\u201315 m/s), but its task_score curve has clearly flattened (last deltas +0.40, +0.17) \u2014 it is converging around 7.5\u20138.\n- **C4** is essentially *reward = task metric* (speed \u00d7 uprightness gate, no speed cap, no saturation, no comfort\u2011zone shaping). It is the only candidate whose curve is **not decelerating** at iteration 500 (+0.34, +0.42 per 50 iters, still accelerating), and its reward gradient never vanishes (\u22481.0 per m/s at any speed). It is 2 m/s behind at iteration 500 but closing, and with 2,500 iterations left and no reward\u2011side ceiling, it should pass the plateaued, saturated alternatives and finish with the highest forward progress.\n\n```json\n{\"ranking\": [\"C4\", \"C2\", \"C3\", \"C1\"]}\n```"
+}

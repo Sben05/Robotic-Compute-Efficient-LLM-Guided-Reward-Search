@@ -1,0 +1,49 @@
+{
+  "set": {
+    "seed": 8,
+    "order": [
+      "G_live1_r2c0_9.29_winner",
+      "E_live2_r1c3_9.62",
+      "A_round2c0_10.93",
+      "F_live2_r2c3_9.61_winner"
+    ],
+    "id": "s8_A_E_F_G"
+  },
+  "attempts": 3,
+  "errors": [
+    {
+      "attempt": 1,
+      "error": "RemoteDisconnected('Remote end closed connection without response')"
+    },
+    {
+      "attempt": 2,
+      "error": "RemoteDisconnected('Remote end closed connection without response')"
+    }
+  ],
+  "seconds": 796.4472206669999,
+  "usage": {
+    "prompt_tokens": 7916,
+    "completion_tokens": 14452,
+    "total_tokens": 22368,
+    "cost": 0.00964314,
+    "is_byok": false,
+    "prompt_tokens_details": {
+      "cached_tokens": 1596,
+      "audio_tokens": 0,
+      "video_tokens": 0
+    },
+    "cost_details": {
+      "upstream_inference_cost": null,
+      "upstream_inference_prompt_cost": 0,
+      "upstream_inference_completions_cost": 0
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 13966,
+      "image_tokens": 0
+    },
+    "cache_creation_input_tokens": 0,
+    "market_cost": 0.00964314,
+    "gateway_cost": 0.00964314
+  },
+  "text": "```json\n{\"ranking\": [\"C3\", \"C1\", \"C4\", \"C2\"]}\n```\n\n**Reasoning:**\n\n- **C3 (best):** Its speed shaping (tanh with T=10 m/s) plus the incremental 5\u219214 m/s bonus keeps a usable gradient well past the speeds the other candidates can reach, so there is no artificial speed ceiling. It also has the lightest posture/regularizer load (upright term is a flat clamp above up_z=0.5, tilt penalty only fires below up_z=0.4), so the ant is free to adopt an aggressive forward-leaning sprint, which is what actually raises top speed in Ant. Its weaker per-iteration gradient only slows early learning (5.61 at iter 500 vs C1's 5.98); over 2,500 more iterations the higher achievable plateau dominates.\n\n- **C1 (2nd):** Best current score (5.98) and a strong \"surge\" linear ramp (2.5\u21929.5 m/s) plus body-frame speed/heading terms produce a clean, stable gait. But the exp-based upright term (weight 0.6, T=0.3) is very stiff (ant sits at up_z\u22480.975), which suppresses the pitching sprint needed for peak speed, and the gradient essentially vanishes above ~9.5 m/s.\n\n- **C4 (3rd):** The Gaussian tracking bonus targets 9 m/s (\u03c3=3.5), so its gradient peaks and then *reverses* above 9 m/s \u2014 a self-imposed speed cap around 9\u201310 m/s. The growing lateral-drift penalty (|v_y|\u22481.3 m/s) and joint-velocity cost further damp the aggressive gait.\n\n- **C2 (worst):** It mis-parses the root quaternion (treats `(x,y,z,w)` as `(w,x,y,z)`), so its \"body_forward\" bonus is dead (\u22480.00) and its \"upright\" term is actually a heading term (ant runs ~35\u00b0 off-axis). Despite a strong linear v_x term, it is stuck at 4.54 by iteration 500 with the slowest learning of the four, and the broken body-frame shaping prevents an efficient running gait."
+}

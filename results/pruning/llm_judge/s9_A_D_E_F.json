@@ -1,0 +1,40 @@
+{
+  "set": {
+    "seed": 9,
+    "order": [
+      "E_live2_r1c3_9.62",
+      "F_live2_r2c3_9.61_winner",
+      "A_round2c0_10.93",
+      "D_live2_r2c2_10.43"
+    ],
+    "id": "s9_A_D_E_F"
+  },
+  "attempts": 1,
+  "errors": [],
+  "seconds": 59.062450707999915,
+  "usage": {
+    "prompt_tokens": 8080,
+    "completion_tokens": 8605,
+    "total_tokens": 16685,
+    "cost": 0.006332205,
+    "is_byok": false,
+    "prompt_tokens_details": {
+      "cached_tokens": 317,
+      "audio_tokens": 0,
+      "video_tokens": 0
+    },
+    "cost_details": {
+      "upstream_inference_cost": null,
+      "upstream_inference_prompt_cost": 0,
+      "upstream_inference_completions_cost": 0
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 7920,
+      "image_tokens": 0
+    },
+    "cache_creation_input_tokens": 0,
+    "market_cost": 0.006332205,
+    "gateway_cost": 0.006332205
+  },
+  "text": "## Analysis\n\n**Reading the logs (task_score @ iter 500):** C2 = 7.54, C4 = 7.19, C3 = 6.16, C1 = 5.83. But the 500-iteration snapshot only shows who is ahead *now* \u2014 what matters is the **shape of the reward gradient at high speed**, since 2,500 more iterations remain.\n\n**C4 \u2014 best long-horizon design.** Its speed drive is a *clipped-linear* term (3.0\u00b7clamp(vx/12)) plus a raw linear term (0.5\u00b7vx, cap 15) and a sprint bonus (5\u219212 m/s): a **constant, non-vanishing gradient all the way to ~12\u201315 m/s**. The multiplicative `run_quality = upright\u00b7tanh(vx/6)` couples posture to speed without capping it, and the regularizers are deliberately tiny (action 0.005, joint-vel 0.0005\u00b7mean). Its growth per 50 iters (~0.42) is the largest late-stage slope, and it has the highest speed ceiling.\n\n**C2 \u2014 strong, but self-limiting.** It leads early, yet the Gaussian tracking term peaks at 9 m/s. Differentiating the total: `d/dvx[0.2vx + 2\u00b7exp(\u2212((vx\u22129)/3.5)\u00b2)]` \u2248 0 at **vx \u2248 9.6 m/s**, i.e. the reward actively *pushes back* above ~9.6 m/s. Add the ang-vel roll/pitch cost (0.005\u00b7\u03a3\u03c9\u00b2, quadratic \u2192 resists aggressive gaits) and the lateral-drift hinge (\u22120.29, growing), and C4's higher-ceiling incentive should overtake it.\n\n**C1 \u2014 third.** The 1.0\u00b7vx linear term gives a big constant gradient, but (a) the `speed_shaping` tanh (temp 1) is fully saturated (0.49 flat) and (b) `body_forward` is **dead** \u2014 it reads the quaternion as (w,x,y,z) while the env supplies (x,y,z,w), so the \"body forward\" axis points backwards and the term is pinned at 0.00. Meanwhile the 1e-4\u00b7\u03a3(dof_vel\u00b2) penalty grows ~16\u00d7 faster than C4's mean-based version, creating a growing wall against fast gaits, on top of rigid height/upright targets.\n\n**C4 vs C2 final:** C4's reward keeps paying above 9 m/s while C2's stops; with 6\u00d7 more training the higher ceiling plus weaker drag wins.\n\n**C3 \u2014 worst.** tanh(vx/10) gives a gradient of only ~0.07/m/s and the high-speed bonus only 0.03/m/s; the task_score curve has already flattened (5.87 \u2192 6.16 \u2192 6.16). It is heading to a ~6\u20137 m/s plateau, below where C1's uncapped linear term can take it.\n\n```json\n{\"ranking\": [\"C4\", \"C2\", \"C1\", \"C3\"]}\n```"
+}

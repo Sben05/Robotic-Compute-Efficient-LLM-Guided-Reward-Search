@@ -1,0 +1,40 @@
+{
+  "set": {
+    "seed": 9,
+    "order": [
+      "B_round2c1_10.75",
+      "E_live2_r1c3_9.62",
+      "D_live2_r2c2_10.43",
+      "A_round2c0_10.93"
+    ],
+    "id": "s9_A_B_D_E"
+  },
+  "attempts": 1,
+  "errors": [],
+  "seconds": 60.04706437499999,
+  "usage": {
+    "prompt_tokens": 7330,
+    "completion_tokens": 8218,
+    "total_tokens": 15548,
+    "cost": 0.005872485,
+    "is_byok": false,
+    "prompt_tokens_details": {
+      "cached_tokens": 1169,
+      "audio_tokens": 0,
+      "video_tokens": 0
+    },
+    "cost_details": {
+      "upstream_inference_cost": null,
+      "upstream_inference_prompt_cost": 0,
+      "upstream_inference_completions_cost": 0
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 7618,
+      "image_tokens": 0
+    },
+    "cache_creation_input_tokens": 0,
+    "market_cost": 0.005872485,
+    "gateway_cost": 0.005872485
+  },
+  "text": "## Analysis\n\n**Current standings (iter 500, task_score):** C3 = 7.19 > C1 = 6.54 > C4 = 6.16 > C2 = 5.83\n\n**C3 \u2014 strongest and healthiest.** It stacks non\u2011saturating speed terms (clipped\u2011linear `3.0\u00b7vx/12` \u2248 0.25/m/s, plus raw linear, tanh, a sprint ramp above 5 m/s, and an upright\u00d7speed coupling), giving a total gradient near ~0.9 reward/m/s that is still far from any cap at 7 m/s. Crucially it couples speed to posture (heading_align \u2248 0.27, upright \u2248 0.29, run_quality), which suppresses the \"dive and tumble\" exploit that caps pure\u2011speed rewards. Its task_score is still climbing steeply (6.50 \u2192 6.77 \u2192 7.19).\n\n**C1 \u2014 second.** Clean design: linear term (0.2/m/s, unclipped to 15 m/s) plus a tanh(\u00b7/6) that still has gradient at 6 m/s, and a real tilt penalty via `up_vec`. It is clearly decelerating in improvement rate (6.11 \u2192 6.44 \u2192 6.54) but retains ~0.24/m/s of speed pressure and has no confounded terms. Expect it to keep edging above C4.\n\n**C4 \u2014 third.** Design intent was to break the ~6 m/s plateau, but `tanh(v/10)` gives only ~0.07/m/s at 6 m/s and the \"high\u2011speed\" bonus contributes just 0.30/9 \u2248 0.033/m/s \u2014 the total shaping gradient is ~5\u201310\u00d7 weaker than C1/C3, so the policy stalls (last two samples flat at 6.16). The soft joint\u2011limit penalty and upright term are fixed costs that further sap the marginal incentive.\n\n**C2 \u2014 last.** It has a strong 1.0/m/s linear speed term, but the quaternion is unpacked as (w,x,y,z) while Isaac Gym supplies (x,y,z,w). The logs confirm the breakage: `body_forward` collapses to \u22480.00 (a healthy ant running at 6 m/s should read \u22480.25) and `upright` reads 0.42 rather than saturating. So the posture safeguards are noise, the body\u2011frame term is dead, and the reward is effectively \"speed only\" \u2014 the classic setup for a lunge\u2011and\u2011tumble policy that boosts instantaneous velocity while killing sustained forward progress, which is exactly why it trails despite the strongest nominal gradient.\n\n**Prediction:** C3 (best, keeps extending its sprint bonus), then C1, then C4, then C2."
+}

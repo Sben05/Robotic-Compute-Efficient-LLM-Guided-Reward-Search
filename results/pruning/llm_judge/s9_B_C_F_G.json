@@ -1,0 +1,40 @@
+{
+  "set": {
+    "seed": 9,
+    "order": [
+      "B_round2c1_10.75",
+      "C_pool_c3_10.73",
+      "F_live2_r2c3_9.61_winner",
+      "G_live1_r2c0_9.29_winner"
+    ],
+    "id": "s9_B_C_F_G"
+  },
+  "attempts": 1,
+  "errors": [],
+  "seconds": 39.085618207999914,
+  "usage": {
+    "prompt_tokens": 6911,
+    "completion_tokens": 5557,
+    "total_tokens": 12468,
+    "cost": 0.00432711,
+    "is_byok": false,
+    "prompt_tokens_details": {
+      "cached_tokens": 324,
+      "audio_tokens": 0,
+      "video_tokens": 0
+    },
+    "cost_details": {
+      "upstream_inference_cost": null,
+      "upstream_inference_prompt_cost": 0,
+      "upstream_inference_completions_cost": 0
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 4974,
+      "image_tokens": 0
+    },
+    "cache_creation_input_tokens": 0,
+    "market_cost": 0.00432711,
+    "gateway_cost": 0.00432711
+  },
+  "text": "**Analysis of reward shapes (what actually determines top speed by iter 3000):**\n\n- **C2 (best):** Reward is *purely linear* in world forward velocity (`v_x * uprightness`) with only negligible penalties (action 1e\u20112, dof_vel 1e\u20116). There is no saturation and no target speed, so the marginal reward per extra m/s stays ~1.0 (\u22480.9 when slightly tilted) for the whole run \u2014 the policy is never given a reason to stop pushing. Uprightness gating keeps it from tumbling, but still leaves the gradient essentially linear. This is the classic \"unbounded linear speed\" design and is the one that keeps making progress late in training.\n\n- **C3 (2nd):** Best early learner (task_score 7.54 at iter 500), but the Gaussian tracking term `2\u00b7exp(\u2212((v\u22129)/3.5)\u00b2)` peaks at 9 m/s and becomes *negative* in gradient above it, while the `2\u00b7tanh(v/3)` term is already saturated (\u22480.00 marginal past 6\u20139 m/s). Net derivative crosses zero around 9\u201310 m/s, so it has a built\u2011in speed plateau. It will finish strong but capped.\n\n- **C1 (3rd):** Speed term is a saturating tanh (weight 0.6, T=6) plus a small linear term (0.2, clipped at 15 m/s) \u2014 so its late\u2011training gradient is mostly the 0.2 linear push, weakened further by control, lateral and roll/pitch angular\u2011velocity penalties and a quadratic tilt penalty that discourages leaning into the run. Behind at iter 500 and improving slowly (+0.10 in the last 50 iters).\n\n- **C4 (worst):** Its \"surge\" ramp saturates hard at 9.5 m/s and the tanh terms have tiny marginal gradient past ~8 m/s, while `0.6\u00b7exp((up_z\u22121)/0.3)` and the height\u2011based alive bonus (torso z > 0.25 m) strongly penalize the forward lean needed for fast running, and lateral/vertical/dof\u2011velocity costs add drag. Its speed gradient nearly vanishes early, so it plateaus lowest.\n\n**Prediction:** C2 overtakes C3 late in training because its incentive to accelerate never flattens, while C3's 9 m/s tracking target caps it; C1 and C4 remain below due to saturating speed terms and posture/smoothness costs that bite more as speeds rise.\n\n```json\n{\"ranking\": [\"C2\", \"C3\", \"C1\", \"C4\"]}\n```"
+}

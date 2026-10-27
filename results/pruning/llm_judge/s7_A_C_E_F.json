@@ -1,0 +1,40 @@
+{
+  "set": {
+    "seed": 7,
+    "order": [
+      "E_live2_r1c3_9.62",
+      "C_pool_c3_10.73",
+      "F_live2_r2c3_9.61_winner",
+      "A_round2c0_10.93"
+    ],
+    "id": "s7_A_C_E_F"
+  },
+  "attempts": 1,
+  "errors": [],
+  "seconds": 65.635020375,
+  "usage": {
+    "prompt_tokens": 6736,
+    "completion_tokens": 9084,
+    "total_tokens": 15820,
+    "cost": 0.006217395,
+    "is_byok": false,
+    "prompt_tokens_details": {
+      "cached_tokens": 1803,
+      "audio_tokens": 0,
+      "video_tokens": 0
+    },
+    "cost_details": {
+      "upstream_inference_cost": null,
+      "upstream_inference_prompt_cost": 0,
+      "upstream_inference_completions_cost": 0
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 8541,
+      "image_tokens": 0
+    },
+    "cache_creation_input_tokens": 0,
+    "market_cost": 0.006217395,
+    "gateway_cost": 0.006217395
+  },
+  "text": "```json\n{\"ranking\": [\"C4\", \"C3\", \"C2\", \"C1\"]}\n```\n\n**Reasoning:**\n\n- **C4** is the clear leader and the most likely to end highest. Its forward term (`tanh(v/10)`) is only weakly saturated, and the incremental \"faster than 5 m/s\" ramp keeps a *constant* velocity gradient exactly in the 5\u201314 m/s range, so it never hits the shaping ceiling that stalls the others. The heavy tilt penalty (plus the soft joint\u2011limit term and mild control/lateral costs) blocks the classic \"dive\u2011and\u2011tumble\" exploit that would otherwise let it cheat the speed term. It is already at task_score 7.45 (max 8.10) by iteration 500, roughly +0.7/50\u2011iters at the end, with almost all of its reward still non\u2011saturated \u2014 the best combination of current speed and remaining gradient.\n\n- **C3** is second: it is at 6.38 and still climbing, with a rich, well\u2011regularized structure (tracking target at 9 m/s keeps pushing past the ~5\u20136 m/s plateau where `2\u00b7tanh(v/3)` saturates, and the tilt/lateral/fall penalties keep the gait clean). Its asymptote is bounded by the Gaussian tracking term and the 0.2\u00b7v nudge, so it will plateau below C4's ceiling.\n\n- **C2** edges out C1. Both use essentially linear speed reward, but C2's regularization is negligible (`-0.01\u00b7mean(a\u00b2)`, `1e-6\u00b7mean(\u1e0b\u00b2)`), so it has almost no quadratic brake on speed; C1's `-1e-4\u00b7\u03a3 \u1e0b\u00b2` term grows quadratically and actively opposes further acceleration (visible in its decelerating task_score: +0.30 \u2192 +0.20 per 50 iters, versus C2's steady ~+0.35\u20130.42). C2 also lacks C1's height target term, which mildly suppresses aggressive, low\u2011to\u2011the\u2011ground gaits.\n\n- **C1** is last. Its body\u2011frame speed term is broken (quaternion is indexed as (w,x,y,z) while Isaac Gym provides (x,y,z,w)), so `body_forward` collapses to ~0 and contributes nothing but dead reward mass; combined with the joint\u2011velocity penalty and the upright/height shaping, it decelerates fastest and is furthest behind (5.69 at iter 500)."
+}

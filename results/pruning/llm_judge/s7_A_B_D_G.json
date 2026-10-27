@@ -1,0 +1,40 @@
+{
+  "set": {
+    "seed": 7,
+    "order": [
+      "D_live2_r2c2_10.43",
+      "B_round2c1_10.75",
+      "G_live1_r2c0_9.29_winner",
+      "A_round2c0_10.93"
+    ],
+    "id": "s7_A_B_D_G"
+  },
+  "attempts": 1,
+  "errors": [],
+  "seconds": 51.332153083,
+  "usage": {
+    "prompt_tokens": 7902,
+    "completion_tokens": 7139,
+    "total_tokens": 15041,
+    "cost": 0.005443455,
+    "is_byok": false,
+    "prompt_tokens_details": {
+      "cached_tokens": 187,
+      "audio_tokens": 0,
+      "video_tokens": 0
+    },
+    "cost_details": {
+      "upstream_inference_cost": null,
+      "upstream_inference_prompt_cost": 0,
+      "upstream_inference_completions_cost": 0
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 6661,
+      "image_tokens": 0
+    },
+    "cache_creation_input_tokens": 0,
+    "market_cost": 0.005443455,
+    "gateway_cost": 0.005443455
+  },
+  "text": "**Analysis of the 500-iteration logs (task_score \u2248 forward speed in m/s):**\n\n- **C4** reaches the highest values so far (7.45 at it. 500, max 8.10) and is *still accelerating* in the second half of the log (2.16\u21923.42\u21924.68\u21925.83\u21926.73\u21927.17\u21927.45). Its shaping is deliberately non-saturating (tanh temp 10 m/s, plus an incremental high-speed bonus with constant gradient up to 14 m/s), so it keeps a usable learning signal well beyond the ~7 m/s regime that the others are hitting. The explicit tilt penalty blocks the \"dive-and-tumble\" speed exploit that a mostly-speed reward would otherwise invite, so the fast gait should be sustainable.\n- **C1** is smooth and well-shaped (strongest local gradient: 0.25 + 0.5 per m/s), but every speed term clips/saturates by 12\u201315 m/s and its increments are already shrinking (0.58\u21920.40\u21920.17 per 50 iters), i.e. it is entering a plateau right where C4 is still climbing. Its mildly mis-signed lateral/yaw penalties (positive drift gets *rewarded*) also add a small wobble incentive.\n- **C3** is very close to C1 (max 7.84) with a decent constant-gradient surge ramp, but its relatively heavy upright (0.6) + alive-height (0.3) bonuses encourage a conservative gait, and it too is flattening (0.50\u21920.18 per 50 iters).\n- **C2** is clearly worst: tanh saturating at 6 m/s with a small linear term, giving the weakest high-speed gradient; it has plateaued at ~6 m/s (max 6.16) while all others are past 7 m/s.\n\n**Prediction:** C4 keeps pushing where the others plateau and ends highest, with C1 and C3 close behind (C1 slightly favored for a more stable/consistent curve) and C2 last.\n\n```json\n{\"ranking\": [\"C4\", \"C1\", \"C3\", \"C2\"]}\n```"
+}

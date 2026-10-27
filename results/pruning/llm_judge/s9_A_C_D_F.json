@@ -1,0 +1,45 @@
+{
+  "set": {
+    "seed": 9,
+    "order": [
+      "A_round2c0_10.93",
+      "D_live2_r2c2_10.43",
+      "C_pool_c3_10.73",
+      "F_live2_r2c3_9.61_winner"
+    ],
+    "id": "s9_A_C_D_F"
+  },
+  "attempts": 2,
+  "errors": [
+    {
+      "attempt": 1,
+      "error": "RemoteDisconnected('Remote end closed connection without response')"
+    }
+  ],
+  "seconds": 442.03976087500007,
+  "usage": {
+    "prompt_tokens": 7495,
+    "completion_tokens": 13512,
+    "total_tokens": 21007,
+    "cost": 0.009024495,
+    "is_byok": false,
+    "prompt_tokens_details": {
+      "cached_tokens": 1533,
+      "audio_tokens": 0,
+      "video_tokens": 0
+    },
+    "cost_details": {
+      "upstream_inference_cost": null,
+      "upstream_inference_prompt_cost": 0,
+      "upstream_inference_completions_cost": 0
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 12752,
+      "image_tokens": 0
+    },
+    "cache_creation_input_tokens": 0,
+    "market_cost": 0.009024495,
+    "gateway_cost": 0.009024495
+  },
+  "text": "```json\n{\"ranking\": [\"C2\", \"C3\", \"C4\", \"C1\"]}\n```\n\n**Reasoning (extrapolating the 500\u2011iteration logs to 3,000):**\n\n- **C1 (worst).** Its log already shows the classic saturation plateau: `task_score` is flat at 6.16 between iters 450\u2013500. The main driver `tanh(v/10)` has a marginal gradient of only ~0.07 /m/s at 6 m/s, and the \"high\u2011speed\" bonus adds only 0.03 /m/s, so the gradient is far too weak to break the ~6 m/s ceiling. It will not improve over 3,000 iterations.\n\n- **C2 (best).** It has the largest *sustained* marginal speed gradient across the whole useful range: `3\u00b7clamp(vx/12)` (0.25/m/s) **+** `0.5\u00b7clamp(vx,15)` (0.5/m/s, still active at 15 m/s) **+** sprint ramp (0.14/m/s) + tanh/quality terms \u2248 **1.1\u20131.2 /m/s** in the 8\u201315 m/s regime, while its drag terms are tiny (action 0.005, joint\u2011vel 0.0005, lateral 0.1, yaw only, fall\u2011height only). `run_quality = upright\u00b7tanh(v/6)` couples posture to speed so it learns a real gait instead of diving, and `heading_align` keeps +x progress from drifting. Its log also shows the healthiest late\u2011training growth (+0.42 over the last 50\u2011iter window, still rising) and no speed \"governor\" term, so it keeps accelerating instead of parking at a target.\n\n- **C3 (2nd).** Essentially a clean, unbounded forward\u2011speed objective (speed \u00d7 uprightness) with almost no regularization, so its marginal gradient (~0.95/m/s) persists forever and its ceiling should be very high \u2014 nearly matching C2. It slightly lags C2 so far (7.15 vs 7.19) because it has *no* survival/height term and only a weak action penalty (no joint\u2011velocity, lateral, or fall shaping), making it slightly more prone to tumbling exploits that the uprightness gate then truncates; C2's posture/height coupling buys it a bit more effective speed.\n\n- **C4 (3rd).** It leads at iter 500 (7.54), but its design contains two ceilings that will bite later: (i) the Gaussian **speed\u2011tracking term centred on a 9 m/s target** actively reduces the marginal reward above ~9\u201311 m/s, which is wrong for an \"as fast as possible\" objective, and (ii) the **quadratic angular\u2011velocity penalty** (`0.005\u00b7(roll\u00b2+pitch\u00b2)`) plus the heavier joint\u2011velocity and lateral\u2011drift costs directly penalize the vigorous body oscillation a fast gallop requires, growing quadratically as speed rises. Its per\u201150\u2011iter gains are already decelerating (0.61 \u2192 0.50 \u2192 0.32 \u2192 0.31), consistent with hitting a lower plateau (~10\u201312 m/s) than the unsaturated\u2011gradient designs.\n\n**Prediction:** C2 ends highest (\u224813\u201315 m/s), C3 close behind (\u224812\u201314 m/s), C4 next (\u224810\u201312 m/s), C1 stuck near 6\u20137 m/s."
+}

@@ -1,0 +1,40 @@
+{
+  "set": {
+    "seed": 9,
+    "order": [
+      "G_live1_r2c0_9.29_winner",
+      "E_live2_r1c3_9.62",
+      "C_pool_c3_10.73",
+      "D_live2_r2c2_10.43"
+    ],
+    "id": "s9_C_D_E_G"
+  },
+  "attempts": 1,
+  "errors": [],
+  "seconds": 111.87123779099988,
+  "usage": {
+    "prompt_tokens": 7058,
+    "completion_tokens": 15207,
+    "total_tokens": 22265,
+    "cost": 0.01013997,
+    "is_byok": false,
+    "prompt_tokens_details": {
+      "cached_tokens": 318,
+      "audio_tokens": 0,
+      "video_tokens": 0
+    },
+    "cost_details": {
+      "upstream_inference_cost": null,
+      "upstream_inference_prompt_cost": 0,
+      "upstream_inference_completions_cost": 0
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 14561,
+      "image_tokens": 0
+    },
+    "cache_creation_input_tokens": 0,
+    "market_cost": 0.01013997,
+    "gateway_cost": 0.01013997
+  },
+  "text": "```json\n{\"ranking\": [\"C3\", \"C4\", \"C1\", \"C2\"]}\n```\n\n**Reasoning:**\n\n- **C3 (best)** \u2013 Its reward is essentially *linear in the target metric* (`gated_forward_speed = v_x \u00b7 uprightness`), so the gradient toward \"go faster\" stays constant (\u22480.9\u20131.0 per m/s) at any speed, with no saturation ceiling. The multiplicative uprightness gate multiplies the value of posture by current speed, so at high v the agent is strongly pushed to stay upright and keep running instead of flipping/lunging, and the regularizers are negligible (dof-vel term \u2248 0, action penalty weak). Reward noise is almost entirely the signal itself (v_x), so PPO's normalized advantages stay clean. It already leads the field at iter 500 (task_score 7.15, max 7.39) with a still-declining but non-vanishing improvement rate.\n\n- **C4 (2nd)** \u2013 Statistically tied with C3 (7.19 vs 7.15 at iter 500), and the sprint ramp (5\u219212 m/s) gives extra push at high speed. But it is handicapped long-run: the main speed terms (`tanh(v/4)`, `tanh(v/6)`, clipped `v/12`, capped `v/15`) all saturate as speed grows, the raw-velocity terms are *ungated* by posture (so it can trade posture for v_x), the asymmetric `lateral_drift = -0.1\u00b7tanh(v_y)` actually pays the ant to drift sideways (log shows v_y \u2248 \u22120.55 m/s), and its action (0.005\u00b7\u03a3a\u00b2) and joint-velocity (5e-4\u00b7mean) penalties are 4\u00d7/500\u00d7 stronger than C3's \u2014 a drag that grows with gait speed and caps the final sprint.\n\n- **C1 (3rd)** \u2013 The primary speed term `1.5\u00b7tanh(v/6)` has almost no gradient left at v \u2248 6 m/s (\u22480.10 per m/s), so learning is stalling; only the `surge` ramp (slope 1/7) keeps it pushing. Reward is otherwise dominated by near-constant shaping terms (upright, heading, alive), so little learning signal. Ahead of C2 but well behind the top two.\n\n- **C2 (worst)** \u2013 Linear velocity term exists, but it is fought by a strong upright term (0.5) and a tight height target (`exp(-((h\u22120.5)/0.3)\u00b2)`, 0.3) that prevents the crouched posture sprinting needs, plus the heaviest action/joint-velocity penalties (1e-4\u00b7\u03a3dof_vel\u00b2). Its `body_forward` term has collapsed to 0.00, meaning the ant is running sideways rather than forward-oriented \u2014 it plateaus lowest of the four (5.83 at iter 500)."
+}

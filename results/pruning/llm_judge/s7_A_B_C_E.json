@@ -1,0 +1,40 @@
+{
+  "set": {
+    "seed": 7,
+    "order": [
+      "E_live2_r1c3_9.62",
+      "B_round2c1_10.75",
+      "C_pool_c3_10.73",
+      "A_round2c0_10.93"
+    ],
+    "id": "s7_A_B_C_E"
+  },
+  "attempts": 1,
+  "errors": [],
+  "seconds": 52.028815167000005,
+  "usage": {
+    "prompt_tokens": 5988,
+    "completion_tokens": 7265,
+    "total_tokens": 13253,
+    "cost": 0.005215215,
+    "is_byok": false,
+    "prompt_tokens_details": {
+      "cached_tokens": 311,
+      "audio_tokens": 0,
+      "video_tokens": 0
+    },
+    "cost_details": {
+      "upstream_inference_cost": null,
+      "upstream_inference_prompt_cost": 0,
+      "upstream_inference_completions_cost": 0
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 6738,
+      "image_tokens": 0
+    },
+    "cache_creation_input_tokens": 0,
+    "market_cost": 0.005215215,
+    "gateway_cost": 0.005215215
+  },
+  "text": "```json\n{\"ranking\": [\"C4\", \"C2\", \"C3\", \"C1\"]}\n```\n\n**Reasoning:**\n\n- **C4** is the clear leader (task_score 7.45 @ iter 500, max 8.10, vs. 5\u20136 for the rest). Its design directly targets the plateau problem: a weakly-saturating `tanh(v/10)` plus an *incremental* high-speed bonus (constant gradient above 5 m/s up to 14 m/s), a tilt penalty that only fires when the ant genuinely tips (so forward-leaning aggressive gaits are still allowed), and much lighter control/lateral/joint-limit regularizers. It is both ahead and still climbing steeply, so it should dominate by 3,000 iterations.\n\n- **C2** is second (5.98, max 6.16) and still rising steadily. It keeps an unbounded linear speed term (0.2\u00b7v, clipped at 15 m/s) plus a tanh with a large temperature (6 m/s), so it does not saturate near 6 m/s, and it has no height/joint-velocity drag. Its per-m/s gradient (~0.5 at current speeds) is weaker than C4's, but it is well clear of the others.\n\n- **C3** (5.25, max 5.49) has the cleanest \"reward = forward velocity\" structure with essentially negligible penalties (mean-based action cost, 1e-6 joint-velocity cost), so it maintains a near-constant ~0.95 reward gradient per m/s with no counteracting regularizers. However, it has the smallest absolute reward shaping/pressure and no alive bonus, so it lags C2 in absolute speed.\n\n- **C1** is last (5.69, max 5.87). Although its linear forward term looks strong, its `tanh` shaping is already fully saturated (0.49), the torso-height preference and the 1e-4\u00b7\u03a3(dof_vel\u00b2) joint-velocity penalty both grow with gait aggressiveness (quadratically in the latter) and directly fight high-speed running, and its \"body_forward\" term is dead code (the quaternion is read with the wrong component order, so it is clipped to 0 in every logged iteration). The extra constant bonuses (upright/height/alive) add no speed pressure, so it should be the slowest of the four to break out of its ~5.7 plateau."
+}

@@ -1,0 +1,40 @@
+{
+  "set": {
+    "seed": 8,
+    "order": [
+      "B_round2c1_10.75",
+      "D_live2_r2c2_10.43",
+      "A_round2c0_10.93",
+      "F_live2_r2c3_9.61_winner"
+    ],
+    "id": "s8_A_B_D_F"
+  },
+  "attempts": 1,
+  "errors": [],
+  "seconds": 26.263240832999998,
+  "usage": {
+    "prompt_tokens": 8006,
+    "completion_tokens": 3458,
+    "total_tokens": 11464,
+    "cost": 0.00323304,
+    "is_byok": false,
+    "prompt_tokens_details": {
+      "cached_tokens": 316,
+      "audio_tokens": 0,
+      "video_tokens": 0
+    },
+    "cost_details": {
+      "upstream_inference_cost": null,
+      "upstream_inference_prompt_cost": 0,
+      "upstream_inference_completions_cost": 0
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 3079,
+      "image_tokens": 0
+    },
+    "cache_creation_input_tokens": 0,
+    "market_cost": 0.00323304,
+    "gateway_cost": 0.00323304
+  },
+  "text": "Looking at the marginal incentives each reward provides for going faster (the key determinant of final forward progress):\n\n- **C2** has by far the strongest speed gradient: `3.0*clamp(vx/12)` (0.25/m/s) + `0.5*vx` (0.5/m/s) + sprint ramp above 5 m/s (0.14/m/s) + quality coupling \u2248 **~1.0 reward per m/s**, and crucially *no back-pressure* at high speed (the tracking term of C4 actually reverses sign above its 9 m/s target, creating a soft ceiling).\n- **C1** gives ~0.24/m/s (linear 0.2 + weakly saturated tanh), plus a small alive bonus that trades off against sprinting.\n- **C4** gives ~0.3\u20130.4/m/s but the Gaussian tracking bonus at 9 m/s pulls back down for speeds above ~9\u201310 m/s, and its lateral-drift hinge penalty is growing (|vy| \u2248 1.3\u20131.5 m/s in the log), indicating a less clean gait.\n- **C3** has the weakest speed drive (~0.1/m/s: tanh/10 + a 0.03 high-speed ramp) plus a soft joint-limit penalty that can constrain gait extension \u2014 consistent with it being last at iteration 500.\n\nEarly logs agree with the shaping analysis (C2 6.27 > C1 6.01 > C4 5.69 > C3 5.61 at iter 500), and the gradient-strength ranking suggests that ordering persists, with C2 opening the gap as it pushes into the sprint regime.\n\n{\"ranking\": [\"C2\", \"C1\", \"C4\", \"C3\"]}"
+}

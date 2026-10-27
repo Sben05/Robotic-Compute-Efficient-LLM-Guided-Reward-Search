@@ -91,7 +91,23 @@ Writing round 2 from the best round-1 reward's 500-iteration log (not a full run
 (16/16 valid) and cut PPO compute 73%. Round-2 rewards averaged 8.52 vs 8.33 for round 1 (no no-feedback control): this
 does not show that feedback improved quality.
 
-## 6. Generate another reward or keep training? [simulation]
+## 6. The LLM as a judge of early training (pre-registered, exploratory) [actual LLM calls on held-out curves]
+
+MiniMax was shown each candidate's reward code and its first 500 iterations of logs (task score and every reward component)
+and asked which would score highest after 3,000 iterations (`llm_judge.py`, pre-registered in
+`results/pruning/llm_judge_prereg.md` before any call). Held-out seeds 7-9, 105 four-reward sets, shuffled labels, same compute
+as fixed@500.
+
+| | Best reward kept | Winner found |
+| --- | ---: | ---: |
+| fixed@500 (keep the leader at 500) | 0.975 | 56% |
+| LLM judge (code + 500-it logs) | 0.987 | 74% |
+
+Difference +0.013 [95% CI −0.001, +0.032], p = 0.057: **promising but not significant** under the pre-registered threshold.
+All 105 replies were parseable; cost $0.74. VoI and PID reach 0.997 on these seeds with ~12% more compute. The earlier blind
+ranking (code only, no logs) failed badly, so the training logs are what make the LLM useful as a judge.
+
+## 7. Generate another reward or keep training? [simulation]
 
 Measured exchange rate: one solo PPO iteration costs $0.0000473 on the rented A100 (0.251 s at $0.68/h), so one MiniMax call
 costs as much as ~160 (one per call) or ~60 (per reward when batched) PPO iterations; wall-clock latency (~2 min) is worth

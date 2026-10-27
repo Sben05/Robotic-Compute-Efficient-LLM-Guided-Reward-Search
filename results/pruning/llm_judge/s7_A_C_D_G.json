@@ -1,0 +1,40 @@
+{
+  "set": {
+    "seed": 7,
+    "order": [
+      "G_live1_r2c0_9.29_winner",
+      "D_live2_r2c2_10.43",
+      "C_pool_c3_10.73",
+      "A_round2c0_10.93"
+    ],
+    "id": "s7_A_C_D_G"
+  },
+  "attempts": 1,
+  "errors": [],
+  "seconds": 149.463132875,
+  "usage": {
+    "prompt_tokens": 7392,
+    "completion_tokens": 19852,
+    "total_tokens": 27244,
+    "cost": 0.01297707,
+    "is_byok": false,
+    "prompt_tokens_details": {
+      "cached_tokens": 318,
+      "audio_tokens": 0,
+      "video_tokens": 0
+    },
+    "cost_details": {
+      "upstream_inference_cost": null,
+      "upstream_inference_prompt_cost": 0,
+      "upstream_inference_completions_cost": 0
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 19369,
+      "image_tokens": 0
+    },
+    "cache_creation_input_tokens": 0,
+    "market_cost": 0.01297707,
+    "gateway_cost": 0.01297707
+  },
+  "text": "```json\n{\"ranking\": [\"C2\", \"C3\", \"C4\", \"C1\"]}\n```\n\n**Reasoning (summary):**\n\n- **C2 (best):** Its main term is *clipped\u2011linear* in world +x speed (weight 3.0, cap 12 m/s) plus a raw linear term (0.5/m/s up to 15 m/s), a sprint ramp above 5 m/s, and a tanh/quality bonus. Crucially, at the operating speeds (~7 m/s) it still supplies ~0.9 reward\u2011gradient per m/s \u2014 roughly an order of magnitude more sustained push than the tanh\u2011based designs \u2014 while the mild upright coupling, heading term, and fall penalty keep the gait healthy so it does not collapse. Best balance of \"keep pushing\" + \"don't degenerate,\" and it already leads or ties the field at iteration 500.\n\n- **C3 (2nd):** Effectively an *unbounded* linear reward on forward velocity (only gated by a 0.5+0.5\u00b7up_z factor), so its speed gradient never saturates and its improvement rate is still steady at iteration 500 (~+0.4 task_score per 50 iters). It trails C2 by ~2 m/s in speed and lacks alive/height shaping (risk of leaning/tumbling exploit), so it is the runner\u2011up rather than the winner.\n\n- **C4 (3rd):** Fastest at iteration 500, but its shaping is deliberately *over\u2011softened* (tanh with T=10 m/s \u2192 only ~0.06 gradient/m/s near 7\u20138 m/s; the extra ramp adds only ~0.03). The small reward magnitudes and the visible instability dip (\u22120.51 at iter 450) suggest it will plateau around ~9\u201310 m/s and lose ground to C2/C3 by 3000.\n\n- **C1 (worst):** Main tanh term saturates early (T=6) and its \"surge\" ramp flattens at 9.5 m/s, with extra costs (action, dof\u2011vel, lateral, ang\u2011vel) further damping the drive; it trails C4 and C3 in long\u2011run speed potential."
+}

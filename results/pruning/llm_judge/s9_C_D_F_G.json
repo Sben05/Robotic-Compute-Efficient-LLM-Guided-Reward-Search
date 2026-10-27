@@ -1,0 +1,40 @@
+{
+  "set": {
+    "seed": 9,
+    "order": [
+      "D_live2_r2c2_10.43",
+      "G_live1_r2c0_9.29_winner",
+      "F_live2_r2c3_9.61_winner",
+      "C_pool_c3_10.73"
+    ],
+    "id": "s9_C_D_F_G"
+  },
+  "attempts": 1,
+  "errors": [],
+  "seconds": 75.00566454199998,
+  "usage": {
+    "prompt_tokens": 7734,
+    "completion_tokens": 10267,
+    "total_tokens": 18001,
+    "cost": 0.00697497,
+    "is_byok": false,
+    "prompt_tokens_details": {
+      "cached_tokens": 2558,
+      "audio_tokens": 0,
+      "video_tokens": 0
+    },
+    "cost_details": {
+      "upstream_inference_cost": null,
+      "upstream_inference_prompt_cost": 0,
+      "upstream_inference_completions_cost": 0
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 9742,
+      "image_tokens": 0
+    },
+    "cache_creation_input_tokens": 0,
+    "market_cost": 0.00697497,
+    "gateway_cost": 0.00697497
+  },
+  "text": "```json\n{\"ranking\": [\"C4\", \"C1\", \"C3\", \"C2\"]}\n```\n\n**Reasoning (task_score \u2248 mean forward +x velocity, verified from the component logs in each candidate):**\n\n- **C4 (best):** Its reward is essentially proportional to the metric itself (`vx * uprightness`, plus a tiny regularizer). The gradient w.r.t. forward speed is ~0.96 and *never saturates*, so PPO keeps pushing the gait faster indefinitely (up to the physical limit). The uprightness gate prevents the usual \"tumble forward\" exploit without capping achievable speed, and termination implicitly penalizes collapsing. At iter 500 it is already at 7.15 with a healthy late-stage gain (~0.28/50 iters), and it has the largest remaining headroom of any candidate.\n\n- **C1 (2nd):** Very similar constant-gradient structure (`3*clip(vx/12)` + `0.5*clip(vx,15)` + sprint ramp to 12 m/s), but every speed term is capped: gradient \u22480 beyond 15 m/s and only ~0.92 in the 10\u201315 range. Extra posture/fall shaping helps stability, but it also mildly suppresses the fastest (leaning, striding) gaits, and the `lateral_drift = -0.1*tanh(vy)` term actually *pays* the ant for drifting in \u2212y (sign bug). Slightly behind C4 over long horizons.\n\n- **C3 (3rd):** Fastest at 500 iters (7.54), but the Gaussian `speed_tracking` term targets 9 m/s, so total reward peaks near vx \u2248 9.5\u201310 m/s and becomes *negative-slope* beyond that (linear push +0.2 vs tracking pull \u2248 \u22120.3). It will converge and stall at ~9\u201310 m/s, capping it below the uncapped candidates.\n\n- **C2 (worst):** Every speed term saturates early (`tanh(vx/6)` is nearly flat past 6 m/s, `surge` clips at 9.5 m/s), and the strong uprightness/alive shaping plus regularization weights suppress aggressive sprinting. Its effective driving gradient at 6+ m/s is only ~0.2\u20130.3, so it plateaus early \u2014 consistent with it trailing the others by ~1.2 m/s at iteration 500."
+}

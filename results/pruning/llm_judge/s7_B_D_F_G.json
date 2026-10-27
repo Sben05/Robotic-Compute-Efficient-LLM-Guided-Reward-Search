@@ -1,0 +1,40 @@
+{
+  "set": {
+    "seed": 7,
+    "order": [
+      "F_live2_r2c3_9.61_winner",
+      "B_round2c1_10.75",
+      "G_live1_r2c0_9.29_winner",
+      "D_live2_r2c2_10.43"
+    ],
+    "id": "s7_B_D_F_G"
+  },
+  "attempts": 1,
+  "errors": [],
+  "seconds": 44.07823962499998,
+  "usage": {
+    "prompt_tokens": 8229,
+    "completion_tokens": 5989,
+    "total_tokens": 14218,
+    "cost": 0.00478509,
+    "is_byok": false,
+    "prompt_tokens_details": {
+      "cached_tokens": 316,
+      "audio_tokens": 0,
+      "video_tokens": 0
+    },
+    "cost_details": {
+      "upstream_inference_cost": null,
+      "upstream_inference_prompt_cost": 0,
+      "upstream_inference_completions_cost": 0
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 5560,
+      "image_tokens": 0
+    },
+    "cache_creation_input_tokens": 0,
+    "market_cost": 0.00478509,
+    "gateway_cost": 0.00478509
+  },
+  "text": "```json\n{\"ranking\": [\"C4\", \"C3\", \"C1\", \"C2\"]}\n```\n\n**Reasoning (from the 500-iteration logs + reward structure):**\n\n- **C4** is best. It already leads at iter 500 (task_score 7.29, and its components imply vx \u2248 7.3 m/s). Crucially, its speed shaping has the strongest *sustained* gradient at high speed: clipped-linear `3.0\u00b7(vx/12)` (0.25/m/s) **plus** raw `0.5\u00b7vx` (0.5/m/s) **plus** the sprint ramp above 5 m/s and the uprightness-coupled `run_quality` term \u21d2 ~0.95 reward per m/s at current speeds, roughly 3\u20134\u00d7 C1/C2/C3. Nothing saturates below 12 m/s, so the policy keeps pressing for more speed for the remaining 2,500 iterations. (Minor flaw: the signed `lateral_drift` penalty slightly rewards backward-y drift \u2014 worth only ~0.05 reward, so it is not disqualifying.)\n- **C3** is a close second (7.21 at iter 500, peak 7.84). Its surge ramp provides a good constant gradient, but the ramp saturates at 9.5 m/s and the tanh terms then weaken, so its high-speed push fades sooner than C4's.\n- **C1** is third (6.38). Its main `tanh(vx/3)` term is essentially flat beyond ~5 m/s, so only the 9 m/s tracking Gaussian keeps it pushing; it is well behind the leaders at iter 500 and its late increments are already shrinking.\n- **C2** is last (5.98). Its speed terms contribute only ~0.24 reward per m/s at 7 m/s (tanh nearly saturated + weak linear), the weakest sustained incentive of the four, so it will plateau at the lowest speed."
+}

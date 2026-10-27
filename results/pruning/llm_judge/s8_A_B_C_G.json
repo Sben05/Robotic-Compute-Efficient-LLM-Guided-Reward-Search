@@ -1,0 +1,40 @@
+{
+  "set": {
+    "seed": 8,
+    "order": [
+      "C_pool_c3_10.73",
+      "G_live1_r2c0_9.29_winner",
+      "A_round2c0_10.93",
+      "B_round2c1_10.75"
+    ],
+    "id": "s8_A_B_C_G"
+  },
+  "attempts": 1,
+  "errors": [],
+  "seconds": 13.346821208999984,
+  "usage": {
+    "prompt_tokens": 6581,
+    "completion_tokens": 1636,
+    "total_tokens": 8217,
+    "cost": 0.001926765,
+    "is_byok": false,
+    "prompt_tokens_details": {
+      "cached_tokens": 311,
+      "audio_tokens": 0,
+      "video_tokens": 0
+    },
+    "cost_details": {
+      "upstream_inference_cost": null,
+      "upstream_inference_prompt_cost": 0,
+      "upstream_inference_completions_cost": 0
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 1174,
+      "image_tokens": 0
+    },
+    "cache_creation_input_tokens": 0,
+    "market_cost": 0.001926765,
+    "gateway_cost": 0.001926765
+  },
+  "text": "```json\n{\"ranking\": [\"C1\", \"C4\", \"C2\", \"C3\"]}\n```\n\n**Reasoning:**\n\n- **C1** is far ahead already (task_score 7.18 vs ~6.0 for the others at iter 500) and its reward is **linear in forward velocity** (weight 1.0 per m/s, gated by uprightness). It has no saturation point, so the marginal reward per extra m/s never shrinks \u2014 the strongest possible sustained pressure to run faster. The uprightness gate + bonus prevent the classic \"tumble for speed\" exploit, and its penalties (action, dof_vel) are orders of magnitude too small to cap the speed. Expect continued steep gains through 3,000 iterations.\n\n- **C4** is second: it combines a clipped **linear** speed term (0.2\u00b7v, cap 15 m/s) with a tanh term (temp 6), giving a roughly constant ~0.25 reward/m/s gradient in the 5\u20138 m/s range, plus only mild regularizers (tilt, control, lateral, roll/pitch). Its task_score (6.01) edges out C2 and its gradient doesn't collapse the way saturated tanh-only designs do.\n\n- **C2** has good structure (tanh speed + a linear \"surge\" ramp from 2.5\u20139.5 m/s), but its per-meter gradient is diluted (~0.24/m/s) by many competing penalties (dof_vel cost \u22125e-5\u00b7\u03a3dof_vel\u00b2, lateral, vertical, angular velocity), which noticeably brake the aggressive gait; task_score is essentially flat around 6.0 by iteration 500.\n\n- **C3** is weakest: its headline terms saturate early (tanh temp 10 \u2192 gradient ~0.1/m/s) and the \"high-speed bonus\" only gives 0.30/9 \u2248 0.033 per m/s above 5 m/s, so there is almost no extra pressure to break past its current plateau \u2014 confirmed by the lowest task_score (5.61) and the smallest high-speed bonus activation (0.04) at iteration 500."
+}

@@ -1,0 +1,40 @@
+{
+  "set": {
+    "seed": 9,
+    "order": [
+      "E_live2_r1c3_9.62",
+      "A_round2c0_10.93",
+      "G_live1_r2c0_9.29_winner",
+      "F_live2_r2c3_9.61_winner"
+    ],
+    "id": "s9_A_E_F_G"
+  },
+  "attempts": 1,
+  "errors": [],
+  "seconds": 117.178,
+  "usage": {
+    "prompt_tokens": 7916,
+    "completion_tokens": 16810,
+    "total_tokens": 24726,
+    "cost": 0.01111167,
+    "is_byok": false,
+    "prompt_tokens_details": {
+      "cached_tokens": 1198,
+      "audio_tokens": 0,
+      "video_tokens": 0
+    },
+    "cost_details": {
+      "upstream_inference_cost": null,
+      "upstream_inference_prompt_cost": 0,
+      "upstream_inference_completions_cost": 0
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 16265,
+      "image_tokens": 0
+    },
+    "cache_creation_input_tokens": 0,
+    "market_cost": 0.01111167,
+    "gateway_cost": 0.01111167
+  },
+  "text": "{\"ranking\": [\"C4\", \"C3\", \"C2\", \"C1\"]}\n\n**Reasoning:**\n\n- **C4 is the clear winner.** It is already far ahead at iteration 500 (task_score 7.54 vs 6.16/6.00/5.83 for the others) and \u2014 crucially \u2014 it is still climbing fast (+0.35 m/s per 50 iters at iter 500, versus +0.15 for C2), because its reward keeps a large positive marginal gradient in the 7\u20139 m/s band (tracking term +0.4/m/s, linear term +0.2/m/s) rather than saturating. That guarantees it keeps converting reward into real forward speed all the way to its ~9.3 m/s equilibrium instead of stalling. Nothing in C4's design destabilizes it (tilt/fall hinges only fire on genuine collapse), so it should hit its ceiling earliest and highest.\n- **C3 second.** Its tanh(v/6) term plus the linear surge ramp (gradient 0.14/m/s up to 9.5 m/s) plus body-frame speed term give the second-strongest sustained push, and its progress is still steady (+0.2\u20130.5 per 50 iters) rather than flattening like C2's. Its reward ceiling (~9.5\u201310 m/s) is essentially the same as C4's, but it starts 1.5 m/s behind, so it cannot catch up.\n- **C2 third.** It leads C3 at iteration 500, but its speed terms are heavily damped (tanh with temperature 10 m/s gives only ~0.07/m/s, and the high-speed bonus adds just 0.03/m/s). Its marginal gradient is ~5\u20136\u00d7 smaller than C4's, so its progress has already stalled (last logged increment 0.00). It will creep up slowly and finish below C3.\n- **C1 last.** Besides starting lowest and decelerating (increments down to ~0.22/50 iters), its orientation handling is broken: it assumes quaternion order (w,x,y,z) while Isaac Gym stores (x,y,z,w), so `fwd_x` evaluates to \u22121 for an upright ant, making `body_forward` identically 0 (no body-frame running shaping at all) and turning the \"upright\" term into a yaw penalty. Its linear speed term keeps some push, but the height-preference and action costs plus the missing posture shaping leave it behind the others.\n\n**Best: C4**"
+}

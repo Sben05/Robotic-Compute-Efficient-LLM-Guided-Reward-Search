@@ -1,0 +1,40 @@
+{
+  "set": {
+    "seed": 7,
+    "order": [
+      "G_live1_r2c0_9.29_winner",
+      "A_round2c0_10.93",
+      "E_live2_r1c3_9.62",
+      "F_live2_r2c3_9.61_winner"
+    ],
+    "id": "s7_A_E_F_G"
+  },
+  "attempts": 1,
+  "errors": [],
+  "seconds": 49.190465042,
+  "usage": {
+    "prompt_tokens": 7905,
+    "completion_tokens": 6677,
+    "total_tokens": 14582,
+    "cost": 0.00514929,
+    "is_byok": false,
+    "prompt_tokens_details": {
+      "cached_tokens": 316,
+      "audio_tokens": 0,
+      "video_tokens": 0
+    },
+    "cost_details": {
+      "upstream_inference_cost": null,
+      "upstream_inference_prompt_cost": 0,
+      "upstream_inference_completions_cost": 0
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 6104,
+      "image_tokens": 0
+    },
+    "cache_creation_input_tokens": 0,
+    "market_cost": 0.00514929,
+    "gateway_cost": 0.00514929
+  },
+  "text": "```json\n{\"ranking\": [\"C2\", \"C1\", \"C4\", \"C3\"]}\n```\n\n**Reasoning:**\n\n- **C2** leads at iteration 500 (task_score 7.45, max 8.10) and has the right incentive structure for the full 3,000-iteration horizon: a weakly-saturating `tanh(v/10)` term (still ~0.05/m/s gradient at 7+ m/s) *plus* an incremental high-speed bonus that stays linear out to 14 m/s, so the gradient never vanishes. Its penalties are deliberately light (linear |vy| penalty of 0.02, tiny control/roll-pitch costs, soft joint-limit term), so the speed term dominates the marginal return and an aggressive, forward-leaning gait is not punished. The tilt penalty only fires below up_z = 0.4, so leaning is allowed. This is the only candidate with a persistent high-speed push beyond 9\u201310 m/s and it is already ahead early.\n\n- **C1** is a close second (7.21 / max 7.84) and still improving steadily. Its `surge` ramp gives a strong ~0.14/m/s gradient, but it is capped at 9.5 m/s, and the exponential upright term (weight 0.6, temp 0.3) plus the **quadratic** lateral penalty (\u22120.02\u00b7vy\u00b2, growing with the sway needed for fast running) will start to cap the gait as speed rises. It should finish close behind C2.\n\n- **C4** (6.38) has strong early push (tracking term toward 9 m/s plus linear speed term), but the tracking bonus is a symmetric Gaussian \u2014 it *decreases* beyond 9 m/s, creating an attractor at 9 m/s instead of pushing for maximum speed. Its \u22120.3 lateral-drift hinge and 0.005\u00b7\u03a3\u03c9\u00b2 angular cost further restrict the gait, so it likely tops out below the C1/C2 solutions.\n\n- **C3** (5.69) is last: it is the only candidate with a truly unbounded linear speed term, but its extra shaping is broken \u2014 it reads the root quaternion as (w,x,y,z) while Isaac Gym stores (x,y,z,w), so `up_z`/`fwd_x` are computed from permuted components. Evidence: `body_forward` collapses to 0.00 while the ant is clearly running at ~5.7 m/s, i.e. the body-frame reward is dead/conflicting and the upright term is meaningless. Combined with the height-preference term opposing an aggressive gait, it climbs the slowest and plateaus lowest."
+}

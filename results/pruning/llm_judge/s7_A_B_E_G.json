@@ -1,0 +1,40 @@
+{
+  "set": {
+    "seed": 7,
+    "order": [
+      "A_round2c0_10.93",
+      "E_live2_r1c3_9.62",
+      "B_round2c1_10.75",
+      "G_live1_r2c0_9.29_winner"
+    ],
+    "id": "s7_A_B_E_G"
+  },
+  "attempts": 1,
+  "errors": [],
+  "seconds": 56.26299804200001,
+  "usage": {
+    "prompt_tokens": 7157,
+    "completion_tokens": 7788,
+    "total_tokens": 14945,
+    "cost": 0.00570369,
+    "is_byok": false,
+    "prompt_tokens_details": {
+      "cached_tokens": 316,
+      "audio_tokens": 0,
+      "video_tokens": 0
+    },
+    "cost_details": {
+      "upstream_inference_cost": null,
+      "upstream_inference_prompt_cost": 0,
+      "upstream_inference_completions_cost": 0
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 7262,
+      "image_tokens": 0
+    },
+    "cache_creation_input_tokens": 0,
+    "market_cost": 0.00570369,
+    "gateway_cost": 0.00570369
+  },
+  "text": "```json\n{\"ranking\": [\"C1\", \"C4\", \"C3\", \"C2\"]}\n```\n\n**Reasoning:**\n\n- **C1 (best):** Already fastest at iteration 500 (~7.5\u20137.7 m/s implied speed, task_score 7.45, max 8.10). Its design is purpose-built for the high-speed regime: a weakly-saturating `tanh(v/10)` term plus a linear \"faster than 5 m/s\" bonus (5\u219214 m/s) keeps a non-vanishing gradient exactly where the old plateau was, and the regularizers (control, lateral, joint-limit) are deliberately tiny so they don't cap an aggressive gait. The tilt penalty only fires when the ant genuinely falls over, so it guards against tumbling exploits without punishing forward lean. Most headroom for further improvement over 2500 more iterations.\n\n- **C4 (2nd):** Stronger absolute speed gradient (surge ramp 1/7 per m/s + two tanh terms \u2248 0.25/m/s vs C1's \u2248 0.09/m/s), which is why it learns quickly and climbs monotonically (task_score 7.21, max 7.84). But its exponential upright term (temp 0.3), heading-align reward, alive/height term and lateral/vertical/angular costs progressively cap aggressive forward-leaning gaits, and the surge ramp saturates at 9.5 m/s. It should end slightly below C1.\n\n- **C3 (3rd):** Coherent shaping, but the tanh term (0.6 weight, temp 6) saturates early and the linear term is only 0.2 weight; it is stuck around ~6 m/s at iteration 500 (task_score 5.98), behind both C1 and C4, with no mechanism that specifically targets the 6\u201310 m/s band.\n\n- **C4 > C3 > C2 (worst):** C2's `body_forward` term is ~0.00 throughout, and its quaternion convention appears mismatched (upright/heading terms are computed from the wrong quaternion components), so its posture shaping is effectively broken. Its speed shaping also collapses above ~3 m/s (tanh temp 1) and the height/upright terms fight speed growth; the run is plateauing (task_score 5.69 at 500, ~0.3/50-iter gains) at the lowest speed of the four."
+}

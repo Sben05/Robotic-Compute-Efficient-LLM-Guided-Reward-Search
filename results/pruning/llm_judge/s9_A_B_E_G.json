@@ -1,0 +1,40 @@
+{
+  "set": {
+    "seed": 9,
+    "order": [
+      "E_live2_r1c3_9.62",
+      "G_live1_r2c0_9.29_winner",
+      "B_round2c1_10.75",
+      "A_round2c0_10.93"
+    ],
+    "id": "s9_A_B_E_G"
+  },
+  "attempts": 1,
+  "errors": [],
+  "seconds": 92.3270201250001,
+  "usage": {
+    "prompt_tokens": 7166,
+    "completion_tokens": 12740,
+    "total_tokens": 19906,
+    "cost": 0.008676105,
+    "is_byok": false,
+    "prompt_tokens_details": {
+      "cached_tokens": 317,
+      "audio_tokens": 0,
+      "video_tokens": 0
+    },
+    "cost_details": {
+      "upstream_inference_cost": null,
+      "upstream_inference_prompt_cost": 0,
+      "upstream_inference_completions_cost": 0
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 12197,
+      "image_tokens": 0
+    },
+    "cache_creation_input_tokens": 0,
+    "market_cost": 0.008676105,
+    "gateway_cost": 0.008676105
+  },
+  "text": "```json\n{\"ranking\": [\"C3\", \"C2\", \"C4\", \"C1\"]}\n```\n\n**Reasoning:**\n\n- **C3 (best):** Already leading at iteration 500 (task_score 6.54, max 6.86). Its reward is the purest \"forward-progress\" signal: a weakly-saturating tanh (T=6) plus an unclipped-in-practice linear term (clip at 15 m/s) that keeps a constant ~0.2/m/s speed gradient even at high speed. It has essentially no speed brakes (only tiny control/lateral/tilt costs, no height preference, no joint-velocity penalty, no saturation ceiling until 15 m/s), so the marginal reward for going faster stays positive throughout training. It also starts from the highest base speed with the least constrained gait.\n\n- **C2 (2nd):** Slightly behind at 500 iters (6.00), but has the strongest post-plateau pressure of the \"shaped\" rewards (surge ramp giving 1/7 \u2248 0.14/m/s out to 9.5 m/s plus tanh gradient \u2248 0.12/m/s), so it should keep improving faster than C4 and eventually pass it. Costs: upright/heading/body-alignment terms (\u22481.2 total) mildly cap an aggressive, low, diving sprint, and the surge term saturates at 9.5 m/s.\n\n- **C4 (3rd):** Currently ahead of C2 (6.16) but has the weakest speed gradient (tanh T=10 \u2248 0.06/m/s plus only 0.03/m/s from the high-speed bonus), so its improvement rate flattens fastest (increment already ~0.00 in the last 50 iters). Its high-speed bonus is a scaled ramp (0.3 max) that provides too little pressure to break past ~8 m/s.\n\n- **C1 (worst):** Lowest at 500 iters (5.83) and slowest early learner despite its large linear speed term. It is handicapped by a height-preference term (0.3) that resists the crouched sprint, a joint-velocity penalty that acts as a genuine speed brake at high speeds, and a quaternion-order bug (Isaac Gym stores quat as x,y,z,w, but C1 assumes w,x,y,z) that corrupts the upright term (yaw is penalized as if it were tilt) and zeroes out the body-forward term. Its large reward scale also makes the entropy/exploration bonus relatively negligible, encouraging premature convergence."
+}

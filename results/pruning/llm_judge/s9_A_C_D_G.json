@@ -1,0 +1,40 @@
+{
+  "set": {
+    "seed": 9,
+    "order": [
+      "C_pool_c3_10.73",
+      "D_live2_r2c2_10.43",
+      "G_live1_r2c0_9.29_winner",
+      "A_round2c0_10.93"
+    ],
+    "id": "s9_A_C_D_G"
+  },
+  "attempts": 1,
+  "errors": [],
+  "seconds": 80.22932212499995,
+  "usage": {
+    "prompt_tokens": 7404,
+    "completion_tokens": 10971,
+    "total_tokens": 18375,
+    "cost": 0.007651215,
+    "is_byok": false,
+    "prompt_tokens_details": {
+      "cached_tokens": 311,
+      "audio_tokens": 0,
+      "video_tokens": 0
+    },
+    "cost_details": {
+      "upstream_inference_cost": null,
+      "upstream_inference_prompt_cost": 0,
+      "upstream_inference_completions_cost": 0
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 10179,
+      "image_tokens": 0
+    },
+    "cache_creation_input_tokens": 0,
+    "market_cost": 0.007651215,
+    "gateway_cost": 0.007651215
+  },
+  "text": "## Analysis\n\n**What drives `task_score`:** it's \u2248 the ant's raw +X velocity (m/s). So the winning reward is the one whose *marginal gradient w.r.t. forward speed stays large and unconflicted* at high speed.\n\n**Marginal reward per m/s of forward velocity (at v\u22486\u20137 m/s, upright \u22481):**\n\n| | speed-gradient terms | total \u2202R/\u2202v | speed\u2011gradient terms | total \u2202R/\u2202v |\n|---|---|---|---|---|\n| **C1** | 1.0 (linear, unsaturated) | **\u22481.00** | upright gate 0.5\u00b7\u0394up_z (0.05/0.1 tilt) | mild |\n| **C2** | 0.25 (clip@12) + 0.5 (raw, cap 15) + 0.14 (sprint) + 0.05 (tanh) + 0.05 (quality) | \u22480.96, collapses to \u22480.5 above 12 m/s | up_z\u00b7tanh(v/6) + 0.3\u00b7up_z \u2248 0.11/0.1 tilt | restrictive |\n| **C3** | 0.105 (tanh/6) + 0.143 (surge) + 0.035 | \u22480.28 | 0.6\u00b7exp((up_z\u22121)/0.3) \u2192 ~0.2 loss per 0.1 tilt | quite restrictive |\n| **C4** | 0.074 (tanh/10) + 0.033 (high\u2011speed) | \u22480.11 | mild | ok |\n\n**Key findings**\n\n- **C1** is the only candidate with an *unbounded, constant* speed gradient (never saturates, no plateau term) and the *weakest* posture constraints, so the policy can lean into an aggressive gait and keep being rewarded for each extra m/s. Its reward is essentially 1:1 with the metric (7.26 total vs 7.15 task_score), meaning it is directly optimizing the score with no distortion. Early logs confirm this (task_score 7.15, max 7.39, still climbing steadily).\n- **C2** has the same leading edge today (7.19, max 7.45) but its speed shaping saturates in stages (tanh/4, tanh/6, sprint cap, clip at 12 m/s); as the ant gets faster the marginal push weakens (\u21920.5/m/s past 12 m/s), and its multiplicative upright\u00d7speed coupling plus heading/fall terms penalize the forward lean needed for high speeds.\n- **C3** learns fastest of the \"shaped\" ones but its tanh/6 saturation and sharp `exp` uprightness term make it the slowest learner (6.00) and it constrains the lean needed for sprinting; it should only creep up, not challenge C1/C2.\n- **C4** was designed to break a plateau, but with a tanh/10 speed term and a tiny 0.30/9 high-speed ramp its total speed gradient (~0.11/m/s) is ~9\u00d7 weaker than C1's, so it learns too slowly to catch up within 3,000 iterations (6.16 and nearly flat).\n\n**Prediction:** C1 keeps the strongest, least-saturated push on forward speed through the full run and finishes highest; C2 is a close second (its shaping helps early but its saturation and posture coupling bite later); C3 edges C4 on the stronger marginal gradient.\n\n```json\n{\"ranking\": [\"C1\", \"C2\", \"C3\", \"C4\"]}\n```"
+}

@@ -1,0 +1,40 @@
+{
+  "set": {
+    "seed": 7,
+    "order": [
+      "F_live2_r2c3_9.61_winner",
+      "B_round2c1_10.75",
+      "E_live2_r1c3_9.62",
+      "C_pool_c3_10.73"
+    ],
+    "id": "s7_B_C_E_F"
+  },
+  "attempts": 1,
+  "errors": [],
+  "seconds": 101.90237049999999,
+  "usage": {
+    "prompt_tokens": 6315,
+    "completion_tokens": 13508,
+    "total_tokens": 19823,
+    "cost": 0.00871698,
+    "is_byok": false,
+    "prompt_tokens_details": {
+      "cached_tokens": 2482,
+      "audio_tokens": 0,
+      "video_tokens": 0
+    },
+    "cost_details": {
+      "upstream_inference_cost": null,
+      "upstream_inference_prompt_cost": 0,
+      "upstream_inference_completions_cost": 0
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 12957,
+      "image_tokens": 0
+    },
+    "cache_creation_input_tokens": 0,
+    "market_cost": 0.00871698,
+    "gateway_cost": 0.00871698
+  },
+  "text": "{\"ranking\": [\"C4\", \"C1\", \"C2\", \"C3\"]}\n\n**Reasoning:**\n\n- **C4** (best): Its reward is essentially the task metric itself \u2014 linear in world\u2011frame forward velocity, gated by a smooth uprightness factor (which prevents the flip/slide exploit without capping speed). The gradient with respect to speed stays ~1.0 per m/s at *any* speed, so there is no saturation point. Consistent with this, its task_score is still growing at ~0.35\u20130.45 per 50 iters at iter 500 (the only candidate whose growth has *not* decayed), so it should overtake the current leader and end highest (limited only by the ant's physical top speed, well above 9 m/s).\n\n- **C1** (2nd): Currently leading (6.38 vs 5.98/5.25), and its Gaussian tracking term (target 9 m/s) plus the linear term keep a strong gradient in the 6\u20139 m/s range. However, the tanh shaping (temp 3) saturates and the tracking bonus *peaks and then decays* at 9 m/s, so its marginal speed gradient collapses as it approaches that cap (visible in its decaying iteration increments: 0.44 \u2192 0.13/0.35 \u2192 0.11). It will asymptote around ~9 m/s \u2014 good, but below where C4's uncapped gradient pushes.\n\n- **C2** (3rd): Structurally similar to C4 but the speed signal is ~4\u00d7 weaker (linear weight 0.2 + tanh weight 0.6/temp 6 \u21d2 ~0.22 reward per m/s), and its increments are already decaying (0.51 \u2192 0.29). It keeps climbing, but too slowly to catch C1's capped 9 m/s.\n\n- **C3** (worst): Traps \u2014 its reward total is the *highest* (7.09) while its task_score is not, because the quaternion is unpacked as (w,x,y,z) instead of Isaac Gym's (x,y,z,w). That makes \"upright\" a function of yaw (\u2248cos \u03b8, empirically 0.45) instead of tilt, and `body_forward` identically zero (the ant's body x-axis projects to \u2212x). So there is no real anti\u2011tumble protection, plus a conflicting torso\u2011height target (0.5 m) and the largest action/joint\u2011velocity penalties; its growth has already flattened to ~0.2 per 50 iters."
+}

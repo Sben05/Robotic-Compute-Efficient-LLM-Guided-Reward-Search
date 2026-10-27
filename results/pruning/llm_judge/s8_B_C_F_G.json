@@ -1,0 +1,40 @@
+{
+  "set": {
+    "seed": 8,
+    "order": [
+      "C_pool_c3_10.73",
+      "B_round2c1_10.75",
+      "F_live2_r2c3_9.61_winner",
+      "G_live1_r2c0_9.29_winner"
+    ],
+    "id": "s8_B_C_F_G"
+  },
+  "attempts": 1,
+  "errors": [],
+  "seconds": 24.271647209000093,
+  "usage": {
+    "prompt_tokens": 6911,
+    "completion_tokens": 3248,
+    "total_tokens": 10159,
+    "cost": 0.00281913,
+    "is_byok": false,
+    "prompt_tokens_details": {
+      "cached_tokens": 1232,
+      "audio_tokens": 0,
+      "video_tokens": 0
+    },
+    "cost_details": {
+      "upstream_inference_cost": null,
+      "upstream_inference_prompt_cost": 0,
+      "upstream_inference_completions_cost": 0
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 2800,
+      "image_tokens": 0
+    },
+    "cache_creation_input_tokens": 0,
+    "market_cost": 0.00281913,
+    "gateway_cost": 0.00281913
+  },
+  "text": "```json\n{\"ranking\": [\"C1\", \"C4\", \"C2\", \"C3\"]}\n```\n\n**Reasoning:**\n\n- **C1** is the clear leader: its reward is essentially *linear* in world-frame forward velocity (gated by a mild uprightness factor), so the speed gradient never saturates. At iteration 500 it is already at ~7 m/s (forward_speed 7.06, task_score 7.18) versus ~6 m/s for the others, and its learning curve is smooth and still climbing (increments of ~+0.35/50 iters and not flattening). Unbounded gradient pressure + strong upright gating (no falling exploit) means it will keep pushing top speed through 3,000 iterations.\n\n- **C4** is the best of the rest. Its `surge` ramp (`clamp((v-2.5)/7)`) preserves a constant gradient well past current speeds (until ~9.5 m/s), and the exponential uprightness term (temp 0.3) plus heading-alignment and height-based alive bonus keep the ant upright and forward-facing, which sustains speed. Its task_score is accelerating fastest in the last 200 iterations (5.31 \u2192 5.98).\n\n- **C2** tracks C4 closely at 500 (6.01 vs 5.98) but its dominant speed terms are a saturating `tanh(v/6)` and a weak linear term (weight 0.2, clipped at 15); there is no explicit heading/stability shaping beyond a mild tilt penalty, so it is slightly less likely to hold a fast, straight gait over 3,000 iterations.\n\n- **C3** is worst: it stacks many partially conflicting objectives (tracking bonus with a target of 9 m/s whose gradient actually *reverses* beyond the target, heading alignment, lateral-drift hinge, tilt hinge, fall penalty), and its effective speed term saturates early (tanh with temp 3 \u2192 ~4.4 m/s contribution). It also shows the weakest late-stage progress (5.51 \u2192 5.69)."
+}

@@ -39,6 +39,9 @@ less compute, and PID ties it with 6% less compute.
 - **Generation strategies** (Ant): strategy hints made rewards worse and 5× costlier; "think briefly" made them much worse.
 - **Other LLMs**: Gemini 2.5 Flash and Qwen-3-32B wrote weaker Ant rewards than MiniMax on average, yet Qwen's best reward
   reached 11.32 (single seed), the best of the project; batching was again cheaper for both.
+- **LLM as judge**: shown each reward's code plus its first 500 training iterations, MiniMax picked the eventual winner 74% of
+  the time vs 56% for "keep the leader at 500" at equal compute (retained 0.987 vs 0.975, p = 0.057, pre-registered;
+  not significant). Code alone had failed badly, so the logs are what help.
 - **Generalisation**: Cartpole and BallBalance are too easy (every reward hits the ceiling); on Humanoid all LLM rewards were
   far below the human reward and the Ant-tuned VoI forecaster did not transfer (0.81 retained), while PID-style rules did (0.97).
 - **Generate vs train** [simulation]: at measured prices (one LLM call ≈ 60-230 PPO iterations of A100 time) adaptive

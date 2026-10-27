@@ -1,0 +1,40 @@
+{
+  "set": {
+    "seed": 8,
+    "order": [
+      "G_live1_r2c0_9.29_winner",
+      "A_round2c0_10.93",
+      "C_pool_c3_10.73",
+      "F_live2_r2c3_9.61_winner"
+    ],
+    "id": "s8_A_C_F_G"
+  },
+  "attempts": 1,
+  "errors": [],
+  "seconds": 50.971127207999984,
+  "usage": {
+    "prompt_tokens": 7331,
+    "completion_tokens": 6683,
+    "total_tokens": 14014,
+    "cost": 0.00506652,
+    "is_byok": false,
+    "prompt_tokens_details": {
+      "cached_tokens": 318,
+      "audio_tokens": 0,
+      "video_tokens": 0
+    },
+    "cost_details": {
+      "upstream_inference_cost": null,
+      "upstream_inference_prompt_cost": 0,
+      "upstream_inference_completions_cost": 0
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 6041,
+      "image_tokens": 0
+    },
+    "cache_creation_input_tokens": 0,
+    "market_cost": 0.00506652,
+    "gateway_cost": 0.00506652
+  },
+  "text": "## Analysis\n\n**What matters:** the environment's `task_score` tracks real forward progress, so the winning reward must keep a strong gradient on *actual* forward speed, without capping it or adding costs that suppress aggressive gaits.\n\n**C3 \u2014 clear leader.** Its main term is *linear* in world +x velocity (`gated_forward_speed = vx * uprightness`), so the gradient never saturates \u2014 the ant is always rewarded a fixed amount per extra m/s. Consistent with this, it leads at every checkpoint (task_score 7.18 vs 5.6\u20136.0 for the others at iter 500), and its speed term (7.06) implies ~7 m/s vs ~5.5\u20136 m/s for the rivals. Crucially, the uprightness gate (`0.5+0.5\u00b7up_z`) creates a *speed-proportional* posture penalty (\u22480.5\u00b7vx per unit of tilt), so the gate also acts as a strong anti-tumble regularizer rather than an exploit. Nothing in the function bounds the top speed.\n\n**C1 \u2014 second.** Combines a wide tanh (temp 6) with a *surge ramp* (2.5\u21929.5 m/s) that supplies constant gradient in the mid-speed range, plus mild regularizers. It leads the field on task_score at 500 (5.98) and shows the second-fastest progress. Weakness: the surge ramp saturates at 9.5 m/s, so its ceiling is finite, and its fairly strong `upright` (exp, \u03c4=0.3) + `alive` + `heading` terms mildly restrict the gait.\n\n**C2 \u2014 third.** Same family as C1 but with a longer-lived gradient (tanh temp 10, high-speed bonus up to 14 m/s) \u2014 a sensible anti-plateau fix, and it tracks C1 closely (5.61 at 500) with the same deceleration shape. It stays marginally behind: smaller overall reward scale, weaker speed gradient per m/s in the 3\u20136 m/s band (0.075 vs C1's \u22480.26), and no height/alive term. Its extra headroom should let it close the gap late, but not overtake C1 from behind.\n\n**C4 \u2014 last.** The Gaussian tracking bonus centered at **9 m/s** creates an equilibrium *at* 9 m/s and actively penalizes overshoot, structurally capping top speed. The lateral-drift hinge, joint-velocity and angular-velocity costs also bite exactly when the ant gets aggressive. It ends lowest (5.69, max 5.92).\n\n**Projection:** C3's unsaturated speed reward plus speed-scaled uprightness gate should keep it pulling ahead through iteration 3,000; C1's surge ramp lets it hold a clear second; C2 is a close third with a higher theoretical ceiling; C4 is speed-capped.\n\n```json\n{\"ranking\": [\"C3\", \"C1\", \"C2\", \"C4\"]}\n```"
+}

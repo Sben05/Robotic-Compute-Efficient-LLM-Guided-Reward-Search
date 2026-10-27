@@ -1,0 +1,40 @@
+{
+  "set": {
+    "seed": 7,
+    "order": [
+      "F_live2_r2c3_9.61_winner",
+      "D_live2_r2c2_10.43",
+      "A_round2c0_10.93",
+      "C_pool_c3_10.73"
+    ],
+    "id": "s7_A_C_D_F"
+  },
+  "attempts": 1,
+  "errors": [],
+  "seconds": 136.96124383400002,
+  "usage": {
+    "prompt_tokens": 7481,
+    "completion_tokens": 18781,
+    "total_tokens": 26262,
+    "cost": 0.01236537,
+    "is_byok": false,
+    "prompt_tokens_details": {
+      "cached_tokens": 188,
+      "audio_tokens": 0,
+      "video_tokens": 0
+    },
+    "cost_details": {
+      "upstream_inference_cost": null,
+      "upstream_inference_prompt_cost": 0,
+      "upstream_inference_completions_cost": 0
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 18362,
+      "image_tokens": 0
+    },
+    "cache_creation_input_tokens": 0,
+    "market_cost": 0.01236537,
+    "gateway_cost": 0.01236537
+  },
+  "text": "**Analysis of each candidate's speed incentive (task_score \u2248 mean forward speed, m/s):**\n\n- **C3** (7.45 @ 500, still trending up): speed term `tanh(v/10)` keeps a live gradient far past 7 m/s, the incremental >5 m/s bonus adds a constant push, and the regularizers (control, lateral, roll/pitch, soft joint limits) are deliberately weak, with only a hinge penalty when it actually tips. Nothing in the reward saturates before ~14 m/s, and the log shows no plateau (increments ~0.4\u20130.9/block, noisy but positive) \u2192 highest asymptote.\n- **C4** (5.25 @ 500, climbing steadily ~0.4/block): essentially a pure, *unbounded* velocity objective (`v\u00b7uprightness + 0.25\u00b7uprightness`) with negligible action/dof penalties, so there is no saturation ceiling and no constraint shaping the gait away from sprinting; it only lacks the 2 m/s head start of C3.\n- **C2** (7.29 @ 500, flattening: increments fell 2.2 \u2192 0.17/block): the speed pressure (linear term, sprint bonus) is good, but the multiplicative `run_quality`, upright/heading bonuses, lateral/yaw penalties and the hard fall hinge at 0.30 m absorb policy improvement in posture and suppress the low, aggressive sprinting gait \u2014 a learning plateau near ~8\u20139 m/s.\n- **C1** (6.38 @ 500, flat since iter 350): `2\u00b7tanh(v/3)` is nearly saturated (1.85/1.87), the Gaussian tracking bonus peaks near the current speed, and the growing lateral-drift penalty fights the fast gait \u2192 plateaus ~6.5\u20137.\n\n```json\n{\"ranking\": [\"C3\", \"C4\", \"C2\", \"C1\"]}\n```"
+}

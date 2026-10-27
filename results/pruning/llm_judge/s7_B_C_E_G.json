@@ -1,0 +1,40 @@
+{
+  "set": {
+    "seed": 7,
+    "order": [
+      "G_live1_r2c0_9.29_winner",
+      "C_pool_c3_10.73",
+      "B_round2c1_10.75",
+      "E_live2_r1c3_9.62"
+    ],
+    "id": "s7_B_C_E_G"
+  },
+  "attempts": 1,
+  "errors": [],
+  "seconds": 210.032037292,
+  "usage": {
+    "prompt_tokens": 6226,
+    "completion_tokens": 28090,
+    "total_tokens": 34316,
+    "cost": 0.017762655,
+    "is_byok": false,
+    "prompt_tokens_details": {
+      "cached_tokens": 187,
+      "audio_tokens": 0,
+      "video_tokens": 0
+    },
+    "cost_details": {
+      "upstream_inference_cost": null,
+      "upstream_inference_prompt_cost": 0,
+      "upstream_inference_completions_cost": 0
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 27661,
+      "image_tokens": 0
+    },
+    "cache_creation_input_tokens": 0,
+    "market_cost": 0.017762655,
+    "gateway_cost": 0.017762655
+  },
+  "text": "```json\n{\"ranking\": [\"C1\", \"C2\", \"C3\", \"C4\"]}\n```\n\n**Reasoning:**\n\n- **C1** is the clear winner. It already leads by ~20\u201335% on `task_score` at iteration 500 (7.21 vs 5.98/5.69/5.25), and its reward design supports sustained high-speed running: correct quaternion math (so `upright`/`heading`/`body_forward` actually work), a wide-temperature `tanh` speed term **plus** the linear \"surge\" ramp (gradient persists out to ~9.5 m/s instead of vanishing), and mild regularizers that don't cap speed. Its shaping keeps a stable, forward-facing gait, which is what sustains (rather than spikes) forward progress. Its learned curve shows the best trade-off (steady gains, no premature stall).\n\n- **C2** is second: the linear `v_x` term gives a strong, unsaturated speed gradient (its increment per 50 iters stays flat ~0.4\u20130.5 while the others decay), and the uprightness gate keeps the ant running rather than tumbling. But it lacks alive/height/heading shaping, so it is less stable and less efficient than C1, and it remains ~2 m/s behind at iteration 500.\n\n- **C3** is third: a sensible design (correct tilt handling, linear term with clip at 15 m/s) but with weaker speed weights (0.6 tanh + 0.2 linear, no surge ramp) and a decaying learning rate; it will asymptote below C1/C2.\n\n- **C4** is worst: it mis-parses the root quaternion (assumes `w,x,y,z` instead of Isaac Gym's `x,y,z,w`), which silently breaks the body-frame and upright terms (note `body_forward \u2248 0.00`), and its tight torso-height preference plus relatively large joint-velocity penalty throttle speed \u2014 its progress rate is already the smallest by iteration 500."
+}

@@ -1,0 +1,40 @@
+{
+  "set": {
+    "seed": 9,
+    "order": [
+      "C_pool_c3_10.73",
+      "F_live2_r2c3_9.61_winner",
+      "D_live2_r2c2_10.43",
+      "B_round2c1_10.75"
+    ],
+    "id": "s9_B_C_D_F"
+  },
+  "attempts": 1,
+  "errors": [],
+  "seconds": 58.31709633299988,
+  "usage": {
+    "prompt_tokens": 7075,
+    "completion_tokens": 8455,
+    "total_tokens": 15530,
+    "cost": 0.00602031,
+    "is_byok": false,
+    "prompt_tokens_details": {
+      "cached_tokens": 844,
+      "audio_tokens": 0,
+      "video_tokens": 0
+    },
+    "cost_details": {
+      "upstream_inference_cost": null,
+      "upstream_inference_prompt_cost": 0,
+      "upstream_inference_completions_cost": 0
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 7926,
+      "image_tokens": 0
+    },
+    "cache_creation_input_tokens": 0,
+    "market_cost": 0.00602031,
+    "gateway_cost": 0.00602031
+  },
+  "text": "**Analysis of the evidence:**\n\n- **Gradient alignment with the true objective (task_score):**\n - **C1:** reward \u2248 vx\u00b7uprightness \u2192 ~1.0 reward per m/s; unbounded (no ceiling), but the multiplicative upright gate makes the uprightness pressure scale *with* speed, so it can become over-conservative at high speed.\n - **C2:** `forward_speed` (2\u00b7tanh(v/3)) is already pinned at its asymptote (1.88 \u2248 max 2.0) while task_score is 7.54; the Gaussian tracking term peaks at 9 m/s and becomes *negative* above it. Effective d(reward)/d(v) \u2248 0.33 and falling \u2192 ~0 above 9\u201310 m/s. Ceiling \u2248 9\u201310 m/s.\n - **C3:** clipped-linear (3\u00b7v/12 \u2192 0.25/m/s) + 0.5\u00b7v + sprint bonus (1/7 per m/s above 5) + tanh/quality terms \u21d2 \u2248 0.95 reward per m/s **at 7 m/s and still growing**, gradient survives to ~12\u201315 m/s; posture coupled weakly (run_quality) so speed is not throttled by strict uprightness.\n - **C4:** tanh(temp 6) is nearly saturated and the 0.6/0.2 weights give only ~0.24 reward per m/s; reward total (1.77) is badly decoupled from task_score (6.54) \u2192 slowest learner, weakest continuing gradient.\n\n- **Log trends (last 100 iters of task_score):** C3 +0.69 \u2248 C2 +0.63 > C1 +0.60 > C4 +0.43; C2's lead comes from a fast start with a saturating reward, so it should plateau first, while C1/C3 keep a ~1:1 reward/speed gradient.\n\n- **Projection:** C3 has the strongest *sustained* gradient with shaping that preserves a clean gait (sprint bonus, mild lateral/yaw/fall penalties) and a hard ceiling far above the current 7.2 m/s; C1 follows with unbounded linear drive but its speed-scaled upright gate caps the top speed sooner; C2 plateaus near 9\u201310 m/s; C4 lags badly.\n\n```json\n{\"ranking\": [\"C3\", \"C1\", \"C2\", \"C4\"]}\n```"
+}

@@ -1,0 +1,40 @@
+{
+  "set": {
+    "seed": 7,
+    "order": [
+      "F_live2_r2c3_9.61_winner",
+      "B_round2c1_10.75",
+      "G_live1_r2c0_9.29_winner",
+      "A_round2c0_10.93"
+    ],
+    "id": "s7_A_B_F_G"
+  },
+  "attempts": 1,
+  "errors": [],
+  "seconds": 18.344981374999996,
+  "usage": {
+    "prompt_tokens": 7829,
+    "completion_tokens": 2580,
+    "total_tokens": 10409,
+    "cost": 0.002697105,
+    "is_byok": false,
+    "prompt_tokens_details": {
+      "cached_tokens": 187,
+      "audio_tokens": 0,
+      "video_tokens": 0
+    },
+    "cost_details": {
+      "upstream_inference_cost": null,
+      "upstream_inference_prompt_cost": 0,
+      "upstream_inference_completions_cost": 0
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 2101,
+      "image_tokens": 0
+    },
+    "cache_creation_input_tokens": 0,
+    "market_cost": 0.002697105,
+    "gateway_cost": 0.002697105
+  },
+  "text": "```json\n{\"ranking\": [\"C4\", \"C3\", \"C1\", \"C2\"]}\n```\n\n**Reasoning:**\n\n- **C4 (best):** Already leads at iteration 500 (task_score 7.45, max 8.10) and is climbing fastest (~+1.0/50 iters vs C3's ~+0.55). Its reward keeps a live gradient where it matters: `tanh(v/10)` is far less saturated than C2/C3's `tanh(v/6)`, and the `high_speed_bonus` ramp (5\u219214 m/s) supplies constant pressure well past the typical 5\u20136 m/s plateau. Crucially, its posture shaping is nearly inert (upright weight 0.15, tilt penalty only below up_z=0.4, mild control/lateral/roll-pitch costs, soft joint-limit term), so nothing structurally caps an aggressive forward-lean sprint gait \u2014 exactly what maximizes forward progress.\n\n- **C3 (second):** Strong structure (surge ramp from 2.5\u21929.5 m/s, body-frame speed term) and good upward trend (7.21 @500), but its `upright_reward = 0.6\u00b7exp((up_z\u22121)/0.3)` is very sensitive to leaning (log shows up_z \u2248 0.98, i.e. the ant is held near perfectly upright), which resists the pitched, fast gait; the surge term also saturates at 9.5 m/s, so late-training pressure fades.\n\n- **C1 (third):** Reasonable but the `tanh(v/3)` speed bonus is effectively dead above ~6 m/s, the 9 m/s Gaussian tracking term contributes almost no gradient at achievable speeds, and the growing `lateral_drift` penalty plus hinge tilt penalty add drag (task_score 6.38 @500, plateauing trend).\n\n- **C2 (worst):** Weakest speed signal overall \u2014 `0.6\u00b7tanh(v/6)` saturates early, the clipped linear term is the only sustained pressure, there is no high-speed incentive term at all, and it carries a survival bonus + tilt cost that cap aggression (5.98 @500, slowest climb)."
+}

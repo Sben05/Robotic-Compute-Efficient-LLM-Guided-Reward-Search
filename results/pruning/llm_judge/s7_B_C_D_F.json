@@ -1,0 +1,40 @@
+{
+  "set": {
+    "seed": 7,
+    "order": [
+      "B_round2c1_10.75",
+      "C_pool_c3_10.73",
+      "D_live2_r2c2_10.43",
+      "F_live2_r2c3_9.61_winner"
+    ],
+    "id": "s7_B_C_D_F"
+  },
+  "attempts": 1,
+  "errors": [],
+  "seconds": 79.111063167,
+  "usage": {
+    "prompt_tokens": 7060,
+    "completion_tokens": 10570,
+    "total_tokens": 17630,
+    "cost": 0.00737589,
+    "is_byok": false,
+    "prompt_tokens_details": {
+      "cached_tokens": 186,
+      "audio_tokens": 0,
+      "video_tokens": 0
+    },
+    "cost_details": {
+      "upstream_inference_cost": null,
+      "upstream_inference_prompt_cost": 0,
+      "upstream_inference_completions_cost": 0
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 10069,
+      "image_tokens": 0
+    },
+    "cache_creation_input_tokens": 0,
+    "market_cost": 0.00737589,
+    "gateway_cost": 0.00737589
+  },
+  "text": "```json\n{\"ranking\": [\"C3\", \"C4\", \"C1\", \"C2\"]}\n```\n\n**Reasoning:**\n\n- **C3 (best):** Already the clear leader (task_score 7.29 @ iter 500, rising steadily) and its reward has the strongest, most durable speed gradient: a dominant clipped\u2011linear term (3.0\u00b7vx/12) that still pays out up to 12 m/s, an extra raw linear term (0.5\u00b7vx), and a sprint bonus that only switches on above 5 m/s. All regularizers are small (joint\u2011vel cost half of C4's, no aggressive lateral/ang\u2011vel caps), so nothing fights the speed objective. It also couples posture to speed via `run_quality`, so it should keep improving late in training.\n\n- **C4 (2nd):** Higher task_score than C1 at iteration 500 (6.38 vs 5.98) and still has a strong gradient: the Gaussian tracking term toward 9 m/s is far from its peak (component \u22481.2 of 2.0), so it keeps pushing hard for a long while. Its drawbacks (joint\u2011velocity, ang\u2011vel and lateral hinge penalties, plus the tracking term becoming non\u2011monotonic past 9 m/s) likely cap its asymptote somewhat, and the last 100 iterations show flattening, but it starts ahead of C1 and has denser shaping.\n\n- **C1 (3rd):** Sensible design (unbounded 0.2\u00b7vx linear push, small regularizers, alive bonus) but the speed gradient is weak \u2014 tanh(v/6) contributes only ~0.02\u20130.06 per m/s at 6 m/s, so the reward mostly acts like a near\u2011constant \"run forward\" signal. Its learning curve rises steadily but from a lower base and with a smaller effective speed push, so it is unlikely to overtake C4.\n\n- **C2 (worst):** Lowest task_score (5.25) and slowest early learning; the uprightness\u2011gated linear speed reward is unnormalized and provides essentially no posture/stability shaping, so the ant must discover balance slowly and has little incentive structure beyond raw vx. The absent regularization also makes late\u2011training falls (which zero out the gated reward) more likely, capping its final speed below the others."
+}

@@ -1,0 +1,40 @@
+{
+  "set": {
+    "seed": 8,
+    "order": [
+      "C_pool_c3_10.73",
+      "A_round2c0_10.93",
+      "D_live2_r2c2_10.43",
+      "B_round2c1_10.75"
+    ],
+    "id": "s8_A_B_C_D"
+  },
+  "attempts": 1,
+  "errors": [],
+  "seconds": 27.96933737500001,
+  "usage": {
+    "prompt_tokens": 6745,
+    "completion_tokens": 3675,
+    "total_tokens": 10420,
+    "cost": 0.00310281,
+    "is_byok": false,
+    "prompt_tokens_details": {
+      "cached_tokens": 844,
+      "audio_tokens": 0,
+      "video_tokens": 0
+    },
+    "cost_details": {
+      "upstream_inference_cost": null,
+      "upstream_inference_prompt_cost": 0,
+      "upstream_inference_completions_cost": 0
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 3012,
+      "image_tokens": 0
+    },
+    "cache_creation_input_tokens": 0,
+    "market_cost": 0.00310281,
+    "gateway_cost": 0.00310281
+  },
+  "text": "{\"ranking\": [\"C1\", \"C3\", \"C4\", \"C2\"]}\n\n**Reasoning:**\n\n- **Task score \u2248 forward velocity (m/s)** \u2014 verified by back-computing speed from each candidate's components (e.g., C3's `linear_speed` = 3.14 \u2192 v \u2248 6.28 m/s, matching `task_score` 6.27; C2's `tanh(v/10)` = 0.50 \u2192 v \u2248 5.5, matching 5.61).\n\n- **At iteration 500:** C1 (7.18) > C3 (6.27) > C4 (6.01) > C2 (5.61). The gap between C1 and the rest (~1 m/s) is already meaningful.\n\n- **Gradient w.r.t. speed (the key driver of further improvement):**\n  - **C1:** `v_x * uprightness` \u2192 dR/dv \u2248 0.9\u20131.0 m/s, *unbounded* and unsaturated. No speed caps anywhere; the only other terms (upright bonus, negligible action/dof-vel penalties) barely regularize. This is nearly a pure linear-velocity reward, the classic recipe for very high final Ant speeds, and it keeps pushing indefinitely.\n  - **C3:** ~0.85 m/s at 6 m/s (3/12 clipped-linear + 0.5 raw linear + tanh/quality/sprint terms), but *every* term saturates: `speed_norm` at 12 m/s, sprint at 12 m/s, raw linear at 15 m/s, tanh terms effectively flat above ~10 m/s. Also carries extra penalties (joint-vel cost, action cost, fall penalty, heading align) that eat into the speed pressure.\n  - **C4:** `0.6*tanh(v/6)` (nearly saturated at 6 m/s) + `0.2*v` \u2192 only ~0.24 m/s of pressure, plus a control penalty of 0.01\u00b7\u03a3a\u00b2. Will improve, but slowly.\n  - **C2:** `tanh(v/10)` + a bonus that linearly ramps only 5\u219214 m/s then saturates \u2192 ~0.08 m/s of pressure above 6 m/s. Essentially the same ~6 m/s plateau its own log shows; the \"high-speed bonus\" barely breaks the plateau.\n\n- **Robustness:** C1's uprightness gate prevents the classic tumble exploit (upside-down \u21d2 reward \u2192 0), and C3's fall/height penalty is a comparable safeguard. C1's very small action/dof-velocity penalties won't cap an aggressive gait.\n\n- **Failure modes to rule out:** C2's tanh saturation (already visible in its flattening curve), C4's high control-cost weight relative to its speed signal, C3's multi-term saturation. C1 has no such ceiling.\n\nTherefore: **C1** should end highest (likely well above 10 m/s), with **C3** second, **C4** third, and **C2** last."
+}

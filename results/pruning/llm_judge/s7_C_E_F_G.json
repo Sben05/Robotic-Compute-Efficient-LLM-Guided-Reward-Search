@@ -1,0 +1,40 @@
+{
+  "set": {
+    "seed": 7,
+    "order": [
+      "C_pool_c3_10.73",
+      "F_live2_r2c3_9.61_winner",
+      "E_live2_r1c3_9.62",
+      "G_live1_r2c0_9.29_winner"
+    ],
+    "id": "s7_C_E_F_G"
+  },
+  "attempts": 1,
+  "errors": [],
+  "seconds": 107.106539167,
+  "usage": {
+    "prompt_tokens": 6974,
+    "completion_tokens": 14675,
+    "total_tokens": 21649,
+    "cost": 0.00968613,
+    "is_byok": false,
+    "prompt_tokens_details": {
+      "cached_tokens": 1222,
+      "audio_tokens": 0,
+      "video_tokens": 0
+    },
+    "cost_details": {
+      "upstream_inference_cost": null,
+      "upstream_inference_prompt_cost": 0,
+      "upstream_inference_completions_cost": 0
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 14246,
+      "image_tokens": 0
+    },
+    "cache_creation_input_tokens": 0,
+    "market_cost": 0.00968613,
+    "gateway_cost": 0.00968613
+  },
+  "text": "**Analysis:**\n\n- **C4** is already far ahead (task_score 7.21 at iter 450, vs 6.38/5.69/5.25) and is still improving at ~+0.5 per 50 iters. Its reward is well\u2011conditioned for high speed: the wide\u2011temperature tanh (T=6), the constant\u2011gradient \"surge\" ramp (2.5\u21929.5 m/s), the correct body\u2011up axis, and the heading term keep the ant pointed down +x while still pushing for higher speeds. The only downside is a soft ceiling around ~10\u201313 m/s, which it has not yet reached.\n- **C2** has a strong tracking term (target 9 m/s) and is well designed, but its tanh(T=3) term saturates and the Gaussian tracking term's gradient vanishes at 9 m/s, so its growth is already stalling (+0.35, +0.11 over the last 100 iters); its effective speed equilibrium is ~9\u201310 m/s \u2014 above C1/C3 but likely below C4.\n- **C3** is hurt by a quaternion\u2011ordering bug (`quat` is read as w,x,y,z although it is x,y,z,w), which kills the body\u2011frame term (logs ~0.00) and turns the \"upright\" term into a yaw/pitch penalty. It trains slower (+0.2/50) and plateaus.\n- **C1** multiplies speed by uprightness, so the reward gradient w.r.t. tilt (\u22480.5\u00b7v) dominates the gradient w.r.t. speed (\u22481.0). The ant is incentivized to stay flat rather than run, producing the slowest, most plateauing curve (5.25 at iter 450).\n\n**Prediction:** C4 > C2 > C3 > C1\n\n```json\n{\"ranking\": [\"C4\", \"C2\", \"C3\", \"C1\"]}\n```"
+}

@@ -1,0 +1,40 @@
+{
+  "set": {
+    "seed": 9,
+    "order": [
+      "G_live1_r2c0_9.29_winner",
+      "C_pool_c3_10.73",
+      "F_live2_r2c3_9.61_winner",
+      "E_live2_r1c3_9.62"
+    ],
+    "id": "s9_C_E_F_G"
+  },
+  "attempts": 1,
+  "errors": [],
+  "seconds": 83.3480354159999,
+  "usage": {
+    "prompt_tokens": 6985,
+    "completion_tokens": 11813,
+    "total_tokens": 18798,
+    "cost": 0.00809289,
+    "is_byok": false,
+    "prompt_tokens_details": {
+      "cached_tokens": 316,
+      "audio_tokens": 0,
+      "video_tokens": 0
+    },
+    "cost_details": {
+      "upstream_inference_cost": null,
+      "upstream_inference_prompt_cost": 0,
+      "upstream_inference_completions_cost": 0
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 11331,
+      "image_tokens": 0
+    },
+    "cache_creation_input_tokens": 0,
+    "market_cost": 0.00809289,
+    "gateway_cost": 0.00809289
+  },
+  "text": "{\"ranking\": [\"C2\", \"C3\", \"C1\", \"C4\"]}\n\n**Reasoning:**\n\n- **C2 (best):** Its speed term is essentially *linear in world\u2011frame v_x* (gated only by a near\u2011constant uprightness factor \u22480.96), with almost negligible action/dof\u2011velocity penalties. So the per\u2011m/s reward gradient stays ~0.9\u20131.0 all the way up, with **no built\u2011in speed ceiling**. Current v_x \u2248 7.3 m/s and still climbing; the ant keeps being paid for every extra m/s and there is no term that starts fighting it.\n\n- **C3 (second):** Rich shaping and the best early progress (task_score 7.54 at iter 500, v_x \u2248 7.5 m/s), with a linear term plus a Gaussian tracking bonus toward 9 m/s. However, the tracking term *peaks* at 9 m/s and turns into a negative gradient beyond ~9.7 m/s, and the quadratic joint\u2011velocity/action/angular penalties grow with sprint intensity \u2014 effectively capping the top speed below what C2's uncapped linear term would push for. Great learning speed, but a lower asymptote.\n\n- **C1 (third):** The main speed terms are heavily saturated (tanh with temperature 6.0 gives only ~0.12/m/s gradient at 5.6 m/s), and the \"surge\" ramp flattens at 9.5 m/s. Combined with several quadratic regularizers, the speed gradient nearly vanishes \u2192 plateau early. It does have sensible survival/heading shaping (correct quaternion convention), which keeps it ahead of C4.\n\n- **C4 (worst):** Although the linear `forward_speed` weight is strong, it (i) misinterprets the root quaternion (treats (x,y,z,w) as (w,x,y,z)), so its \"upright\" term is actually a heading-like measure and offers no real anti\u2011fall incentive, (ii) has a torso\u2011height Gaussian at 0.5 m that fights a sprinting gait, and (iii) shows `body_forward \u2248 0` (no body\u2011frame speed signal). Slowest task_score growth and a constrained ceiling."
+}

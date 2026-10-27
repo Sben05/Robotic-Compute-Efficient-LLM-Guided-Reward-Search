@@ -1,0 +1,40 @@
+{
+  "set": {
+    "seed": 8,
+    "order": [
+      "C_pool_c3_10.73",
+      "G_live1_r2c0_9.29_winner",
+      "F_live2_r2c3_9.61_winner",
+      "E_live2_r1c3_9.62"
+    ],
+    "id": "s8_C_E_F_G"
+  },
+  "attempts": 1,
+  "errors": [],
+  "seconds": 40.46621291600002,
+  "usage": {
+    "prompt_tokens": 6985,
+    "completion_tokens": 5785,
+    "total_tokens": 12770,
+    "cost": 0.00435324,
+    "is_byok": false,
+    "prompt_tokens_details": {
+      "cached_tokens": 1226,
+      "audio_tokens": 0,
+      "video_tokens": 0
+    },
+    "cost_details": {
+      "upstream_inference_cost": null,
+      "upstream_inference_prompt_cost": 0,
+      "upstream_inference_completions_cost": 0
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 5098,
+      "image_tokens": 0
+    },
+    "cache_creation_input_tokens": 0,
+    "market_cost": 0.00435324,
+    "gateway_cost": 0.00435324
+  },
+  "text": "## Analysis\n\n**Key diagnostic \u2014 is the reward still \"alive\" at high speed?** (i.e., does it still pay for more speed?)\n\n| | Speed-gradient mechanism at current speed | Marginal pull per extra m/s |\n|---|---|---|\n| **C1** | `1.0 \u00b7 v_x \u00b7 uprightness` \u2014 **purely linear, never saturates** | \u2248 **1.0 / (m/s)** |\n| **C2** | `1.5\u00b7tanh(v/6)` (saturating) + surge ramp capped at 9.5 m/s + small body term | \u2248 0.29 / (m/s), \u2192 ~0 beyond ~10 m/s |\n| **C3** | `0.2\u00b7v` (linear) + `2\u00b7exp(\u2212((v\u22129)/3.5)\u00b2)` tracking bump + small tanh | \u2248 0.7 / (m/s), persists up to ~9 m/s |\n| **C4** | `1.0\u00b7v` linear but + wrong quaternion convention ((w,x,y,z) read from an (x,y,z,w) buffer) \u2192 upright/heading/body-axis terms are garbage (body_forward \u2248 0.01) | \u2248 1.0 but shaping is mis-specified |\n\n**Observed progress (task_score @ iter 500):** C1 = 7.18 (max 7.56) \u226b C2 = 5.98 \u2248 C3 = 5.69 > C4 = 4.54.\n\n- **C1** is far ahead *and* still climbing with the strongest, unsaturated gradient; its uprightness gate only removes credit when the torso actually flips, so it keeps a constant incentive to accelerate. The log shows forward speed \u2248 7 m/s with the upright bonus still near maximum (0.24/0.25) \u2014 the gait is stable, not a fall-and-slide exploit. Straightforward projection: it keeps accelerating past 9\u201310 m/s by iter 3,000.\n- **C3** has the second-best speed landscape: the linear term plus the 9 m/s tracking bump keeps gradient alive where C2's tanh/surge terms have already flattened (C2's speed term is already at 1.10/1.50 of its ceiling at iter 500, and its surge ramp clamps out at 9.5 m/s). C3's slightly smaller lateral/tilt penalties are more than compensated by its persistent speed gradient, so it should close the small gap to C2 and overtake it.\n- **C2** is a well-formed but *saturating* design: everything speed-related flattens near 8\u201310 m/s, and it carries extra lateral/vertical/angular regularizers plus a heading term that further blunt aggression. It plateaus lower than C3 over the long horizon.\n- **C4** is last: its linear speed term is the only thing that works, the quaternion-order bug makes upright/heading/height shaping meaningless, the extra joint-velocity penalty grows quadratically with gait speed, and it trails by >2.5 m/s at iter 500.\n\n```json\n{\"ranking\": [\"C1\", \"C3\", \"C2\", \"C4\"]}\n```"
+}
