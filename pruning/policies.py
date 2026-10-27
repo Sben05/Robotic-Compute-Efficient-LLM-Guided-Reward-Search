@@ -193,3 +193,38 @@ def rule_voi(lam, horizon=500, M=96):
         return {i for k, i in enumerate(active)
                 if k != lead and np.maximum(d[:, k] - d[:, lead], 0).mean() < lam * horizon / T}
     return rule
+
+
+def orso(W, lib, rng, algo="d3rb", chunk=30, budget=0.4, scale=12.0, c=1.0, eta=0.1):
+    """ORSO-style online reward selection (Zhang et al., ICLR 2025), rebuilt from the paper's description: training proceeds in
+    fixed chunks (1% of a full run); before each chunk a model-selection rule picks which candidate to train; the feedback is the
+    candidate's CURRENT task score (raw, not best-so-far) after the chunk, scaled to [0, 1]. Stops when `budget` (fraction of
+    training every candidate fully) is spent, then the candidate with the highest current score is finished.
+    algo = "d3rb" (data-driven regret balancing: play argmin d_i*sqrt(n_i); double d_i when its optimistic mean falls below the
+    best pessimistic mean) or "exp3"."""
+    N = W.N
+    n = np.zeros(N); u = np.zeros(N); d = np.ones(N); w = np.zeros(N); last = np.zeros(N)
+    for i in range(N):  # one chunk each to initialise
+        W.advance(i, chunk)
+        last[i] = W._raw[i, W.prog[i] - 1] / scale
+        n[i] += 1; u[i] += last[i]
+    while W.cost < budget * N * T:
+        live = [i for i in range(N) if W.prog[i] < T]
+        if not live:
+            break
+        if algo == "d3rb":
+            i = min(live, key=lambda k: d[k] * np.sqrt(n[k]))
+        else:
+            p = np.exp(eta * (w[live] - w[live].max())); p = (1 - eta) * p / p.sum() + eta / len(live)
+            i = live[int(rng.choice(len(live), p=p))]
+        W.advance(i, W.prog[i] + chunk)
+        r = W._raw[i, W.prog[i] - 1] / scale
+        last[i] = r; n[i] += 1; u[i] += r
+        if algo == "d3rb":
+            lcb = max(u[k] / n[k] - c * np.sqrt(np.log(1 + n.sum()) / n[k]) for k in range(N))
+            if u[i] / n[i] + d[i] * np.sqrt(n[i]) / n[i] < lcb:
+                d[i] *= 2
+        else:
+            pi = (1 - eta) * np.exp(eta * (w[i] - w[live].max())) / np.exp(eta * (w[live] - w[live].max())).sum() + eta / len(live)
+            w[i] += r / pi
+    return int(np.argmax([W.at(i) for i in range(N)]))

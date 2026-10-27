@@ -37,6 +37,9 @@ def build():
     for lam in (0.2, 0.5, 1.0, 2.0, 4.0):
         for t0 in (100, 250, 500):
             CFG.append(("MPC (receding horizon)", f"MPC lam={lam} t0={t0}", P.race, dict(rule=P.rule_mpc(lam), t0=t0)))
+    for algo in ("d3rb", "exp3"):
+        for b in (0.2, 0.3, 0.4, 0.5, 0.6):
+            CFG.append((f"ORSO ({algo}, post-hoc baseline)", f"ORSO {algo} budget={b}", P.orso, dict(algo=algo, budget=b)))
     for d in (0.05, 0.2, 0.4):
         for b in (0.2, 0.35, 0.5):
             CFG.append(("Thompson BAI (TTTS)", f"TTTS delta={d} budget={b}", P.ttts, dict(delta=d, budget=b)))
