@@ -1,0 +1,47 @@
+{
+  "model_used": "minimax/minimax-m3.1-flash",
+  "provider": "vercel ai gateway",
+  "arm": "B_batch4",
+  "call": 2,
+  "function": 4,
+  "functions_in_reply": 4,
+  "usage": {
+    "prompt_tokens": 1267,
+    "completion_tokens": 18991,
+    "total_tokens": 20258,
+    "cost": 0.01141374,
+    "is_byok": false,
+    "prompt_tokens_details": {
+      "cached_tokens": 1266,
+      "audio_tokens": 0,
+      "video_tokens": 0
+    },
+    "cost_details": {
+      "upstream_inference_cost": null,
+      "upstream_inference_prompt_cost": 0,
+      "upstream_inference_completions_cost": 0
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 16602,
+      "image_tokens": 0
+    },
+    "cache_creation_input_tokens": 0,
+    "market_cost": 0.01141374,
+    "gateway_cost": 0.01141374
+  },
+  "finish_reason": "stop",
+  "generation_seconds": 135.761864900589,
+  "response_text": "```python\n\nimport torch\nfrom typing import Dict, Tuple\n\n\n@torch.jit.script\ndef compute_reward(root_states: torch.Tensor, dof_pos: torch.Tensor,\n                     dof_limits_lower: torch.Tensor, dof_limits_upper: torch.Tensor,\n                     actions: torch.Tensor) -> Tuple[torch.Tensor, Dict[str, torch.Tensor]]:\n    \"\"\"\n    Variant 4 - Survival + exponential speed with posture / joint-limit shaping.\n    The agent gets a constant \"alive\" bonus (so it learns not to flip over),\n    an exponentially increasing reward for forward speed, an upright bonus and\n    penalties for collapsing (torso too low) and for pushing the joints past\n    their limits, plus a small motor-control cost.\n    \"\"\"\n    vel_temp: float = 5.0        # temperature of the exponential speed reward\n    alive_bonus: float = 1.0\n    upright_coeff: float = 1.0\n    height_coeff: float = 3.0    # penalty for dropping the torso\n    limit_coeff: float = 0.5     # penalty for exceeding joint limits\n    ctrl_coeff: float = 0.005\n    min_height: float = 0.3\n\n    lin_vel = root_states[:, 7:10]\n    torso_z = root_states[:, 2]\n    fwd_vel = lin_vel[:, 0]\n\n    run_reward = torch.exp(torch.clamp(fwd_vel, min=-1.0, max=12.0) / vel_temp)\n    alive = torch.ones_like(fwd_vel) * alive_bonus\n\n    # torso uprightness from quaternion\n    qx = root_states[:, 4]\n    qy = root_states[:, 5]\n    up_z = 1.0 - 2.0 * (qx * qx + qy * qy)\n    upright = torch.clamp(up_z, min=0.0, max=1.0)\n\n    # collapsing / falling penalty\n    fall_pen = torch.clamp(min_height - torso_z, min=0.0)\n\n    # joint limit violation penalty\n    lower_viol = torch.clamp(dof_limits_lower - dof_pos, min=0.0)\n    upper_viol = torch.clamp(dof_pos - dof_limits_upper, min=0.0)\n    limit_pen = torch.sum(lower_viol + upper_viol, dim=-1)\n\n    ctrl_cost = torch.sum(torch.square(actions), dim=-1)\n\n    total = (run_reward\n             + alive\n             + upright_coeff * upright\n             - height_coeff * fall_pen\n             - limit_coeff * limit_pen\n             - ctrl_coeff * ctrl_cost)\n    return total, {\"run_speed\": run_reward, \"alive\": alive, \"upright\": upright,\n                   \"fall_pen\": fall_pen, \"limit_pen\": limit_pen, \"ctrl_cost\": ctrl_cost}\n\n```",
+  "validation": {
+    "valid": true,
+    "suffix": "GPTMHBbatch4call2f4",
+    "environment_call": "compute_reward(self.root_states, self.dof_pos, self.dof_limits_lower, self.dof_limits_upper, self.actions)",
+    "inputs": [
+      "root_states",
+      "dof_pos",
+      "dof_limits_lower",
+      "dof_limits_upper",
+      "actions"
+    ]
+  }
+}

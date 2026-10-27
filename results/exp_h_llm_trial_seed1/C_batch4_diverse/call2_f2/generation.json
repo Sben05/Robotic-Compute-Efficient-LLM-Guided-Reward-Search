@@ -1,0 +1,47 @@
+{
+  "model_used": "minimax/minimax-m3.1-flash",
+  "provider": "vercel ai gateway",
+  "arm": "C_batch4_diverse",
+  "call": 2,
+  "function": 2,
+  "functions_in_reply": 4,
+  "usage": {
+    "prompt_tokens": 1367,
+    "completion_tokens": 12719,
+    "total_tokens": 14086,
+    "cost": 0.00765204,
+    "is_byok": false,
+    "prompt_tokens_details": {
+      "cached_tokens": 1366,
+      "audio_tokens": 0,
+      "video_tokens": 0
+    },
+    "cost_details": {
+      "upstream_inference_cost": null,
+      "upstream_inference_prompt_cost": 0,
+      "upstream_inference_completions_cost": 0
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 10715,
+      "image_tokens": 0
+    },
+    "cache_creation_input_tokens": 0,
+    "market_cost": 0.00765204,
+    "gateway_cost": 0.00765204
+  },
+  "finish_reason": "stop",
+  "generation_seconds": 77.89852786064148,
+  "response_text": "```python\n\nimport torch\nfrom typing import Dict, Tuple\n\n@torch.jit.script\ndef compute_reward(root_states: torch.Tensor,\n                     up_vec: torch.Tensor,\n                     dof_vel: torch.Tensor,\n                     dof_vel_scale: float,\n                     actions: torch.Tensor) -> Tuple[torch.Tensor, Dict[str, torch.Tensor]]:\n    # ---------------- kinematics / posture ----------------\n    lin_vel = root_states[:, 7:10]\n    forward_vel = lin_vel[:, 0]\n    upright = up_vec[:, 2]                 # +1 upright, 0 on its side, -1 upside down\n\n    # ---------------- posture gate ----------------\n    # Smooth sigmoid gate: only an (almost) upright torso collects the speed\n    # reward, so tumbling/flipping can never be rewarded.\n    gate_temp = 0.15\n    upright_gate = torch.sigmoid((upright - 0.6) / gate_temp)\n\n    gated_speed = forward_vel * upright_gate\n    vel_soft_cap = 8.0\n    speed_reward = vel_soft_cap * torch.tanh(gated_speed / vel_soft_cap)\n\n    # ---------------- tumbling penalties ----------------\n    tumble_penalty = torch.relu(0.4 - upright)   # not standing -> negative\n    flip_penalty = torch.relu(-upright)          # upside down -> extra negative\n\n    # ---------------- small regularisers ----------------\n    ctrl_cost = torch.sum(torch.square(actions), dim=1)\n    dof_vel_cost = torch.sum(torch.square(dof_vel * dof_vel_scale), dim=1)\n\n    speed_weight = 1.0\n    posture_bonus_weight = 0.1\n    tumble_weight = 1.0\n    flip_weight = 0.5\n    ctrl_weight = 0.01\n    dof_vel_weight = 0.0005\n\n    total = (speed_weight * speed_reward\n             + posture_bonus_weight * torch.relu(upright - 0.5)\n             - tumble_weight * tumble_penalty\n             - flip_weight * flip_penalty\n             - ctrl_weight * ctrl_cost\n             - dof_vel_weight * dof_vel_cost)\n\n    components = {\n        \"gated_forward_speed\": speed_weight * speed_reward,\n        \"upright_gate\": upright_gate,\n        \"posture_bonus\": posture_bonus_weight * torch.relu(upright - 0.5),\n        \"tumble_penalty\": -tumble_weight * tumble_penalty,\n        \"flip_penalty\": -flip_weight * flip_penalty,\n        \"control_cost\": -ctrl_weight * ctrl_cost,\n        \"dof_velocity_cost\": -dof_vel_weight * dof_vel_cost,\n    }\n    return total, components\n\n```",
+  "validation": {
+    "valid": true,
+    "suffix": "GPTMHCbatch4diversecall2f2",
+    "environment_call": "compute_reward(self.root_states, self.up_vec, self.dof_vel, self.dof_vel_scale, self.actions)",
+    "inputs": [
+      "root_states",
+      "up_vec",
+      "dof_vel",
+      "dof_vel_scale",
+      "actions"
+    ]
+  }
+}

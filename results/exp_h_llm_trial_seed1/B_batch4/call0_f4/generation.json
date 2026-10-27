@@ -1,0 +1,46 @@
+{
+  "model_used": "minimax/minimax-m3.1-flash",
+  "provider": "vercel ai gateway",
+  "arm": "B_batch4",
+  "call": 0,
+  "function": 4,
+  "functions_in_reply": 4,
+  "usage": {
+    "prompt_tokens": 1267,
+    "completion_tokens": 16319,
+    "total_tokens": 17586,
+    "cost": 0.009956205,
+    "is_byok": false,
+    "prompt_tokens_details": {
+      "cached_tokens": 187,
+      "audio_tokens": 0,
+      "video_tokens": 0
+    },
+    "cost_details": {
+      "upstream_inference_cost": null,
+      "upstream_inference_prompt_cost": 0,
+      "upstream_inference_completions_cost": 0
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 13491,
+      "image_tokens": 0
+    },
+    "cache_creation_input_tokens": 0,
+    "market_cost": 0.009956205,
+    "gateway_cost": 0.009956205
+  },
+  "finish_reason": "stop",
+  "generation_seconds": 124.88630104064941,
+  "response_text": "```python\n\nimport torch\nfrom typing import Dict, Tuple\n\n\n@torch.jit.script\ndef compute_reward(root_states: torch.Tensor, targets: torch.Tensor,\n                     actions: torch.Tensor,\n                     dof_vel: torch.Tensor) -> Tuple[torch.Tensor, Dict[str, torch.Tensor]]:\n    \"\"\"Goal-directed straight running: speed towards the target direction, heading alignment,\n       upright bonus and penalties for spinning / large control effort.\"\"\"\n\n    quat = root_states[:, 3:7]\n    q_vec = quat[:, 0:3]\n    q_w = quat[:, 3]\n\n    fwd = torch.zeros_like(q_vec)\n    fwd[:, 0] = 1.0\n    cross_qf = torch.cross(q_vec, fwd, dim=-1)\n    fwd_world = fwd + 2.0 * q_w.unsqueeze(-1) * cross_qf + 2.0 * torch.cross(q_vec, cross_qf, dim=-1)\n\n    up = torch.zeros_like(q_vec)\n    up[:, 2] = 1.0\n    cross_qu = torch.cross(q_vec, up, dim=-1)\n    up_world = up + 2.0 * q_w.unsqueeze(-1) * cross_qu + 2.0 * torch.cross(q_vec, cross_qu, dim=-1)\n\n    fwd_h = fwd_world.clone()\n    fwd_h[:, 2] = 0.0\n    fwd_h = fwd_h / torch.clamp(torch.norm(fwd_h, p=2, dim=-1, keepdim=True), min=1.0e-6)\n\n    vel = root_states[:, 7:10]\n    vel_h = vel.clone()\n    vel_h[:, 2] = 0.0\n\n    pos = root_states[:, 0:3]\n    to_target = targets - pos\n    to_target[:, 2] = 0.0\n    dist = torch.norm(to_target, p=2, dim=-1, keepdim=True)\n    dir_target = (to_target / torch.clamp(dist, min=1.0e-6)).squeeze(-1)   # (N, 3)\n\n    forward_speed = torch.sum(vel_h * fwd_h, dim=-1)\n    speed_target = torch.sum(vel_h * dir_target, dim=-1)\n    align = torch.sum(fwd_h * dir_target, dim=-1)\n    upright = torch.clamp(up_world[:, 2], min=-1.0, max=1.0)\n\n    ang_vel = root_states[:, 10:13]\n    yaw_rate = ang_vel[:, 2]\n    ctrl_cost = torch.sum(actions * actions, dim=-1)\n    joint_cost = torch.sum(dof_vel * dof_vel, dim=-1)\n\n    temp_speed: float = 3.0\n    speed_term = torch.tanh(speed_target / temp_speed)\n    forward_term = torch.tanh(forward_speed / temp_speed)\n\n    w_target_speed: float = 1.0\n    w_forward_speed: float = 0.5\n    w_align: float = 0.3\n    w_upright: float = 0.3\n    w_yaw: float = 0.02\n    w_ctrl: float = 0.005\n    w_joint: float = 0.0002\n\n    reward = (w_target_speed * speed_term\n              + w_forward_speed * forward_term\n              + w_align * align\n              + w_upright * upright\n              - w_yaw * yaw_rate * yaw_rate\n              - w_ctrl * ctrl_cost\n              - w_joint * joint_cost)\n\n    info: Dict[str, torch.Tensor] = {\"speed_target\": speed_target,\n                                     \"forward_speed\": forward_speed,\n                                     \"align\": align,\n                                     \"upright\": upright,\n                                     \"yaw_rate\": yaw_rate,\n                                     \"ctrl_cost\": ctrl_cost}\n    return reward, info\n\n```",
+  "validation": {
+    "valid": true,
+    "suffix": "GPTMHBbatch4call0f4",
+    "environment_call": "compute_reward(self.root_states, self.targets, self.actions, self.dof_vel)",
+    "inputs": [
+      "root_states",
+      "targets",
+      "actions",
+      "dof_vel"
+    ]
+  }
+}

@@ -1,0 +1,46 @@
+{
+  "model_used": "minimax/minimax-m3.1-flash",
+  "provider": "vercel ai gateway",
+  "arm": "C_batch4_diverse",
+  "call": 2,
+  "function": 4,
+  "functions_in_reply": 4,
+  "usage": {
+    "prompt_tokens": 1367,
+    "completion_tokens": 12719,
+    "total_tokens": 14086,
+    "cost": 0.00765204,
+    "is_byok": false,
+    "prompt_tokens_details": {
+      "cached_tokens": 1366,
+      "audio_tokens": 0,
+      "video_tokens": 0
+    },
+    "cost_details": {
+      "upstream_inference_cost": null,
+      "upstream_inference_prompt_cost": 0,
+      "upstream_inference_completions_cost": 0
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 10715,
+      "image_tokens": 0
+    },
+    "cache_creation_input_tokens": 0,
+    "market_cost": 0.00765204,
+    "gateway_cost": 0.00765204
+  },
+  "finish_reason": "stop",
+  "generation_seconds": 77.89852786064148,
+  "response_text": "```python\n\nimport torch\nfrom typing import Dict, Tuple\n\n@torch.jit.script\ndef compute_reward(root_states: torch.Tensor,\n                     targets: torch.Tensor,\n                     heading_vec: torch.Tensor,\n                     actions: torch.Tensor) -> Tuple[torch.Tensor, Dict[str, torch.Tensor]]:\n    # ---------------- kinematics ----------------\n    lin_vel = root_states[:, 7:10]\n    forward_vel = lin_vel[:, 0]\n\n    # ---------------- exponential shaping around a target speed ----------------\n    target_speed = 4.0\n    vel_temp = 2.0\n    speed_gap = torch.abs(forward_vel - target_speed) / vel_temp\n    speed_reward = torch.exp(-speed_gap)          # 1.0 exactly at target speed\n\n    # ---------------- heading alignment ----------------\n    # cosine between torso forward axis and horizontal direction to the target\n    pos = root_states[:, 0:3]\n    to_target = targets - pos\n    to_target = torch.stack((to_target[:, 0], to_target[:, 1],\n                             torch.zeros_like(to_target[:, 2])), dim=1)\n    dir_norm = torch.norm(to_target, p=2, dim=1).unsqueeze(1) + 1.0e-6\n    dir_to_target = to_target / dir_norm\n    head_norm = torch.norm(heading_vec, p=2, dim=1).unsqueeze(1) + 1.0e-6\n    head = heading_vec / head_norm\n    alignment = torch.sum(dir_to_target * head, dim=1)     # in [-1, 1]\n\n    # ---------------- regularisers ----------------\n    ctrl_cost = torch.sum(torch.square(actions), dim=1)\n\n    speed_weight = 1.0\n    align_weight = 0.3\n    ctrl_weight = 0.01\n\n    total = (speed_weight * speed_reward\n             + align_weight * alignment\n             - ctrl_weight * ctrl_cost)\n\n    components = {\n        \"speed_shaping\": speed_weight * speed_reward,\n        \"heading_alignment\": align_weight * alignment,\n        \"control_cost\": -ctrl_weight * ctrl_cost,\n    }\n    return total, components\n\n```",
+  "validation": {
+    "valid": true,
+    "suffix": "GPTMHCbatch4diversecall2f4",
+    "environment_call": "compute_reward(self.root_states, self.targets, self.heading_vec, self.actions)",
+    "inputs": [
+      "root_states",
+      "targets",
+      "heading_vec",
+      "actions"
+    ]
+  }
+}

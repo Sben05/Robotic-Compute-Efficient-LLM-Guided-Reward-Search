@@ -1,0 +1,48 @@
+{
+  "model_used": "minimax/minimax-m3.1-flash",
+  "provider": "vercel ai gateway",
+  "arm": "B_batch4",
+  "call": 1,
+  "function": 2,
+  "functions_in_reply": 4,
+  "usage": {
+    "prompt_tokens": 1267,
+    "completion_tokens": 19047,
+    "total_tokens": 20314,
+    "cost": 0.01144734,
+    "is_byok": false,
+    "prompt_tokens_details": {
+      "cached_tokens": 1266,
+      "audio_tokens": 0,
+      "video_tokens": 0
+    },
+    "cost_details": {
+      "upstream_inference_cost": null,
+      "upstream_inference_prompt_cost": 0,
+      "upstream_inference_completions_cost": 0
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 16578,
+      "image_tokens": 0
+    },
+    "cache_creation_input_tokens": 0,
+    "market_cost": 0.01144734,
+    "gateway_cost": 0.01144734
+  },
+  "finish_reason": "stop",
+  "generation_seconds": 138.23679780960083,
+  "response_text": "```python\n\nimport torch\nfrom typing import Dict, Tuple\n\n\n@torch.jit.script\ndef compute_reward(root_states: torch.Tensor,\n                     heading_vec: torch.Tensor,\n                     potentials: torch.Tensor,\n                     prev_potentials: torch.Tensor,\n                     up_vec: torch.Tensor,\n                     dt: float) -> Tuple[torch.Tensor, Dict[str, torch.Tensor]]:\n    \"\"\"\n    Reward 2 - potential based shaping + heading projected speed.\n\n      * potentials are stored as -dist/dt, therefore\n        (potentials - prev_potentials) * dt = distance gained towards the goal\n        this step -> dense progress (shaping) signal\n      * velocity projected on the heading (forward) direction gives the running speed\n      * uprightness bonus so the agent learns to run instead of falling forward\n    \"\"\"\n    # progress towards the goal this step (metres)\n    progress = (potentials - prev_potentials) * dt\n    progress_reward = torch.clamp(progress, min=-0.5, max=0.5)\n\n    # velocity projected on the heading direction\n    vel_xy = root_states[:, 7:9]\n    heading_xy = heading_vec[:, 0:2]\n    heading_xy = heading_xy / (torch.norm(heading_xy, p=2, dim=-1, keepdim=True) + 1.0e-6)\n    forward_speed = torch.sum(vel_xy * heading_xy, dim=-1)\n    speed_reward = torch.clamp(forward_speed, min=-1.0, max=10.0)\n\n    # upright bonus\n    upright_reward = torch.clamp(up_vec[:, 2], min=0.0, max=1.0)\n\n    total = 2.0 * progress_reward + speed_reward + 0.5 * upright_reward\n\n    components: Dict[str, torch.Tensor] = {\n        \"progress\": 2.0 * progress_reward,\n        \"forward_speed\": speed_reward,\n        \"upright\": upright_reward,\n    }\n    return total, components\n\n```",
+  "validation": {
+    "valid": true,
+    "suffix": "GPTMHBbatch4call1f2",
+    "environment_call": "compute_reward(self.root_states, self.heading_vec, self.potentials, self.prev_potentials, self.up_vec, self.dt)",
+    "inputs": [
+      "root_states",
+      "heading_vec",
+      "potentials",
+      "prev_potentials",
+      "up_vec",
+      "dt"
+    ]
+  }
+}

@@ -1,0 +1,46 @@
+{
+  "model_used": "minimax/minimax-m3.1-flash",
+  "provider": "vercel ai gateway",
+  "arm": "B_batch4",
+  "call": 1,
+  "function": 4,
+  "functions_in_reply": 4,
+  "usage": {
+    "prompt_tokens": 1267,
+    "completion_tokens": 19047,
+    "total_tokens": 20314,
+    "cost": 0.01144734,
+    "is_byok": false,
+    "prompt_tokens_details": {
+      "cached_tokens": 1266,
+      "audio_tokens": 0,
+      "video_tokens": 0
+    },
+    "cost_details": {
+      "upstream_inference_cost": null,
+      "upstream_inference_prompt_cost": 0,
+      "upstream_inference_completions_cost": 0
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 16578,
+      "image_tokens": 0
+    },
+    "cache_creation_input_tokens": 0,
+    "market_cost": 0.01144734,
+    "gateway_cost": 0.01144734
+  },
+  "finish_reason": "stop",
+  "generation_seconds": 138.23679780960083,
+  "response_text": "```python\n\nimport torch\nfrom typing import Dict, Tuple\n\n\n@torch.jit.script\ndef compute_reward(root_states: torch.Tensor,\n                     up_vec: torch.Tensor,\n                     actions: torch.Tensor,\n                     dt: float) -> Tuple[torch.Tensor, Dict[str, torch.Tensor]]:\n    \"\"\"\n    Reward 4 - body-frame running speed with exponential shaping / normalisation.\n\n      * the torso forward axis (body +x) is recovered from the root quaternion, so the\n        reward measures true \"running in the direction the ant faces\"\n      * speed term 1 - exp(-v / T) saturating speed reward (T = speed_temperature)\n      * speed term 2 - distance covered along the body forward axis during the step\n      * alive bonus (torso not lying on the ground) and upright bonus\n      * control effort penalty\n      * the whole reward is finally passed through exp(.) so it is bounded in (0, e^..]\n        while staying monotone in the running speed (T = reward_temperature)\n    \"\"\"\n    speed_temperature = 1.5\n    reward_temperature = 1.0\n\n    # body forward axis expressed in the world frame (quaternion xyzw)\n    q = root_states[:, 3:7]\n    qw = q[:, 3]\n    qx = q[:, 0]\n    qy = q[:, 1]\n    qz = q[:, 2]\n    f_x = 1.0 - 2.0 * (qy * qy + qz * qz)\n    f_y = 2.0 * (qw * qz + qx * qy)\n    f_z = 2.0 * (qx * qz - qw * qy)\n\n    vel = root_states[:, 7:10]\n    forward_speed = f_x * vel[:, 0] + f_y * vel[:, 1] + f_z * vel[:, 2]\n\n    # saturating speed reward\n    speed_reward = 1.0 - torch.exp(-forward_speed / speed_temperature)\n    # distance travelled along the body forward axis during this control step\n    distance_reward = forward_speed * dt\n\n    # upright bonus\n    upright_reward = torch.clamp(up_vec[:, 2], min=0.0, max=1.0)\n    # alive bonus: torso kept above the ground\n    alive_reward = torch.clamp(root_states[:, 2] - 0.2, min=0.0, max=1.0)\n    # control effort\n    energy_penalty = -0.002 * torch.sum(torch.square(actions), dim=-1)\n\n    raw_reward = (2.0 * speed_reward + 1.0 * distance_reward\n                  + 0.5 * upright_reward + 0.5 * alive_reward + energy_penalty)\n    total = torch.exp(raw_reward / reward_temperature)\n\n    components: Dict[str, torch.Tensor] = {\n        \"forward_speed\": 2.0 * speed_reward,\n        \"forward_distance\": distance_reward,\n        \"upright\": 0.5 * upright_reward,\n        \"alive\": 0.5 * alive_reward,\n        \"energy\": energy_penalty,\n        \"shaped_reward\": total,\n    }\n    return total, components\n\n```",
+  "validation": {
+    "valid": true,
+    "suffix": "GPTMHBbatch4call1f4",
+    "environment_call": "compute_reward(self.root_states, self.up_vec, self.actions, self.dt)",
+    "inputs": [
+      "root_states",
+      "up_vec",
+      "actions",
+      "dt"
+    ]
+  }
+}

@@ -1,0 +1,48 @@
+{
+  "model_used": "minimax/minimax-m3.1-flash",
+  "provider": "vercel ai gateway",
+  "arm": "C_batch4_diverse",
+  "call": 2,
+  "function": 3,
+  "functions_in_reply": 4,
+  "usage": {
+    "prompt_tokens": 1367,
+    "completion_tokens": 12719,
+    "total_tokens": 14086,
+    "cost": 0.00765204,
+    "is_byok": false,
+    "prompt_tokens_details": {
+      "cached_tokens": 1366,
+      "audio_tokens": 0,
+      "video_tokens": 0
+    },
+    "cost_details": {
+      "upstream_inference_cost": null,
+      "upstream_inference_prompt_cost": 0,
+      "upstream_inference_completions_cost": 0
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 10715,
+      "image_tokens": 0
+    },
+    "cache_creation_input_tokens": 0,
+    "market_cost": 0.00765204,
+    "gateway_cost": 0.00765204
+  },
+  "finish_reason": "stop",
+  "generation_seconds": 77.89852786064148,
+  "response_text": "```python\n\nimport torch\nfrom typing import Dict, Tuple\n\n@torch.jit.script\ndef compute_reward(potentials: torch.Tensor,\n                     prev_potentials: torch.Tensor,\n                     root_states: torch.Tensor,\n                     up_vec: torch.Tensor,\n                     actions: torch.Tensor,\n                     dt: float) -> Tuple[torch.Tensor, Dict[str, torch.Tensor]]:\n    # ---------------- potential-based progress ----------------\n    # potentials = -||target - pos|| / dt  ->  difference is the closing rate [m/s]\n    progress_rate = potentials - prev_potentials\n    progress_dist = progress_rate * dt            # signed distance closed this step [m]\n    progress_weight = 10.0\n    progress_reward = progress_weight * progress_dist\n\n    # ---------------- survival terms ----------------\n    upright = up_vec[:, 2]\n    alive = torch.ones_like(progress_dist)\n    survival_reward = 0.1 * alive * torch.clamp(upright, min=0.0)  # alive AND on its feet\n\n    # ---------------- small speed disambiguation ----------------\n    # (rewards sprinting rather than slow shuffling towards the target)\n    forward_vel = root_states[:, 7]\n    speed_reward = 0.2 * forward_vel\n\n    # ---------------- regularisers ----------------\n    ctrl_cost = torch.sum(torch.square(actions), dim=1)\n    ctrl_weight = 0.01\n\n    total = (progress_reward\n             + survival_reward\n             + speed_reward\n             - ctrl_weight * ctrl_cost)\n\n    components = {\n        \"progress\": progress_reward,\n        \"survival\": survival_reward,\n        \"forward_speed\": speed_reward,\n        \"control_cost\": -ctrl_weight * ctrl_cost,\n    }\n    return total, components\n\n```",
+  "validation": {
+    "valid": true,
+    "suffix": "GPTMHCbatch4diversecall2f3",
+    "environment_call": "compute_reward(self.potentials, self.prev_potentials, self.root_states, self.up_vec, self.actions, self.dt)",
+    "inputs": [
+      "potentials",
+      "prev_potentials",
+      "root_states",
+      "up_vec",
+      "actions",
+      "dt"
+    ]
+  }
+}

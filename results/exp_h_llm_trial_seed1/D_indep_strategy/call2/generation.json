@@ -1,0 +1,48 @@
+{
+  "model_used": "minimax/minimax-m3.1-flash",
+  "provider": "vercel ai gateway",
+  "arm": "D_indep_strategy",
+  "call": 2,
+  "function": null,
+  "functions_in_reply": 1,
+  "usage": {
+    "prompt_tokens": 1264,
+    "completion_tokens": 18599,
+    "total_tokens": 19863,
+    "cost": 0.01118268,
+    "is_byok": false,
+    "prompt_tokens_details": {
+      "cached_tokens": 1232,
+      "audio_tokens": 0,
+      "video_tokens": 0
+    },
+    "cost_details": {
+      "upstream_inference_cost": null,
+      "upstream_inference_prompt_cost": 0,
+      "upstream_inference_completions_cost": 0
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 17220,
+      "image_tokens": 0
+    },
+    "cache_creation_input_tokens": 0,
+    "market_cost": 0.01118268,
+    "gateway_cost": 0.01118268
+  },
+  "finish_reason": "stop",
+  "generation_seconds": 111.31665396690369,
+  "response_text": "```python\nfrom typing import Dict, Tuple\n\nimport torch\n\n\n@torch.jit.script\ndef compute_reward(root_states: torch.Tensor,\n                   targets: torch.Tensor,\n                   potentials: torch.Tensor,\n                   prev_potentials: torch.Tensor,\n                   actions: torch.Tensor,\n                   dt: float) -> Tuple[torch.Tensor, Dict[str, torch.Tensor]]:\n    \"\"\"\n    Reward for making the Ant sprint forward as fast as possible.\n\n    root_states : [N, 13] -> pos(0:3), quat xyzw(3:7), lin_vel(7:10), ang_vel(10:13)\n    targets     : [N, 3]  world-frame target position\n    potentials  : [N]     potential of the current state  (-||to_target||/dt)\n    prev_potentials : [N] potential of the previous state\n    actions     : [N, A]  last applied actions\n    dt          : control time step\n\n    Main term  : potential difference (distance closed towards the target this step)\n    Extra terms: forward speed (towards target / along the torso heading),\n                 survival (alive + upright), posture (heading alignment),\n                 small action-magnitude penalty for smooth gaits.\n    \"\"\"\n\n    # ------------------------------------------------------------------ weights\n    w_progress = 15.0   # per meter of distance closed towards the target\n    w_speed = 1.0       # per m/s of speed along the target direction\n    w_facing_speed = 0.5  # per m/s of speed along the torso heading (real \"running\")\n    w_alive = 1.0       # survival bonus\n    w_upright = 0.5     # keeping the torso vertical\n    w_align = 0.3       # facing the direction of travel\n    w_xspeed = 0.2      # world-frame forward speed\n    w_action = 0.005    # action magnitude penalty\n\n    # ------------------------------------------------------- state extraction\n    pos = root_states[:, 0:3]\n    quat = root_states[:, 3:7]\n    lin_vel = root_states[:, 7:10]\n\n    qx = quat[:, 0]\n    qy = quat[:, 1]\n    qz = quat[:, 2]\n    qw = quat[:, 3]\n\n    # torso local +x axis expressed in the world frame (z-up) -> heading\n    fwd_x = 1.0 - 2.0 * (qy * qy + qz * qz)\n    fwd_y = 2.0 * (qx * qy + qw * qz)\n    fwd_xy = torch.stack([fwd_x, fwd_y], dim=-1)\n    fwd_len = torch.norm(fwd_xy, dim=-1, keepdim=True)\n    fwd_unit = fwd_xy / torch.clamp(fwd_len, 1e-6, 1e6)\n\n    # z-component of the torso up axis -> uprightness in [0, 1]\n    upright = torch.clamp(1.0 - 2.0 * (qx * qx + qy * qy), 0.0, 1.0)\n\n    vel_xy = lin_vel[:, 0:2]\n\n    # -------------------------------------------------- target direction (xy)\n    to_target = targets - pos\n    to_target[:, 2] = 0.0\n    dist = torch.norm(to_target, dim=-1, keepdim=True)\n    unit_target = to_target / torch.clamp(dist, 1e-6, 1e6)\n\n    # speed components\n    speed_to_target = torch.sum(vel_xy * unit_target[:, 0:2], dim=-1)\n    speed_facing = torch.sum(vel_xy * fwd_unit, dim=-1)\n    x_speed = lin_vel[:, 0]\n\n    # heading / travel-direction alignment (cosine)\n    alignment = torch.clamp(torch.sum(fwd_unit * unit_target[:, 0:2], dim=-1), -1.0, 1.0)\n\n    # --------------------------------------- potential difference (progress)\n    # potentials = -||to_target||/dt  =>  (potentials - prev_potentials)*dt\n    # is the distance (in meters) closed towards the target during this step.\n    progress = torch.clamp((potentials - prev_potentials) * dt, -0.5, 0.5)\n\n    alive = torch.ones_like(progress)\n    action_cost = torch.mean(actions * actions, dim=-1)\n\n    # ------------------------------------------------------- reward components\n    r_progress = w_progress * progress\n    r_speed = w_speed * speed_to_target\n    r_facing_speed = w_facing_speed * speed_facing\n    r_alive = w_alive * alive\n    r_upright = w_upright * upright\n    r_align = w_align * alignment\n    r_xspeed = w_xspeed * x_speed\n    r_action = -w_action * action_cost\n\n    reward = (r_progress + r_speed + r_facing_speed + r_alive +\n              r_upright + r_align + r_xspeed + r_action)\n\n    components = {\n        \"progress\": r_progress,\n        \"forward_speed\": r_speed,\n        \"facing_speed\": r_facing_speed,\n        \"alive\": r_alive,\n        \"upright\": r_upright,\n        \"alignment\": r_align,\n        \"x_speed\": r_xspeed,\n        \"action_penalty\": r_action,\n    }\n\n    return reward, components\n```\n\n**How it works**\n\n- **Progress (main driver):** the environment already stores `potentials = -\u2016to_target\u2016/dt` and `prev_potentials`, so `(potentials - prev_potentials) * dt` is exactly the distance closed towards the target during the step. It is clipped (\u00b10.5 m) so that a resampled target cannot produce a huge spurious spike.\n- **Speed:** velocity projected on the horizontal direction to the target (and on the torso's own heading, computed from the quaternion) directly rewards sprinting rather than strafing/hopping.\n- **Survival:** a constant alive bonus plus an uprightness term (z-component of the torso up axis) discourages flipping over.\n- **Posture:** a cosine term between the torso heading and the direction to the target teaches the ant to face where it runs.\n- **Regularization:** a small action-magnitude penalty keeps the gait smooth without noticeably slowing the ant down.",
+  "validation": {
+    "valid": true,
+    "suffix": "GPTMHDindepstrategycall2",
+    "environment_call": "compute_reward(self.root_states, self.targets, self.potentials, self.prev_potentials, self.actions, self.dt)",
+    "inputs": [
+      "root_states",
+      "targets",
+      "potentials",
+      "prev_potentials",
+      "actions",
+      "dt"
+    ]
+  }
+}
