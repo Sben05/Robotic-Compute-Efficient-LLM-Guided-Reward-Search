@@ -73,12 +73,19 @@ def main():
             continue
         dip = float(np.min(c[STOP:STOP + 20])); at = float(c[STOP - 1])
         rc[s] = {"score_at_500": at, "min_501_520": dip, "reset_to_zero": dip < 0.2 * at, "peak": float(c.max()), "final": float(c[-1])}
-    band = [10.477, 10.334]
-    ok_peaks = all(min(band) - 1.0 <= v["peak"] <= max(band) + 1.0 for v in rc.values())
-    ctrl = {"runs": rc, "straight_human_peaks_seed0_seed1": band,
-            "same_seed_comparison_seed1": {"split_peak": rc.get(1, {}).get("peak"), "straight_peak": float(straight_h1.max()),
-                                           "diff": rc[1]["peak"] - float(straight_h1.max()) if 1 in rc else None},
-            "pass": bool(rc) and ok_peaks and not any(v["reset_to_zero"] for v in rc.values())}
+    # same-seed straight 3,000-it human runs: seed 1 = exp_a_human_3000_seed1, seeds 2/3 = exp_g_calib/human_straight_seed{S}
+    straight = {1: straight_h1}
+    for s in (2, 3, 4, 5):
+        f = ROOT / f"results/exp_g_calib/human_straight_seed{s}/curves.json"
+        if f.exists():
+            y = np.asarray(json.loads(f.read_text())["consecutive_successes"], float)
+            if len(y) == 3000:
+                straight[s] = y
+    same = {s: {"split_peak": rc[s]["peak"], "straight_peak": float(straight[s].max()), "diff": rc[s]["peak"] - float(straight[s].max()),
+                "split_final": rc[s]["final"], "straight_final": float(straight[s][-1])} for s in rc if s in straight}
+    ctrl = {"runs": rc, "same_seed_split_vs_straight": same,
+            "criterion": "PASS = no reset (min score over its 501-520 > 20% of score at 500) and |split - straight peak| <= 1 on every seed that has both",
+            "pass": bool(same) and all(abs(v["diff"]) <= 1.0 for v in same.values()) and not any(v["reset_to_zero"] for v in rc.values())}
     human_new = [per["human0"]["peak"][s] for s in per["human0"]["peak"] if s > 0]
     out = {"label": "actual runs (seeds >= 1 are 500 + resumed runs)", "seeds": seeds, "rewards": per, "selection": sel,
            "rank_spearman_between_seeds": pairs, "per_seed_winner": winners, "resume_control": ctrl,
