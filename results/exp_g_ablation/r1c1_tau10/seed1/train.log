@@ -1,0 +1,116 @@
+Command: /root/MSThesis/.env/bin/python -u /root/MSThesis/Eureka/isaacgymenvs/isaacgymenvs/train.py hydra/output=subprocess task=AntGPTMGR1C1T10S1 wandb_activate=False wandb_entity= wandb_project= headless=True capture_video=False force_render=False max_iterations=3000 seed=1 num_envs=4096
+Importing module 'gym_38' (/root/MSThesis/isaacgym/python/isaacgym/_bindings/linux-x86_64/gym_38.so)
+Setting GYM_USD_PLUG_INFO_PATH to /root/MSThesis/isaacgym/python/isaacgym/_bindings/linux-x86_64/usd/plugInfo.json
+PyTorch version 2.0.0+cu117
+Device count 1
+/root/MSThesis/isaacgym/python/isaacgym/_bindings/src/gymtorch
+Using /root/.cache/torch_extensions/py38_cu117 as PyTorch extensions root...
+Emitting ninja build file /root/.cache/torch_extensions/py38_cu117/gymtorch/build.ninja...
+Building extension module gymtorch...
+Allowing ninja to set a default number of workers... (overridable by setting the environment variable MAX_JOBS=N)
+ninja: no work to do.
+Loading extension module gymtorch...
+Gym has been unmaintained since 2022 and does not support NumPy 2.0 amongst other critical functionality.
+Please upgrade to Gymnasium, the maintained drop-in replacement of Gym, or contact the authors of your software and request that they upgrade.
+See the migration guide at https://gymnasium.farama.org/introduction/migration_guide/ for additional information.
+2026-10-27 00:44:26,830 - INFO - logger - logger initialized
+<unknown>:3: DeprecationWarning: invalid escape sequence \*
+Error: FBX library failed to load - importing FBX data will not succeed. Message: No module named 'fbx'
+FBX tools must be installed from https://help.autodesk.com/view/FBX/2020/ENU/?guid=FBX_Developer_Help_scripting_with_python_fbx_installing_python_fbx_html
+/root/MSThesis/Eureka/isaacgymenvs/isaacgymenvs/train.py:75: UserWarning: 
+The version_base parameter is not specified.
+Please specify a compatability version level, or None.
+Will assume defaults for version 1.1
+  @hydra.main(config_name="config", config_path="./cfg")
+/root/MSThesis/.env/lib/python3.8/site-packages/hydra/_internal/defaults_list.py:415: UserWarning: In config: Invalid overriding of hydra/job_logging:
+Default list overrides requires 'override' keyword.
+See https://hydra.cc/docs/1.2/upgrades/1.0_to_1.1/defaults_list_override for more information.
+
+  deprecation_warning(msg)
+/root/MSThesis/.env/lib/python3.8/site-packages/hydra/_internal/hydra.py:119: UserWarning: Future Hydra versions will no longer change working directory at job runtime by default.
+See https://hydra.cc/docs/1.2/upgrades/1.1_to_1.2/changes_to_job_working_dir/ for more information.
+  ret = run_job(
+/root/MSThesis/.env/lib/python3.8/site-packages/torch/utils/tensorboard/__init__.py:4: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+  if not hasattr(tensorboard, "__version__") or LooseVersion(
+Setting seed: 1
+Network Directory: /root/MSThesis/results/exp_g_ablation/r1c1_tau10/seed1/policy-2026-10-27_00-44-28/runs/AntGPTMGR1C1T10S1-2026-10-27_00-44-28/nn
+Tensorboard Directory: /root/MSThesis/results/exp_g_ablation/r1c1_tau10/seed1/policy-2026-10-27_00-44-28/runs/AntGPTMGR1C1T10S1-2026-10-27_00-44-28/summaries
+self.seed = 1
+Started to train
+/root/MSThesis/.env/lib/python3.8/site-packages/gym/spaces/box.py:84: UserWarning: [33mWARN: Box bound precision lowered by casting to float32[0m
+  logger.warn(f"Box bound precision lowered by casting to {self.dtype}")
+[Warning] [carb.gym.plugin] useGpu is set, forcing single scene (0 subscenes)
+Not connected to PVD
++++ Using GPU PhysX
+Physics Engine: PhysX
+Physics Device: cuda:0
+GPU Pipeline: enabled
+num envs 4096 env spacing 5
+/root/MSThesis/Eureka/isaacgymenvs/isaacgymenvs/tasks/antgptmgr1c1t10s1.py:121: DeprecationWarning: an integer is required (got type isaacgym._bindings.linux-x86_64.gym_38.DofDriveMode).  Implicit conversion to integers using __int__ is deprecated, and may be removed in a future version of Python.
+  asset_options.default_dof_drive_mode = gymapi.DOF_MODE_NONE
+Box(-1.0, 1.0, (8,), float32) Box(-inf, inf, (60,), float32)
+current training device: cuda:0
+build mlp: 60
+RunningMeanStd:  (1,)
+RunningMeanStd:  (60,)
+fps step: 27615 fps step and policy inference: 19909 fps total: 19474 epoch: 1/3000 frames: 0
+fps step: 164269 fps step and policy inference: 140262 fps total: 126169 epoch: 2/3000 frames: 65536
+fps step: 119553 fps step and policy inference: 106548 fps total: 97164 epoch: 3/3000 frames: 131072
+fps step: 148559 fps step and policy inference: 127648 fps total: 115526 epoch: 4/3000 frames: 196608
+fps step: 143257 fps step and policy inference: 124953 fps total: 112794 epoch: 5/3000 frames: 262144
+fps step: 143867 fps step and policy inference: 123165 fps total: 112369 epoch: 6/3000 frames: 327680
+fps step: 143359 fps step and policy inference: 123155 fps total: 110817 epoch: 7/3000 frames: 393216
+fps step: 143368 fps step and policy inference: 124196 fps total: 111761 epoch: 8/3000 frames: 458752
+fps step: 146914 fps step and policy inference: 124656 fps total: 112131 epoch: 9/3000 frames: 524288
+fps step: 145148 fps step and policy inference: 123270 fps total: 109501 epoch: 10/3000 frames: 589824
+fps step: 138136 fps step and policy inference: 119720 fps total: 107208 epoch: 11/3000 frames: 655360
+fps step: 144450 fps step and policy inference: 124860 fps total: 112894 epoch: 12/3000 frames: 720896
+fps step: 141868 fps step and policy inference: 123211 fps total: 110789 epoch: 13/3000 frames: 786432
+fps step: 148999 fps step and policy inference: 128844 fps total: 116947 epoch: 14/3000 frames: 851968
+fps step: 139670 fps step and policy inference: 122955 fps total: 111987 epoch: 15/3000 frames: 917504
+fps step: 137614 fps step and policy inference: 122206 fps total: 110956 epoch: 16/3000 frames: 983040
+fps step: 143698 fps step and policy inference: 125312 fps total: 113996 epoch: 17/3000 frames: 1048576
+fps step: 146009 fps step and policy inference: 124118 fps total: 112649 epoch: 18/3000 frames: 1114112
+fps step: 144594 fps step and policy inference: 125122 fps total: 113982 epoch: 19/3000 frames: 1179648
+fps step: 136343 fps step and policy inference: 119718 fps total: 108633 epoch: 20/3000 frames: 1245184
+fps step: 140905 fps step and policy inference: 124186 fps total: 111760 epoch: 21/3000 frames: 1310720
+fps step: 137707 fps step and policy inference: 121854 fps total: 110681 epoch: 22/3000 frames: 1376256
+fps step: 144110 fps step and policy inference: 123719 fps total: 111573 epoch: 23/3000 frames: 1441792
+fps step: 140145 fps step and policy inference: 121783 fps total: 110285 epoch: 24/3000 frames: 1507328
+fps step: 140707 fps step and policy inference: 122765 fps total: 110903 epoch: 25/3000 frames: 1572864
+fps step: 139920 fps step and policy inference: 120710 fps total: 107670 epoch: 26/3000 frames: 1638400
+fps step: 137960 fps step and policy inference: 119641 fps total: 107246 epoch: 27/3000 frames: 1703936
+fps step: 141105 fps step and policy inference: 123003 fps total: 112232 epoch: 28/3000 frames: 1769472
+fps step: 146471 fps step and policy inference: 126696 fps total: 115762 epoch: 29/3000 frames: 1835008
+fps step: 141220 fps step and policy inference: 123151 fps total: 111400 epoch: 30/3000 frames: 1900544
+fps step: 149959 fps step and policy inference: 130773 fps total: 118294 epoch: 31/3000 frames: 1966080
+fps step: 157814 fps step and policy inference: 135187 fps total: 122141 epoch: 32/3000 frames: 2031616
+fps step: 153510 fps step and policy inference: 132858 fps total: 119781 epoch: 33/3000 frames: 2097152
+fps step: 157056 fps step and policy inference: 136475 fps total: 122184 epoch: 34/3000 frames: 2162688
+fps step: 156539 fps step and policy inference: 134097 fps total: 119333 epoch: 35/3000 frames: 2228224
+fps step: 160925 fps step and policy inference: 138410 fps total: 124564 epoch: 36/3000 frames: 2293760
+fps step: 156600 fps step and policy inference: 137532 fps total: 123519 epoch: 37/3000 frames: 2359296
+fps step: 153131 fps step and policy inference: 136407 fps total: 122477 epoch: 38/3000 frames: 2424832
+fps step: 153328 fps step and policy inference: 135921 fps total: 122768 epoch: 39/3000 frames: 2490368
+fps step: 161748 fps step and policy inference: 140573 fps total: 125476 epoch: 40/3000 frames: 2555904
+fps step: 161200 fps step and policy inference: 138675 fps total: 122711 epoch: 41/3000 frames: 2621440
+fps step: 158633 fps step and policy inference: 138521 fps total: 123227 epoch: 42/3000 frames: 2686976
+fps step: 156346 fps step and policy inference: 136353 fps total: 122894 epoch: 43/3000 frames: 2752512
+fps step: 162277 fps step and policy inference: 138813 fps total: 123464 epoch: 44/3000 frames: 2818048
+fps step: 162980 fps step and policy inference: 139170 fps total: 123727 epoch: 45/3000 frames: 2883584
+fps step: 158007 fps step and policy inference: 137284 fps total: 123852 epoch: 46/3000 frames: 2949120
+fps step: 159302 fps step and policy inference: 136910 fps total: 122686 epoch: 47/3000 frames: 3014656
+fps step: 169480 fps step and policy inference: 144610 fps total: 128233 epoch: 48/3000 frames: 3080192
+fps step: 160019 fps step and policy inference: 139194 fps total: 125876 epoch: 49/3000 frames: 3145728
+fps step: 161205 fps step and policy inference: 139220 fps total: 125553 epoch: 50/3000 frames: 3211264
+fps step: 157525 fps step and policy inference: 138979 fps total: 123808 epoch: 51/3000 frames: 3276800
+fps step: 158449 fps step and policy inference: 138249 fps total: 124490 epoch: 52/3000 frames: 3342336
+fps step: 162296 fps step and policy inference: 139050 fps total: 121604 epoch: 53/3000 frames: 3407872
+fps step: 160605 fps step and policy inference: 140439 fps total: 126221 epoch: 54/3000 frames: 3473408
+fps step: 155640 fps step and policy inference: 135093 fps total: 122090 epoch: 55/3000 frames: 3538944
+fps step: 157612 fps step and policy inference: 138775 fps total: 125481 epoch: 56/3000 frames: 3604480
+fps step: 158011 fps step and policy inference: 134215 fps total: 116838 epoch: 57/3000 frames: 3670016
+fps step: 159476 fps step and policy inference: 136074 fps total: 121235 epoch: 58/3000 frames: 3735552
+fps step: 157040 fps step and policy inference: 135970 fps total: 121609 epoch: 59/3000 frames: 3801088
+fps step: 158246 fps step and policy inference: 136487 fps total: 123089 epoch: 60/3000 frames: 3866624
+fps step: 161311 fps step and policy inference: 139285 fps total: 125741 epoch: 61/3000 frames: 3932160

@@ -1,0 +1,48 @@
+{
+  "model_requested": "minimax/minimax-m3.1-flash",
+  "provider": "https://ai-gateway.vercel.sh/v1/chat/completions",
+  "temperature": 1.0,
+  "candidate_count": 1,
+  "round": 2,
+  "index": 3,
+  "request_attempts": 1,
+  "api_errors": [],
+  "generation_seconds": 40.93160396441817,
+  "response_text": "## Analysis of the current reward\n\n| Component | Behaviour | Diagnosis / Fix |\n|---|---|---|\n| `forward_speed` | grows steadily 0 \u2192 4.9 (vx \u2248 6 m/s). It is `2\u00b7tanh(vx/4) + 0.5\u00b7vx`: the **tanh part saturates** (derivative \u2248 0 above 4 m/s), so only the *linear* part keeps shaping the policy at high speed. | Keep a saturating term but **lower the temperature (4 \u2192 3)** so the gradient survives up to ~8 m/s, and add a **speed\u2011tracking bonus** toward a target speed (9 m/s) which has a persistent, well\u2011shaped gradient in the 4\u20138 m/s regime. Reduce the raw linear term (0.5 \u2192 0.2) so it is a nudge, not the whole signal. |\n| `facing_speed` | pinned at 0.87 (= max) \u2192 fully saturated, zero gradient. | Lower temperature (4 \u2192 3) and reduce weight so it distinguishes \u201crunning backwards\u201d from \u201crunning forwards\u201d without adding a constant offset. |\n| `heading_align` | frozen at 0.36 \u2192 constant, no learning signal (the ant runs at ~28\u00b0 off +x, which is natural). | Reduce weight to a small shaping bonus (0.5 \u2192 0.3); it no longer dilutes the speed signal. |\n| `upright` | frozen at 0.37 \u2192 constant offset, no signal. | Replace the `tanh` constant with a **hinge penalty** that only fires when the torso is genuinely tilted (`up_z < 0.6`), giving gradient exactly when needed and 0 otherwise. |\n| `alive` | constant 0.5 | Shrink to 0.2 (episode length is already ~95 % of max, so survival is solved). |\n| `lateral_drift` | \u22120.11 \u2192 the ant drifts laterally at ~0.6 m/s (a third of its forward speed!). | Use a **hinge** (only penalise |vy| > 0.5 m/s) with a slightly higher weight so straight\u2011line running is rewarded without over\u2011constraining the gait. |\n| `action_cost`, `joint_vel_cost` | \u22120.04 / \u22120.15, roughly constant | Keep as small regularisers (slightly weaker joint\u2011vel term). |\n| `fall_penalty` | \u2248 0 always (no falls) | Keep a cheap height\u2011based penalty as insurance. |\n| **missing** | \u2014 | Add a small torso **angular\u2011velocity penalty** (less wobbling \u2192 more efficient, higher top speed) and a **speed\u2011tracking** term. |\n\nNet effect: the constant\u2011offset components shrink (total reward \u2248 4.9 instead of 6.3 with ~1.4 of dead weight), while the *informative* terms (forward speed, speed tracking, lateral drift, tilt) gain gradient in the regime that actually decides the task.\n\n```python\nimport torch\nfrom typing import Dict, Tuple\n\n\n@torch.jit.script\ndef compute_reward(root_states: torch.Tensor, actions: torch.Tensor, dof_vel: torch.Tensor\n                   ) -> Tuple[torch.Tensor, Dict[str, torch.Tensor]]:\n\n    # ----------------------------- hyper-parameters -----------------------------\n    speed_temperature: float = 3.0        # m/s, tanh scale of the forward-speed bonus\n    speed_weight: float = 2.0\n    linear_speed_weight: float = 0.2      # small constant push for ever faster running\n    tracking_target: float = 9.0          # m/s, speed the ant is asked to reach\n    tracking_sigma: float = 3.5           # m/s, width of the tracking bonus\n    tracking_weight: float = 2.0\n    facing_temperature: float = 3.0       # m/s, tanh scale of the facing-direction bonus\n    facing_weight: float = 0.8\n    align_temperature: float = 1.0\n    align_weight: float = 0.3\n    tilt_threshold: float = 0.6           # cos(torso tilt); below -> too tilted\n    tilt_weight: float = 0.6\n    lateral_threshold: float = 0.5        # m/s, |vy| above this is penalised\n    lateral_weight: float = 0.3\n    alive_weight: float = 0.2\n    action_cost_scale: float = 0.01\n    joint_vel_cost_scale: float = 0.001\n    ang_vel_cost_scale: float = 0.005\n    fall_height: float = 0.35             # m, torso height below this = fallen\n    fall_weight: float = 1.0\n\n    n_envs = root_states.shape[0]\n    device = root_states.device\n    dtype = root_states.dtype\n\n    # ------------------------------ state extraction -----------------------------\n    quat = root_states[:, 3:7]            # (x, y, z, w)\n    vel = root_states[:, 7:10]\n    ang_vel = root_states[:, 10:13]\n    pos_z = root_states[:, 2]\n\n    qx = quat[:, 0]\n    qy = quat[:, 1]\n    qz = quat[:, 2]\n    qw = quat[:, 3]\n\n    # torso forward axis (+x of the body) expressed in the world frame\n    fwd_x = 1.0 - 2.0 * (qy * qy + qz * qz)\n    fwd_y = 2.0 * (qx * qy + qw * qz)\n    # torso up axis (+z of the body) component along world z\n    up_z = 1.0 - 2.0 * (qx * qx + qy * qy)\n\n    # horizontal (xy) projection of the torso forward axis\n    horiz = torch.sqrt(fwd_x * fwd_x + fwd_y * fwd_y + 1.0e-8)\n    fwd_hx = fwd_x / horiz\n    fwd_hy = fwd_y / horiz\n\n    vx = vel[:, 0]\n    vy = vel[:, 1]\n    facing_speed = vx * fwd_hx + vy * fwd_hy\n\n    # ------------------------------ reward components ---------------------------\n    # 1) saturating forward-speed bonus (gradient survives up to ~8 m/s)\n    forward_speed = speed_weight * torch.tanh(vx / speed_temperature)\n    # 2) small linear nudge so the policy keeps pushing for a higher top speed\n    speed_linear = linear_speed_weight * vx\n    # 3) tracking bonus towards a high target speed (persistent gradient)\n    speed_err = (vx - tracking_target) / tracking_sigma\n    speed_tracking = tracking_weight * torch.exp(-speed_err * speed_err)\n    # 4) speed along the direction the body is actually facing\n    facing = facing_weight * torch.tanh(facing_speed / facing_temperature)\n    # 5) small bonus for heading roughly along +x\n    heading_align = align_weight * torch.tanh(fwd_hx / align_temperature)\n    # 6) hinge penalty: only when the torso is really tilted\n    tilt_penalty = -tilt_weight * torch.clamp(tilt_threshold - up_z, min=0.0)\n    # 7) hinge penalty: only when the ant drifts sideways noticeably\n    lateral_drift = -lateral_weight * torch.clamp(torch.abs(vy) - lateral_threshold, min=0.0)\n    # 8) small survival bonus\n    alive = alive_weight * torch.ones(n_envs, device=device, dtype=dtype)\n    # 9) regularisers\n    action_cost = -action_cost_scale * torch.sum(actions * actions, dim=-1)\n    joint_vel_cost = -joint_vel_cost_scale * torch.mean(dof_vel * dof_vel, dim=-1)\n    ang_vel_cost = -ang_vel_cost_scale * torch.sum(ang_vel[:, 0:2] * ang_vel[:, 0:2], dim=-1)\n    # 10) fall / collapse penalty\n    fall_penalty = -fall_weight * torch.clamp(fall_height - pos_z, min=0.0)\n\n    reward = (forward_speed + speed_linear + speed_tracking + facing + heading_align\n              + tilt_penalty + lateral_drift + alive + action_cost + joint_vel_cost\n              + ang_vel_cost + fall_penalty)\n\n    components: Dict[str, torch.Tensor] = {\n        \"forward_speed\": forward_speed,\n        \"speed_linear\": speed_linear,\n        \"speed_tracking\": speed_tracking,\n        \"facing_speed\": facing,\n        \"heading_align\": heading_align,\n        \"tilt_penalty\": tilt_penalty,\n        \"lateral_drift\": lateral_drift,\n        \"alive\": alive,\n        \"action_cost\": action_cost,\n        \"joint_vel_cost\": joint_vel_cost,\n        \"ang_vel_cost\": ang_vel_cost,\n        \"fall_penalty\": fall_penalty,\n    }\n\n    return reward, components\n```",
+  "model_used": "minimax/minimax-m3.1-flash",
+  "usage": {
+    "prompt_tokens": 3855,
+    "completion_tokens": 6763,
+    "total_tokens": 10618,
+    "cost": 0.00446865,
+    "is_byok": false,
+    "prompt_tokens_details": {
+      "cached_tokens": 1240,
+      "audio_tokens": 0,
+      "video_tokens": 0
+    },
+    "cost_details": {
+      "upstream_inference_cost": null,
+      "upstream_inference_prompt_cost": 0,
+      "upstream_inference_completions_cost": 0
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 4799,
+      "image_tokens": 0
+    },
+    "cache_creation_input_tokens": 0,
+    "market_cost": 0.00446865,
+    "gateway_cost": 0.00446865
+  },
+  "finish_reason": "stop",
+  "validation": {
+    "valid": true,
+    "suffix": "GPTMLT2R2C3",
+    "environment_call": "compute_reward(self.root_states, self.actions, self.dof_vel)",
+    "inputs": [
+      "root_states",
+      "actions",
+      "dof_vel"
+    ]
+  }
+}

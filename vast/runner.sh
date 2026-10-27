@@ -1,14 +1,15 @@
 #!/bin/bash
 # GPU batch runner: after the seed stage, repeatedly runs the lowest-numbered pending batch in ~/MSThesis/queue/*.json
 # ({"name", "est_hours", "jobs": [[cdir, src, seed, phase, s1, total], ...]}) via live.py pack, then moves it to queue/done/.
-# A batch starts only if estimated spend + est_hours*RATE < CAP. Spend = wall time since rental start at $0.70/h (incl. storage).
+# A batch starts only if estimated spend + est_hours*RATE < CAP. Spend = wall time since each box's rental start at $0.70/h
+# (incl. storage), summed over both boxes (box 2 rented ~00:35 UTC Oct 27). WAIT_SEEDS=0 skips waiting for the seed stage.
 cd ~/MSThesis && . .env/bin/activate
-START=$((1793058441 - 600)); RATE=0.70; CAP=${CAP:-8.0}
-spend() { python3 -c "import time; print(round((time.time()-$START)/3600*$RATE, 2))"; }
+START1=$((1793058441 - 600)); START2=$((1793061168 - 600)); RATE=0.70; CAP=${CAP:-8.0}
+spend() { python3 -c "import time; t=time.time(); print(round(((t-$START1)+max(0,t-$START2))/3600*$RATE, 2))"; }
 log() { echo "$(date -u +%FT%TZ) spend~\$$(spend) $*" >> ~/queue.log; }
 mkdir -p queue/done queue/skipped
-log "runner armed; waiting for seeds_done.flag"
-while [ ! -f ~/seeds_done.flag ]; do sleep 15; done
+if [ "${WAIT_SEEDS:-1}" = 1 ]; then log "runner armed; waiting for seeds_done.flag"; while [ ! -f ~/seeds_done.flag ]; do sleep 15; done; fi
+log "runner active (host $(hostname))"
 idle=0
 while [ ! -f queue/STOP ]; do
   f=$(ls queue/*.json 2>/dev/null | sort | head -1)
