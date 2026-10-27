@@ -1,0 +1,48 @@
+{
+  "model_requested": "minimax/minimax-m3.1-flash",
+  "provider": "https://ai-gateway.vercel.sh/v1/chat/completions",
+  "temperature": 1.0,
+  "candidate_count": 1,
+  "round": 1,
+  "index": 3,
+  "request_attempts": 1,
+  "api_errors": [],
+  "generation_seconds": 111.12431245669723,
+  "response_text": "## Reward design\n\nThe task is a pure locomotion/speed task: the ant should cover ground in the forward (+x) direction as fast as possible, while remaining on its feet and without wasting energy (jittery, high\u2011torque gaits).\n\n**Components**\n\n| term | purpose |\n|---|---|\n| `forward_speed` | linear reward on the world\u2011frame +x velocity (main driver of \"as fast as possible\") |\n| `speed_shaping` | smooth `tanh` bonus so early learning gets a strong gradient toward moving |\n| `body_forward` | bonus for moving along the direction the torso is actually facing (keeps the gait aligned, never fights the main term since it is clamped \u2265 0) |\n| `upright` | keeps the torso's up\u2011axis pointing up (world z\u2011component of the body up axis) so it cannot \"cheat\" by diving forward |\n| `height` | Gaussian\u2011shaped torso height preference \u2192 stands tall, does not hop/dive |\n| `action_penalty` | energy / torque penalty \u2192 smooth, efficient gait |\n| `joint_vel_penalty` | penalizes shaking the legs (limits high\u2011frequency jitter) |\n| `alive` | small constant bonus (survival has value) |\n\nAll orientation quantities are derived from the root quaternion (`w,x,y,z`), assuming the torso's local `+z` is up and local `+x` is forward (standard Isaac\u2011Gym ant). Temperatures are named constants inside the function (not inputs), and every tensor stays on the input device.\n\n```python\nfrom typing import Dict, Tuple\nimport torch\n\n\n@torch.jit.script\ndef compute_reward(root_states: torch.Tensor, dof_vel: torch.Tensor,\n                   actions: torch.Tensor) -> Tuple[torch.Tensor, Dict[str, torch.Tensor]]:\n    # ---------------- hyper-parameters (named constants, not inputs) ----------------\n    speed_weight = 1.0        # weight of the linear forward-speed reward\n    shaping_weight = 0.5      # weight of the saturating speed shaping\n    shaping_temp = 1.0        # temperature (m/s) of the speed shaping\n    body_speed_weight = 0.25  # weight of the body-frame forward speed bonus\n    upright_weight = 0.5      # weight of the \"stay upright\" reward\n    height_weight = 0.3       # weight of the torso-height preference\n    height_target = 0.5       # preferred torso height (m)\n    height_temp = 0.3         # tolerance (m) of the height preference\n    ctrl_coef = 0.01          # action (energy) penalty coefficient\n    dofvel_coef = 1.0e-4      # joint-velocity penalty coefficient\n    alive_bonus = 0.1         # constant bonus for staying alive\n\n    # ---------------- state extraction ----------------\n    lin_vel = root_states[:, 7:10]      # world-frame linear velocity\n    quat = root_states[:, 3:7]           # torso orientation (w, x, y, z)\n    height = root_states[:, 2]           # world-frame torso height\n\n    qw = quat[:, 0]\n    qx = quat[:, 1]\n    qy = quat[:, 2]\n    qz = quat[:, 3]\n\n    vel_x = lin_vel[:, 0]                # forward (world +x) velocity\n    vel_y = lin_vel[:, 1]\n    fwd_vel = torch.clamp(vel_x, min=0.0)   # never reward running backwards\n\n    # world-frame z component of the torso up axis (local +z assumed up)\n    up_z = 1.0 - 2.0 * (qx * qx + qy * qy)\n    upright = torch.clamp(up_z, min=0.0)\n\n    # world-frame forward axis of the torso (local +x assumed forward)\n    fwd_x = 1.0 - 2.0 * (qy * qy + qz * qz)\n    fwd_y = 2.0 * (qx * qy + qw * qz)\n    fwd_norm = torch.sqrt(fwd_x * fwd_x + fwd_y * fwd_y + 1.0e-6)\n    body_speed = torch.clamp((vel_x * fwd_x + vel_y * fwd_y) / fwd_norm, min=0.0)\n\n    # ---------------- reward components ----------------\n    forward_speed = speed_weight * fwd_vel\n    speed_shaping = shaping_weight * torch.tanh(fwd_vel / shaping_temp)\n    body_forward = body_speed_weight * torch.tanh(body_speed / shaping_temp)\n    upright_reward = upright_weight * upright\n    height_reward = height_weight * torch.exp(-((height - height_target) ** 2) / (height_temp ** 2))\n    action_penalty = -ctrl_coef * torch.sum(actions * actions, dim=1)\n    joint_vel_penalty = -dofvel_coef * torch.sum(dof_vel * dof_vel, dim=1)\n    alive = alive_bonus * torch.ones_like(fwd_vel)\n\n    reward = (forward_speed + speed_shaping + body_forward + upright_reward\n              + height_reward + action_penalty + joint_vel_penalty + alive)\n\n    components = {\n        \"forward_speed\": forward_speed,\n        \"speed_shaping\": speed_shaping,\n        \"body_forward\": body_forward,\n        \"upright\": upright_reward,\n        \"height\": height_reward,\n        \"action_penalty\": action_penalty,\n        \"joint_vel_penalty\": joint_vel_penalty,\n        \"alive\": alive,\n    }\n    return reward, components\n```",
+  "model_used": "minimax/minimax-m3.1-flash",
+  "usage": {
+    "prompt_tokens": 1237,
+    "completion_tokens": 16524,
+    "total_tokens": 17761,
+    "cost": 0.00993309,
+    "is_byok": false,
+    "prompt_tokens_details": {
+      "cached_tokens": 1236,
+      "audio_tokens": 0,
+      "video_tokens": 0
+    },
+    "cost_details": {
+      "upstream_inference_cost": null,
+      "upstream_inference_prompt_cost": 0,
+      "upstream_inference_completions_cost": 0
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 15307,
+      "image_tokens": 0
+    },
+    "cache_creation_input_tokens": 0,
+    "market_cost": 0.00993309,
+    "gateway_cost": 0.00993309
+  },
+  "finish_reason": "stop",
+  "validation": {
+    "valid": true,
+    "suffix": "GPTMLT2R1C3",
+    "environment_call": "compute_reward(self.root_states, self.dof_vel, self.actions)",
+    "inputs": [
+      "root_states",
+      "dof_vel",
+      "actions"
+    ]
+  }
+}
