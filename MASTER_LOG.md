@@ -1,353 +1,380 @@
-# Master log: everything ideated, built, run and found (26-27 Oct 2026)
+# Master log: the complete record (26-27 Oct 2026)
 
-A chronological, complete record of the work done in this session: the ideas, the reasoning behind each decision, every
-experiment, every failure and fix, the costs, and the results. Times are CDT (UTC−5) unless marked UTC. Commit hashes refer to
-`main` in this repository. For the clean result write-ups see `THESIS_EXPERIMENT_SUMMARY.md` (start there),
-`PRUNING_COMPARISON.md`, `LLM_EFFICIENCY_RESULTS.md`, `GENERALIZATION_RESULTS.md`, `EXPERIMENT_MANIFEST.md`, `STATS_PLAN.md`.
+Everything ideated, built, run and found: setup, robots, LLMs, search rounds, every experiment with its results, the
+literature, the statistics (including the corrections), the infrastructure, incidents, costs and next steps. Times are CDT
+(UTC−5) unless marked. Commit hashes refer to `main`. Evidence tags: **[actual]** = real training runs or LLM calls as
+described; **[held-out]** = rules frozen beforehand, replayed on curves never used for tuning; **[simulation]** = curve-based
+simulation; **[exploratory]** = no significance claim.
 
----
-
-## 0. The research question in one paragraph
-
-Eureka-style systems ask an LLM to write reward functions for a robot, then judge each candidate by training a PPO policy with
-it in simulation. Training is the expensive part (one Ant run = 3,000 PPO iterations ≈ 12 GPU-minutes; a search trains many
-candidates). The thesis asks: **(1) can we stop training weak candidates early without losing the good ones (PPO compute), and
-(2) can we use the LLM more cheaply (generation cost)?** Everything below serves those two questions.
+Contents: 1 Summary · 2 Setup (robots, LLMs, PPO, rounds) · 3 Literature and novelty · 4 Chronology · 5 Every experiment and
+its results · 6 Statistics · 7 Ideas and their fate · 8 Infrastructure and incidents · 9 Costs · 10 Open items · 11 Files
 
 ---
 
-## 1. Where the project stood at the start of the session (26 Oct, ~13:50)
+## 1. Summary
 
-Already in the repo (from earlier work, on Northwestern's Quest cluster):
+**Question.** Eureka-style systems have an LLM write reward functions for a robot and judge each candidate by training a PPO
+policy with it. Training dominates the cost. Two hypotheses: **(1) stop weak candidates early without losing good ones;
+(2) use the LLM more cheaply.**
 
-| Experiment | What it was | Key numbers |
+**Headline findings.**
+
+| Finding | Evidence | Status |
 | --- | --- | --- |
-| Experiment 1 | Upstream 500-iteration Ant PPO baseline | peak 8.01 |
-| exp_a | Human (hand-written) reward, 3,000 its, seeds 0-1 | 10.48 / 10.33 |
-| exp_b | Mini-Eureka: 3 round-1 samples, then 2 round-2 samples written from full-training feedback (MiniMax M3.1 Flash) | R1 6.59 / 7.55 / 4.46; R2 10.93 / 10.75 |
-| exp_c | Retrospective screening of exp_b: "stop all at 500, keep the leader" | saved 50%, kept 100% |
-| exp_d | 6 extra round-1 samples, blind LLM pre-ranking of rewards (code only), a zero-training "probe" | LLM ranked the best reward last |
+| Early stopping saves most of the PPO compute | live searches: 73% fewer iterations; adaptive rules use ~42% of training-all | solid [actual, held-out] |
+| VoI (value-of-information forecasting) beats "keep the leader at 500" | 0.997 vs 0.972 of the best reward kept, winner 86% vs 59%, 5 held-out seeds; one live run at 32% compute | consistent on every seed; significant as pre-registered, **not** under the stricter seed-level test (p = 0.041, Holm 0.21) |
+| A simple PID rule is about as good as VoI | ties VoI on the clean held-out seeds; transfers to Humanoid where an Ant-tuned VoI fails | solid [held-out] |
+| VoI and PID match or beat the closest published method (ORSO, ICLR 2025, rebuilt) | VoI +0.7% kept (p = 0.012) with 5% less compute; PID ties with 6% less | [held-out, post hoc] |
+| Forecasting rules need history from the same robot | Humanoid: VoI 81% with Ant history → 97% with Humanoid history | [exploratory] |
+| Asking the LLM for 4 rewards per call is much cheaper | 2.6-5.5× fewer tokens per usable reward, 4/4 tasks (MiniMax); also cheaper for Gemini and Qwen | **significant** (p < 0.0001) |
+| Batched rewards are as good | −2% [−12%, +7%] | inconclusive |
+| One constant edit replaces an LLM refinement | 7.57 → 9.04 (4 seeds each) | not significant after correction |
+| The best reward found beats the human reward | +0.86 over 6 seeds | not significant |
+| Single-seed winners are unreliable | the original "best" reward (10.93) averages 9.15 on 8 other seeds; human reward 7.9-10.6 by seed | solid [actual] |
+| An LLM reading early training logs can judge rewards | winner 74% vs 56% at equal compute | promising, not significant (p = 0.057; 0.17 seed-level) |
+| Reward-structure signals, strategy hints, short reasoning, generate-vs-train juggling, published Hyperband | none helped | negative results |
 
-Two feasibility branches existed: `llm-efficiency` (token accounting, a generate-vs-train simulator, a prepared but unrun LLM
-trial plan) and `controller-feasibility` (a causal pruning simulator with fixed, successive halving, Hyperband, PID, Bayesian,
-MPC and Thompson-sampling rules, a MuJoCo Ant twin). An earlier local Qwen arm had been removed.
-
-**The weakness I flagged on reading the repo:** all screening was retrospective. The exp_c "100% retained" came from replaying
-finished curves, and exp_b's round 2 was written from *full*-training feedback, so the claim "you can stop at 500" had never
-been tested live.
-
----
-
-## 2. Phase 1 - live early stopping on Quest (26 Oct, 14:00-19:00)
-
-**Request:** actually stop weak runs at 500 iterations and write the next round only from that partial feedback; if it works,
-replicate the strongest rewards over seeds.
-
-**Design (`live.py`):** per trial, 4 LLM samples → each trains 500 its → keep the best (peak score within 500) → round 2 (4 more
-samples) is written from the kept run's 500-iteration log in upstream Eureka's feedback format → same stop rule → the overall
-best resumes from its checkpoint to 3,000 → *audit*: the stopped runs are also resumed to 3,000 afterwards, only to measure
-what stopping cost. Three trials were planned.
-
-**Engineering facts discovered:**
-- This rl_games fork restores weights, normalisation and optimiser on resume but **not the epoch counter**, so a "500 then
-  continue" run is 500 + 2,500 epochs.
-- Resuming causes a **brief score dip for ~10-20 iterations** (e.g. 7.06 → 2.8 → 7.1) that recovers; peaks are unaffected.
-- **Token-cap bug:** through the Vercel gateway, MiniMax at `max_tokens=16384` returned empty replies (all hidden reasoning,
-  `finish_reason=length`) 2 of 2 times. Raised to 32,768 (`EUREKA_MAX_TOKENS` env var added to `eureka_ab.py`); 4/4 replies,
-  3/4 valid.
-- Quest's GPU queue was ~600 jobs deep; estimated starts drifted between 16:17 and 01:28 next day. A short H100 smoke job was
-  tried as a faster lane; it was no faster and was cancelled.
-
-**What ran:** smoke test (resume + feedback machinery: passed), live trials 1 and 2 (2 rounds × 4 samples each, all 16 valid,
-plus the 16-run audit). Trial 3 never started (Quest access was lost, see below).
-
-**Results [actual]:**
-- Live stopping used 6,500 instead of 24,000 iterations per trial: **73% saved**.
-- Winners after 3,000 its: 9.29 (trial 1, the true best of its trial) and 9.61 (trial 2; the trial's best was 10.43).
-- The kept candidate retained 0.83, 1.00, 0.94, 0.92 of each round's best; top-1 correct in 1 of 4 rounds.
-- **False prunes: 4 of 12 stopped runs would have won** (33%); each time the leader at 500 was ahead by < 0.8 points.
-- The earlier retrospective "100% retained" was partly luck of a small sample.
-
-I also built the first seed stage (`live.py seeds`: 7 strongest rewards + human on new seeds, same 500 + resume protocol) and
-a self-checking pinger (a recurring scheduled prompt) to watch jobs.
-
-**Incident:** at ~18:36 the user's Quest SSH control socket died and password login was not possible from my side; Quest work
-stopped there (later the user said Quest is gone).
+**Framing agreed for the thesis:** no new algorithm is supported by the data. The contribution is a rigorous, pre-registered,
+held-out, multi-seed and live evaluation of compute allocation for LLM reward search, compared against the closest published
+method, with clear positive findings, scoped claims and documented negative results.
 
 ---
 
-## 3. Phase 2 - moving to rented GPUs (Vast.ai) (26 Oct, 18:00-19:00)
+## 2. Setup
 
-**Pre-purchase audit (read-only on Quest):** recorded the exact working stack (Python 3.8.20, torch 2.0.0+cu117 from pip,
-Isaac Gym Preview 4, Eureka @9eee428, numpy 1.20.0, hydra 1.3.2; Quest GPU nodes A100 PCIe-40GB and SXM-80GB). Key findings:
-no CUDA toolkit is needed (torch brings its own; `gymtorch` compiles as plain C++), training is headless (no Vulkan/GL),
-the host driver matters more than the Docker image's CUDA version. Recommended an A100 PCIe 40GB with driver ≥ 515 and **NO-GO
-on the CMP 170HX** (a mining card: 8 GB stock, modified for "64 GB", throttled FP32, narrow PCIe).
+### 2.1 Robots / tasks (Isaac Gym Preview 4, IsaacGymEnvs as shipped with Eureka @9eee428)
 
-**Setup:** generated a dedicated SSH key; box 1 (A100 PCIe 40GB, driver 595) built from the Mac copies of Isaac Gym and Eureka,
-venv with the exact Quest pip freeze. One portability gap: Ubuntu's Python lacked `tkinter` (imported by an upstream task file)
-→ installed. **Smoke results identical to Quest to the last digit** (human peak 0.4689645767211914 etc.).
+| Task | Goal (Eureka description) | PPO iterations | Envs | Score used ("task score", `consecutive_successes`) | Role in the study |
+| --- | --- | ---: | ---: | --- | --- |
+| **Ant** (quadruped) | run forward as fast as possible | 3,000 | 4,096 | forward progress (higher = faster) | main task: all searches, seeds, pruning tests |
+| **Cartpole** | keep the pole upright | 100 | 512 | episode length (max ~500) | generalisation (saturated) |
+| **BallBalance** | keep the ball on the table | 250 | 4,096 | episode length (max ~500) | generalisation (saturated) |
+| **Humanoid** | run forward as fast as possible | 1,000 | 4,096 | forward progress | generalisation (hard) |
 
-**Seed stage launched on box 1 at 18:55** (seeds 1-3 × 8 rewards, ~4.4 h).
+Score of a run = its peak task score over training (as upstream Eureka). Quadcopter was considered and skipped (negative score
+scale breaks ratio-based rules).
 
----
+### 2.2 LLMs
 
-## 4. Phase 3 - "maximise the GPU" (26 Oct, 19:00 - 27 Oct, 00:00)
+| Model | Access | Used for | Calls this session |
+| --- | --- | --- | ---: |
+| **MiniMax M3.1 Flash** (main) | NVIDIA NIM earlier; Vercel AI Gateway this session; temperature 1.0; max_tokens 32,768 | every search, the arm trial, generalisation, the LLM judge | 50 + 105 |
+| Google Gemini 2.5 Flash | Vercel gateway | second-LLM robustness (Ant) | 10 |
+| Alibaba Qwen-3-32B | Vercel gateway | third-LLM robustness (Ant) | 10 |
+| DeepSeek V4.1 Flash, Qwen 3.8 Flash | refused (free tier, HTTP 403, $0) | planned; substituted before any call | 0 |
+| Earlier, removed before this session | Gemini (quota), gpt-oss-120b (weak), DeepSeek on NIM (hung), local Qwen3.8-27B | - | - |
 
-The user asked for maximum GPU use, a single agent on `main`, and a long plan (pasted) covering pruning comparisons, LLM
-efficiency and joint allocation.
+Prompts: upstream Eureka (`initial_system`, `initial_user` with the environment's observation code, `policy_feedback`).
+Rewards are TorchScript functions injected into the environment's `compute_reward`; invalid code (signature, inputs, TorchScript)
+is rejected exactly as upstream.
 
-**Housekeeping:** committed the live work (`2f946a8`), merged `llm-efficiency` (`a4dc5d9`); copied (not merged) the controller
-simulator into `pruning/`. Commits are authored by the user only, no co-author trailer (user rule).
+### 2.3 PPO and hardware
 
-**GPU queue infrastructure (all in `vast/`):**
-- `runner.sh`: a batch runner that takes the lowest-numbered JSON batch from `queue/`, runs it via `live.py pack` (3 runs per
-  GPU), moves it to `done/`, and refuses any batch whose estimated cost would pass a spending cap. Later versions: combined
-  spend over several boxes from `boxes.json`, never start a batch while another pack runs, per-batch training script.
-- `backup.sh`: append-only pull of every result (raw `train.log`, tensorboard events, Hydra config, curves, reward code) to the
-  Mac, verified against a sha256 manifest made on the box (only files unchanged for 5+ minutes; running logs are picked up
-  later). Final checkpoints copied outside git to `~/MSThesis_checkpoints/`.
-- `provenance.sh`: snapshot of code hashes (byte-identical to the repo), upstream-tree hashes, pip freeze, `nvidia-smi -q`,
-  filtered environment (no credentials), queue state.
-- `ledger.py`: running count of completed phases, PPO iterations, GPU-hours, reward-seed pairs.
+Upstream `AntPPO` and task-default PPO configs, unchanged; seed varied explicitly. Hardware: Quest A100 (PCIe-40GB / SXM-80GB)
+until 26 Oct evening, then Vast.ai A100-PCIE-40GB boxes 1 and 2 (box 3 rented, never trained). Identical software everywhere;
+20+10-iteration smoke runs gave identical scores to the last digit on Quest, box 1 and box 2. Measured speed on Vast:
+0.251 s/iteration solo; 3 concurrent runs ≈ 5.2-5.5 it/s total (saturated; 6 concurrent = 5.08).
 
-**G1 desaturation ablation (idea from the llm-efficiency study):** the LLM's round-2 improvement of reward r1c1 seemed to be
-mostly one constant, the forward-speed tanh temperature 4 → 10. Variants: r1c1 with τ=10, r1c1 with τ=6, r2c0 reverted to τ=4,
-and r1c1 unchanged on seed 1; straight 3,000 its, seeds 0-1 (later seeds 2-3 for the key arms). Pre-registered reading:
-τ=10 mean ≥ 9.0 → the edit explains most of the gain.
+### 2.4 Search structure ("rounds")
 
-**Offline pruning simulator on the bigger pool:** extended with the 16 live curves, Hyperband exactly as in the paper, a VoI
-(value-of-information) rule and a 1,500-it checkpoint; held-out cross-validation (tune on half the curves, score on the other
-half) and leave-one-round-out on the 6 real rounds. Sanity check: the simulator replays the live rounds exactly (fixed@500
-retained 0.83/1.00/0.94/0.92, as observed). First signal: forecasting rules keep ~98-99% vs ~95% for fixed@500 at slightly more
-compute; paper Hyperband costs ~3× training everything.
-
-**A1 / A10 tables:** false-prune rate 4/12 (above); no "slow starters" in 27 curves (500-it vs 3,000-it rank correlation 0.82
-across the whole pool, but close calls within a round are coin flips).
-
-**LLM trial (approved by the user, key provided in chat; advised rotation):** the prepared 22-call plan. Arms:
-B = four rewards per call, C = four per call with four named strategies, D = one per call with a strategy hint,
-E = one per call "think briefly"; A = the existing independent samples (no new calls). Cost **$0.262**. Valid rewards: B 12/12,
-C 8/12, D 7/12 (2 replies hit the 32k cap), E 4/4. All 31 valid rewards got 500-it screens (later on a second seed too); the 6
-best (all batched) were resumed to 3,000.
-
-**More GPUs:**
-- **Box 2** (same card/driver class): built in ~15 min, smoke identical; queue split.
-- **Concurrency benchmark:** 6 runs per GPU = 5.08 it/s vs 3 runs = 5.2-5.5 it/s → keep 3 (the card is saturated; a single
-  run alone ≈ 4.0 it/s, measured 0.251 s/it solo).
-- **Box 3:** its pip install stalled on a slow network; copying box 2's environment across was blocked by a safety check
-  (adding an SSH key between boxes); the user shut it off. No training ran; its ~1.1 h were folded into the spend estimate.
-- **Box 2 outage:** its direct SSH port stopped answering at ~21:15; reached it through Vast's proxy (`ssh4.vast.ai`), no data
-  lost, all scripts rerouted transparently.
-
-Credit/caps over the night: $10 → +$5 (cap $13 → $14) → +$6 (cap $20).
+- **Round 1:** N independent LLM samples from the initial prompt.
+- **Round 2:** N new samples written after seeing the best round-1 reward and its training statistics (Eureka reflection).
+- **Original search (exp_b):** 3 + 2 samples, every candidate trained fully, round 2 from full-training feedback.
+- **Live search (exp_e, this session):** 4 + 4 samples per trial, every candidate trained only 500 its; the leader is kept,
+  round 2 is written from the leader's **500-iteration** log, the overall leader resumes to 3,000; stopped runs are resumed later
+  only as an audit.
+- Round-2 refinements were also probed by ablation (the "desaturation" constant).
 
 ---
 
-## 5. Phase 4 - turning data into defensible results (26 Oct 22:00 - 27 Oct 01:00)
+## 3. Literature and novelty
 
-The user asked for actual, defensible results on both hypotheses, with held-out testing, live confirmation, and labels on
-every number (actual run / retrospective held-out / simulation).
+| Work | What it does | Relation to this thesis |
+| --- | --- | --- |
+| [Eureka (Ma et al., ICLR 2024)](https://www.seas.upenn.edu/~dineshj/publication/ma-2024-eureka/ma-2024-eureka.pdf) | LLM writes reward code; candidates trained fully; reflection loop | the system whose compute we cut; its prompts are used unchanged |
+| [ORSO (Zhang et al., ICLR 2025)](https://proceedings.iclr.cc/paper_files/paper/2025/hash/6155cfb4e650d41167848fe2ead30ab8-Abstract-Conference.html) | online selection among LLM-generated rewards in Isaac Gym (Cartpole, BallBalance, Ant, Humanoid, ...): 1% training chunks allocated by bandit model selection (D3RB, Exp3, UCB, ETC) on the current task score; up to 8× compute reduction | **closest prior work**: adaptive allocation itself is not new. Rebuilt and used as a baseline (VoI ≥ ORSO, PID ≈ ORSO at lower compute). ORSO uses no forecasting, no component signals, single-seed selection |
+| [Learning-curve extrapolation (Domhan et al., IJCAI 2015)](https://ijcai.org/proceedings/2015/487) | predict final performance from early curve; terminate weak runs | VoI/Bayesian rules are in this family |
+| Successive halving (Jamieson & Talwalkar, AISTATS 2016); Hyperband (Li et al., JMLR 2018); ASHA | budget-doubling elimination | tested; SH did not beat fixed@500; published Hyperband collapses at ≤12 candidates (3× cost) |
+| [PASHA (ICLR 2023)](https://openreview.net/forum?id=syfgJE6nFRW); [LC-PFN (NeurIPS 2023)](https://papers.nips.cc/paper_files/paper/2023/hash/3f1a5e8bfcc3005724d246abe454c1e5-Abstract-Conference.html); freeze-thaw BO; BOHB (Falkner et al., ICML 2018) | adaptive budgets, probabilistic learning-curve forecasting, Bayesian guidance + multi-fidelity | a VoI + PID or "trust the forecaster" hybrid would overlap with these |
+| [Calibrated online BO (2024)](https://proceedings.mlr.press/v238/deshpande24a.html); [HiP-BO (2026)](https://www.sciencedirect.com/science/article/pii/S092523122602802X) | forecast calibration as evidence accrues; historical-task knowledge + learning curves | cold-start / library ideas overlap |
+| [Early discarding after one epoch (2024)](https://arxiv.org/pdf/2404.04111); [one epoch for multi-fidelity HPO (2023)](https://arxiv.org/pdf/2307.15422) | simple fixed early discarding is hard to beat | the alternative our adaptive rules must beat (they do, modestly, on Ant) |
+| [Batch prompting (Cheng et al., 2023)](https://arxiv.org/pdf/2301.08721); [BatchPrompt (ICLR 2024)](https://iclr.cc/virtual/2024/poster/19241) | several inputs per call, savings from the shared prompt | batching itself is known; our mechanism (shared hidden *reasoning* of reasoning models when generating several programs) and measurement for reward design are the new part |
+| [LEARN-Opt (2025)](https://arxiv.org/pdf/2511.19355); [RHYVE (2026)](https://www.alphaxiv.org/abs/2604.28056.md) | automated reward design is high-variance; candidate-family-dependent warm-up | supports screening many candidates; no compute-allocation study |
+| Reward-hacking detection ([survey-style study](https://arxiv.org/html/2507.05619v1), [gradient fingerprints](https://arxiv.org/pdf/2604.16242)) | proxy vs true objective divergence | inspired the reward-structure probe (which did not help) |
+| LLM performance prediction for fine-tuning ([survey](https://dsa.hkust-gz.edu.cn/blog/2026/05/29/a-survey-of-performance-prediction-for-llm-fine-tuningfrom-early-stopping-to-decision-oriented-post-training/)) | predicting LLM fine-tuning outcomes | nearest to the LLM-judge idea; none found for RL reward search |
 
-**Held-out pruning design (`pruning/heldout.py`):**
-- One causal interface for every rule: a rule sees only the prefix each candidate has trained so far and decides keep/stop.
-- TRAIN = all curves of seeds 0-3 (65 curves); TEST = seeds 4 and 5 (later 4, 5, 7, 8, 9) of the 8 strong rewards.
-- Candidate sets = same-seed groups of 4 (as in a real round). Libraries never contain any curve of a reward in the set
-  (leave-reward-out), so forecasts can't peek at other seeds of the same reward.
-- **Rules frozen on TRAIN and committed before any held-out curve existed (`e868927`, 23:41).**
-
-**Pre-registrations (all committed before the data they govern):**
-- `results/pruning/best_rule_criterion.md` (`b9c1fc2`): which rule gets the live test.
-- `STATS_PLAN.md` (`4f7c0a1`, 00:14): five primary hypotheses, tests, units (a PPO seed, never an iteration), Holm correction:
-  H1 adaptive pruning > fixed@500; H2 batching cheaper per valid reward; H3 batching not worse (10% margin); H4 the one-constant
-  edit recovers the refinement gain; H5 the best reward beats the human reward.
-- Amendment 1 (`0a48a11`): H1's held-out set fixed to seeds 4, 5, 7, 8, 9, run unconditionally (to avoid optional stopping),
-  plus an exploratory second/third-LLM study. Substitution (`4bd08b2`): DeepSeek and Qwen 3.8 Flash were refused on the free
-  gateway tier (HTTP 403, $0) → Gemini 2.5 Flash and Qwen-3-32B.
-- Swapped a planned "borderline candidate seeds" batch for 2 extra G1 seeds (same cost, more power for H4).
-
-**Live pruning machinery (`live_prune.py`):** 8 candidates train concurrently and continuously; a controller reads each run's
-tensorboard log, pauses it (SIGSTOP) at the rule's checkpoint, applies the frozen rule to exactly the logged prefix, kills
-(SIGKILL) dropped runs, continues the rest; afterwards the same rule is replayed on the recorded curves. Smoke test (2 arms,
-20-iteration checkpoint): pause/kill/replay matched. One bug fixed: child processes needed the venv on PATH for `ninja`.
-
-**Generalisation study (LLM calls approved by the user):** `gen_task.py` (upstream prompts for any task; one-per-call vs
-four-per-call arms) and `live_task.py` (training for any task). Cartpole 100 its, BallBalance 250 its, Humanoid 1,000 its;
-28 calls, $0.21; 43 valid rewards; every valid reward + human trained to full length (Cartpole/BallBalance seeds 0-1,
-Humanoid seed 0, human 0-1).
-
-**Statistical honesty decisions:** the original analysis's resume control criterion compared against other seeds; replaced by
-a same-seed comparison and added straight human runs on seeds 2-3 as controls.
+**Novelty conclusion.** Not new: adaptive allocation among LLM rewards (ORSO), learning-curve forecasting, PID-style racing,
+batching prompts. Tested and not supported: reward-structure early signals, a VoI+PID hybrid as a needed fix (PID already ties
+VoI; VoI's failure was the wrong library). Defensible contributions: the evaluation methodology and findings (held-out,
+multi-seed, live, pre-registered, vs ORSO), the winner's-curse evidence against single-seed selection, the measured
+batching savings for reasoning models, and the library/cold-start diagnosis.
 
 ---
 
-## 6. Phase 5 - the night's runs and the final analysis (27 Oct 01:00-07:45)
+## 4. Chronology
 
-All on Vast boxes 1-2, in batches (`vast/queue_batches/`). Key milestones:
-- **Interim H1 (seeds 4-5) → rule selection by the pre-registered criterion: VoI (λ=1.0, first decision at 250 its)**
-  (`90e1572`).
-- **Live confirmation (seed 6, 8 rewards) [actual]:** VoI used 7,769 of 24,000 iterations (32%), killed 7 runs, kept r2c1
-  (peak 11.09); replay decisions identical, overshoot ≤ 6 iterations per arm (`11eef5c`).
-- Held-out seeds 7-9, the generalisation runs, the second-seed LLM-trial screens, G1 extra seeds, the solo calibration run,
-  Gemini/Qwen screens and top-4 resumes.
-- Two Humanoid LLM rewards crashed at run time (a wrong `Tensor` type annotation on a float; an out-of-range index): counted as
-  failed candidates, as upstream Eureka would.
-- `final_analysis.py` and `exploratory_analysis.py` were written and dry-run while the GPUs worked, so results came minutes
-  after the last batch.
-
-**Final pre-registered results (Holm across H1-H5):**
-
-| | Result | Holm p | Verdict |
-| --- | --- | ---: | --- |
-| H1 | VoI 0.997 vs fixed@500 0.972 retained (+0.025 [0.006, 0.046]); winner 86% vs 59%; compute 0.42 vs 0.375; 175 held-out sets | 0.0076 | **significant** as pre-registered; **not** under the stricter seed-level test added later (p = 0.041, Holm 0.21) |
-| H2 | four-per-call 2.6-5.5× fewer tokens per valid reward on 4/4 tasks | <0.0001 | **significant** |
-| H3 | batch − one-per-call quality −0.023 [−0.12, +0.07] | 0.128 | inconclusive |
-| H4 | τ 4→10: 7.57 → 9.04 (+1.47), n = 4 vs 4 | 0.075 | not significant after correction (pre-registered reading met) |
-| H5 | p3 vs human: +0.86 over 6 paired seeds | 0.128 | not significant |
-
-Extra H1 checks: vs a fixed checkpoint of equal compute (+0.015, p = 0.0099); on seeds 7-9 only, the seeds never used to choose
-the rule (+0.022 [0.000, 0.039], p = 0.036).
-
-**Exploratory results:** winner's curse (the original 10.93 reward averages 9.15 on 8 other seeds; human reward 7.9-10.6 by
-seed); the 500-it pick equals the 3,000-it winner on 6 of 9 seeds; Cartpole/BallBalance saturate (every reward hits the ceiling)
-so they can't test anything; on Humanoid all LLM rewards were far below the human reward; the Ant-tuned VoI did not transfer to
-Humanoid (0.81 retained); generate-vs-train allocation (simulation, with measured prices: one LLM call ≈ 60-230 PPO iterations
-of A100 time) does not beat "generate 4, screen at 500".
-
-**Resume control:** same-seed split-vs-straight peaks differ by −0.18, −0.07, −0.30 (seeds 1-3), but the strict pre-registered
-"no reset" check failed on 1 of 8 seeds (dip to 19.7% vs a 20% threshold). Reported as such; resumed numbers are labelled.
-
-**Shutdown:** box 2 finished at 06:22 (backed up, provenance snapshot); box 1 finished at 07:41 (backed up, 1,859 files, 0
-mismatches; home-folder logs archived to `vast/box_logs/box1`). The user is destroying both instances; nothing needed is lost
-(box 2's packing console log could not be copied after it was stopped; its queue log is in its provenance snapshot).
+| When | Phase | What happened |
+| --- | --- | --- |
+| 26 Oct 13:50 | start | repo review: all screening had been retrospective; round 2 had used full-training feedback |
+| 14:00-19:00 | Quest live search | `live.py` built; resume semantics found (epoch counter not restored; ~10-20-it dip after resume); 16k token cap gave empty LLM replies → 32k; live trials 1-2 ran (trial 3 never started); H100 lane tried; seed stage designed; Quest socket died ~18:36 |
+| 18:00-19:00 | Vast audit and setup | read-only Quest audit of the exact stack; CMP 170HX NO-GO; SSH key; box 1 built (tkinter fix); smoke identical; seeds 1-3 launched 18:55 |
+| 19:00-24:00 | maximise GPU | merge/commits; batch runner, verified backups, provenance, ledger; G1 ablation; pruning simulator on 27 curves; LLM arm trial (22 calls); boxes 2 and 3 (3 failed); concurrency benchmark; box 2 network outage → proxy; caps raised with user credit |
+| 22:00-01:00 | defensible design | held-out design; **rules frozen 23:41 (`e868927`)**; live-rule criterion; live-pruning machinery + smoke; generalisation generation (28 calls); **STATS_PLAN 00:14 (`4f7c0a1`)**, amendment 1 (`0a48a11`), LLM substitution (`4bd08b2`) |
+| 27 Oct 01:00-07:45 | runs + analysis | interim H1 → VoI chosen; **live pruning run** (seed 6); held-out seeds 7-9; generalisation; LLM-trial second seed; G1 extra seeds; Gemini/Qwen screens + resumes; final analysis + 5 docs; box 2 done 06:22, box 1 done 07:41 |
+| 06:30-08:00 | novelty | Humanoid library test; literature (ORSO found); structure probe; seed-allocation probe; ORSO baseline; LLM judge (pre-registered) |
+| ~08:30 | statistics correction | critique: sets reuse 7 rewards → conservative seed-level re-analysis; H1 no longer survives Holm under it; claims scoped |
 
 ---
 
-## 7. Phase 6 - the novelty question (27 Oct 06:30-07:45)
+## 5. Every experiment and its results
 
-**User concern:** VoI looked overfit and PID strong; could a VoI + PID hybrid be a novel algorithm?
+### 5.1 Before this session (context)
 
-1. **Diagnosis, not overfitting:** VoI forecasts from a *library* of past runs. On Humanoid it had only Ant runs. With a
-   leave-one-out Humanoid library: VoI 0.814 → **0.971** retained (winner 75% → 95%), Bayesian 0.972 → 1.000; PID/fixed unchanged
-   (they use no library). So forecasting rules need history from the same task; this is a cold-start problem.
-2. **Literature check:** the closest prior work is **ORSO (Zhang et al., ICLR 2025)**: online selection among LLM-generated
-   rewards in Isaac Gym (Cartpole, BallBalance, Ant, Humanoid, ...), training in 1% chunks, chosen by bandit model selection
-   (D3RB, Exp3, UCB, ETC) on the current task score; up to 8× compute reduction. No forecasting, no reward-component signals.
-   Related: learning-curve extrapolation (Domhan 2015), PASHA, LC-PFN, freeze-thaw BO, BOHB, calibrated BO, the 2024 finding that
-   fixed early discarding is hard to beat, batch prompting (Cheng et al. 2023; BatchPrompt, ICLR 2024). Conclusion: "adaptive
-   allocation" and "VoI + PID" are not new by themselves.
-3. **Novelty probe 1: reward-structure signals (offline)** [exploratory]: do per-component trends and the gap between a
-   run's own reward and the task score predict the winner better than the score? **No** (pair accuracy at 500 its: 0.77 with
-   structure vs 0.79 without; split by reward identity, 104 runs, 27 rewards). Not pursued further (no feature fishing).
-4. **Novelty probe 2: seeds vs horizon (offline):** at full screening budget, 2 seeds × 1,500 its finds the truly best reward
-   (mean over held-out seeds) 55% vs 48% for 1 seed × 3,000, but retained quality barely changes (96.7% vs 96.2%). Small effect.
-5. **ORSO baseline (post hoc, tuned on training seeds only):** on held-out seeds, ORSO-D3RB 0.990 retained at 0.475 compute;
-   **VoI beats it (+0.007, p = 0.012) with 5% less compute; PID ties it with 6% less compute.**
-6. **LLM-as-judge from early logs** (pre-registered `1703d9c` before any call, ~$1): can MiniMax pick the eventual winner from
-   reward code + 500-it logs, better than fixed@500 at equal compute? LLM judge result (105 sets, all replies parsed, $0.74): at the same compute as fixed@500, the LLM's pick kept **0.987** of
-   the best reward vs **0.975** for fixed@500 and found the winner **74% vs 56%** of the time; difference +0.013 [−0.001, +0.032],
-   **p = 0.057, just missing the pre-registered p < 0.05: promising, not significant.** For context, VoI and PID keep 0.997 on
-   the same seeds but spend ~0.42 compute vs 0.375. Contrast with the earlier blind ranking from code alone, which failed badly:
-   the training logs are what make the LLM a useful judge. `results/pruning/llm_judge.json`.
+| ID | What | Result |
+| --- | --- | --- |
+| Exp 1 | upstream 500-it Ant baseline | peak 8.01 |
+| exp_a | human reward, 3,000 its | seed 0: 10.48, seed 1: 10.33 |
+| exp_b | 3 + 2 search, all trained fully | R1 6.59 / 7.55 / 4.46; R2 10.93 / 10.75 |
+| exp_c | retrospective fixed@500 screening of exp_b | 50% saved, 100% kept |
+| exp_d | 6 extra round-1 samples; blind LLM ranking from code; zero-training probe | pool 10.73 (p3), 9.41, 9.25, 6.95, 5.28, 0.01; LLM ranked the best reward last |
 
-**Where novelty stands (agreed framing):** no new algorithm is supported by the data. The contribution is a rigorous,
-pre-registered, held-out, multi-seed and live evaluation of compute allocation for LLM reward search, with clear findings
-(VoI and PID beat fixed stopping and a rebuilt ORSO; forecasting needs in-task history; single-seed selection is unreliable;
-batched generation is much cheaper) and documented negative results.
+### 5.2 Live early-stopping search (exp_e) [actual]
+
+| Trial | Round-1 scores at 500 (kept) | Round-2 scores at 500 (kept) | Winner at 3,000 | Best in trial (audit) |
+| --- | --- | --- | --- | --- |
+| 1 | 0.02, **6.53**, 6.05, 5.74 | **7.08**, 6.15, 6.45, 5.75 | 9.29 | 9.29 (same) |
+| 2 | 4.68, 0.01, **6.54**, 6.11 | 3.80, 6.08, 6.49, **7.01** | 9.61 | 10.43 |
+
+Compute 6,500 vs 24,000 iterations per trial (**73% saved**); kept candidate retained 0.83 / 1.00 / 0.94 / 0.92 of each round's
+best; top-1 correct 1/4 rounds; **false prunes 4/12 (33%, Wilson 14-61%)**, each when the leader at 500 led by < 0.8;
+all 16 round-2 samples written from 500-it feedback were valid; round-2 mean 8.52 vs round-1 8.33 (no control).
+
+### 5.3 Seed replication (exp_f) [actual; seeds ≥ 1 use 500 + resume]
+
+Peak task score per seed (8 rewards × 9 seeds; seed 6 used for the live pruning run):
+
+| Reward | s0 | s1 | s2 | s3 | s4 | s5 | s7 | s8 | s9 | mean of s1-9 |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| p3 (pool) | 10.73 | 10.97 | 10.96 | 11.04 | 10.45 | 9.59 | 9.72 | 11.26 | 10.75 | 10.59 |
+| t2r2c2 (live) | 10.43 | 10.43 | 9.46 | 9.14 | 10.94 | 10.53 | 10.45 | 10.38 | 10.92 | 10.28 |
+| r2c1 | 10.75 | 10.32 | 10.06 | 9.71 | 11.48 | 9.69 | 10.02 | 9.04 | 9.92 | 10.03 |
+| human | 10.48 | 10.16 | 7.89 | 9.74 | 10.64 | 9.70 | 10.58 | 9.92 | 9.33 | 9.74 |
+| t1r2c0 (live winner) | 9.29 | 9.94 | 9.17 | 8.84 | 10.36 | 9.43 | 10.31 | 8.94 | 9.07 | 9.51 |
+| t2r1c3 | 9.62 | 10.60 | 8.98 | 10.44 | 9.18 | 9.88 | 7.88 | 7.31 | 9.11 | 9.17 |
+| **r2c0 (original "best")** | **10.93** | 9.71 | 8.09 | 9.21 | 8.65 | 10.56 | 9.71 | 8.30 | 8.99 | **9.15** |
+| t2r2c3 (live winner) | 9.61 | 9.13 | 9.18 | 8.45 | 9.46 | 8.65 | 9.09 | 8.02 | 9.97 | 9.00 |
+
+Also: seed-1 replication of all 10 viable live-round candidates; the 500-it pick equals the 3,000-it winner on 6/9 seeds (mean
+retained 0.977); rank stability between seeds is low (Spearman 0.1-0.8).
+
+**Resume control** (same seed, 500 + resume vs uninterrupted 3,000; human reward): peaks 10.16 vs 10.33 (s1), 7.89 vs 7.95 (s2),
+9.74 vs 10.03 (s3) → differences −0.18, −0.07, −0.30. Every resumed run dips briefly after the resume (to 1.3-2.3) and recovers;
+the strict pre-registered "no reset" rule failed on 1/8 seeds (19.7% vs a 20% threshold). Resumed numbers are labelled.
+
+### 5.4 Desaturation ablation, G1 / H4 [actual, straight 3,000]
+
+| Variant | s0 | s1 | s2 | s3 | mean |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| r1c1 unchanged (τ = 4) | 7.55 | 7.49 | 7.27 | 7.96 | 7.57 |
+| r1c1, τ 4 → 10 | 8.95 | 9.69 | 9.80 | 7.71 | 9.04 |
+| r1c1, τ 4 → 6 | 10.16 | 8.88 | - | - | 9.52 |
+| r2c0 reverted τ 10 → 4 | 8.97 | 9.26 | - | - | 9.12 (r2c0 itself: 9.15 mean over 8 new seeds) |
+
+### 5.5 LLM generation strategies on Ant, MiniMax (exp_h) [actual]
+
+| Arm | Calls | Valid | $ | Best 500-it (s0 / s1) | Median 500-it (s0 / s1) | Tokens per valid |
+| --- | ---: | ---: | ---: | --- | --- | ---: |
+| A one per call (17 earlier samples) | 17 | 17 | 0.127 | 7.29 / - | 5.48 / - | 12,154 |
+| B four per call | 3 | 12 | 0.033 | **8.39** / 6.21 | 4.49 / 4.88 | **4,530** |
+| C four per call, named strategies | 3 | 8 | 0.036 | 7.00 / 7.21 | 5.52 / 5.36 | 7,340 |
+| D one per call + strategy hint | 12 | 7 | 0.165 | 5.99 / 6.68 | 3.43 / 4.04 | 38,704 |
+| E one per call, "think briefly" | 4 | 4 | 0.028 | 4.33 / 4.30 | 1.00 / 0.17 | 11,270 |
+
+Human at 500 its: 8.01 (s0), 6.99 (s1). Top 6 (all batched) resumed to 3,000: 11.11, 10.42, 10.14, 9.28, 8.82, 8.50.
+
+### 5.6 Other LLMs on Ant (exp_k) [actual, seed 0]
+
+| Model, arm | Calls | Valid | $ | Best / median 500-it | Top resumed to 3,000 |
+| --- | ---: | ---: | ---: | --- | --- |
+| Gemini 2.5 Flash, one per call | 8 | 5 | 0.108 | 5.18 / 1.27 | 6.90, 3.18 |
+| Gemini 2.5 Flash, four per call | 2 | 4 of 7 | 0.069 | 2.07 / 1.88 | 6.07, 4.42 |
+| Qwen-3-32B, one per call | 8 | 8 | 0.030 | 7.16 / 2.50 | **11.32**, 9.81, 6.74 |
+| Qwen-3-32B, four per call | 2 | 7 of 8 | 0.008 | 4.07 / 2.32 | 5.41 |
+
+Batching cheaper per valid reward for both (1.2×, 3.3×). Qwen's 11.32 is the best single-seed reward of the project.
+
+### 5.7 Generalisation to other robots (exp_i) [actual]
+
+| Task | Calls (1/call + 4/call) | Valid (1/call, 4/call) | Tokens per valid (1/call vs 4/call) | Runs | Human peak | LLM rewards vs human (mean, best) |
+| --- | --- | --- | --- | ---: | --- | --- |
+| Cartpole | 8 + 2 | 6/8, 8/8 | 5,048 vs 1,347 (3.7×) | 30 | 499 / 499 | 1.00 / 1.00 (saturated) |
+| BallBalance | 8 + 2 | 8/8, 8/8 | 17,148 vs 6,658 (2.6×) | 34 | 499 / 499 | 0.90-1.00 / 1.00 (saturated) |
+| Humanoid | 6 + 2 | 5/6, 8/8 | 18,374 vs 3,346 (5.5×) | 15 (2 crashed) | 7.13 / 5.03 | 1/call 0.33 / 0.76; 4/call 0.12 / 0.37 |
+
+Cost $0.21. Two Humanoid rewards crashed at run time (wrong `Tensor` annotation on a float; out-of-range index) → failed candidates.
+
+### 5.8 Pruning rules [held-out]
+
+Frozen on TRAIN (seeds 0-3, 65 curves) before held-out data existed; candidate sets = same-seed groups of 4 from the 7 strong
+rewards; libraries exclude every curve of the rewards being judged. Held-out seeds 4, 5, 7, 8, 9 → 175 sets.
+
+| Rule | Compute | Kept [95% CI] | Winner |
+| --- | ---: | ---: | ---: |
+| random | 0.250 | 0.908 | 26% |
+| **fixed@500 (reference)** | 0.375 | 0.972 [0.952, 0.991] | 59% |
+| PID | 0.413 | 0.991 [0.979, 0.999] | 78% |
+| MPC (receding horizon) | 0.418 | 0.995 | 83% |
+| **VoI** | 0.425 | **0.997 [0.993, 0.999]** | **86%** |
+| PD | 0.440 | 0.991 | 78% |
+| Bayesian pruning | 0.453 | 0.996 | 85% |
+| Thompson best-arm (bandit) | 0.454 | 0.996 | 87% |
+| successive halving | 0.458 | 0.988 | 75% |
+| ORSO-D3RB (rebuilt, post hoc) | 0.475 | 0.990 | 78% |
+| PI | 0.476 | 0.997 | 87% |
+| fixed@1000 | 0.500 | 0.992 | 81% |
+| ratio-bound racing | 0.535 | 0.997 | 87% |
+| Hyperband (resumable) | 0.547 | 0.992 | 87% |
+| P | 0.560 | 0.997 | 87% |
+| ORSO-Exp3 (rebuilt) | 0.617 | 0.980 | 68% |
+| human-reference threshold | 0.615 | 0.997 | 87% |
+| Hyperband as published | 3.055 | 1.000 | 100% |
+
+Other pruning results: equal-compute fixed checkpoint (fixed@698) 0.981 → VoI still +0.015; clean seeds 7-9: VoI 0.997 vs fixed
+0.975, PID 0.997; offline cross-validation on the 27-curve pool showed the same ordering; leave-one-round-out on the 6 real rounds:
+VoI kept the best in 6/6, fixed@500 in 4/6.
+
+**Live pruning confirmation (exp_j) [actual]:** seed 6, 8 rewards, VoI really paused/killed processes: 7,769 of 24,000 its
+(32%), 6 runs killed at 250-850 its and 1 at 1,551, survivor r2c1 peaked 11.09; replay of the same rule on the recorded curves
+made identical decisions (overshoot ≤ 6 its per arm).
+
+**Transfer to other robots [held-out task]:** with the Ant library, on Humanoid VoI kept 0.814 and MPC 0.805 vs fixed@500 0.972,
+PID-family 0.972 at 0.32 compute, successive halving 0.994; Cartpole/BallBalance every rule 1.000 (saturated).
+**Humanoid with a Humanoid library (leave-one-out, 11 curves) [exploratory]:** VoI 0.814 → 0.971 (winner 75% → 95%), Bayesian
+0.972 → 1.000, MPC 0.805 → 0.930; PID/fixed unchanged.
+
+### 5.9 Novelty probes [exploratory, offline]
+
+- **Reward-structure signals** (component trends, own-reward vs task-score gap), pair prediction split by reward identity
+  (104 runs, 27 rewards): at 500 its 0.77 with structure vs 0.79 without; close pairs 0.71 vs 0.69 → no improvement.
+- **Seeds vs horizon** (7 rewards × 9 seeds; truth = mean over held-out seeds): at full screening budget 2 seeds × 1,500 its finds
+  the true best 55% vs 48% for 1 × 3,000; quality kept 0.967 vs 0.962; at small budgets no gain.
+- **LLM judge** (pre-registered `1703d9c`): MiniMax shown code + first 500 its of logs per candidate, seeds 7-9, 105 sets, equal
+  compute to fixed@500: kept 0.987 vs 0.975, winner 74% vs 56%; +0.013 [−0.001, +0.032], p = 0.057 (0.17 with seed as unit);
+  all replies parsed; $0.74. Code alone (earlier) had failed badly. Test closed; not to be extended on the same curves.
+
+### 5.10 Generate vs train [simulation]
+
+From the llm-efficiency simulator (84 splits of real curves): at 40-250 PPO iterations per LLM call, adaptive generate-or-train
+rules match but do not beat "generate 4, screen at 500" at equal cost (gaps −0.11 to +0.18); gains appear only at ≥ 1,000
+iterations per call. Measured on Vast: one MiniMax call ≈ 160 iterations of A100 time (≈ 60 per reward when batched).
 
 ---
 
-### Statistical correction after a reviewer-style critique (27 Oct ~08:30)
+## 6. Statistics
 
-The held-out "sets" recombine the same 7 rewards, so they are not independent. Re-analysed with each seed as one observation
-plus drop-one-reward sensitivity (`results/pruning/conservative_reanalysis.json`): H1 p = 0.041 uncorrected (n = 5 seeds),
-0.21 after Holm, so not significant under the stricter test though the direction is consistent (never negative per seed or
-per dropped reward); clean seeds 7-9 p = 0.095; PID vs fixed@500 p = 0.030 uncorrected; LLM judge p = 0.17. Decisions: report
-both analyses; scope H1 to this reward pool; do not extend the LLM-judge test on the same curves (optional stopping); spend
-remaining credit on fresh rewards with a pre-registered reward-and-seed-level test.
+**Pre-registrations (all committed before the governed data existed):** frozen rules `e868927`; live-rule criterion `b9c1fc2`;
+`STATS_PLAN.md` `4f7c0a1` (H1-H5, one-sided, Holm, seed as the unit of noise); amendment 1 `0a48a11` (H1 on seeds 4, 5, 7, 8, 9,
+run unconditionally; other-LLM study); substitution `4bd08b2`; LLM judge `1703d9c`.
 
-## 8. Every idea considered, and what happened to it
+**Primary results (as pre-registered: cluster bootstrap over seeds, permutation, non-inferiority, Welch, paired t; Holm):**
+
+| | Effect | p | Holm p |
+| --- | --- | ---: | ---: |
+| H1 VoI > fixed@500 | +0.025 [0.006, 0.046] | 0.0019 | 0.0076 |
+| H2 batching cheaper | 2.6-5.5× on 4/4 tasks | <0.0001 | <0.0001 |
+| H3 batching not worse (−10% margin) | −0.023 [−0.120, +0.073] | 0.064 | 0.128 |
+| H4 τ edit | +1.47 (n 4 vs 4) | 0.025 | 0.075 |
+| H5 p3 > human | +0.86 (6 paired seeds) | 0.073 | 0.128 |
+
+**Conservative re-analysis (after critique; `results/pruning/conservative_reanalysis.json`).** Held-out sets recombine the same
+7 rewards, so they are not independent, and a bootstrap over 3-5 seeds is optimistic. With each seed as one observation:
+H1 per-seed differences +0.057, +0.002, +0.029, 0.000, +0.037 → **p = 0.041 uncorrected, 0.21 after Holm (not significant)**;
+dropping any one reward keeps it positive (+0.017 to +0.033); clean seeds 7-9 p = 0.095; PID vs fixed@500 p = 0.030; LLM judge
+p = 0.17. **What may be claimed:** H2 firmly; H1 as a consistent improvement on this reward pool (never negative on any seed or
+reward subset) but not a firm statistical win and not yet for new rewards; H3-H5 and the LLM judge not established.
+
+---
+
+## 7. Every idea considered, and its fate
 
 | Idea | Status | Outcome |
 | --- | --- | --- |
-| Stop everyone at 500 its (fixed screen) | live + held-out | saves 63-73%, but misses close winners (33% false prunes live) |
-| Round 2 from 500-it feedback | live, 2 trials | works mechanically; quality gain unproven (no control) |
+| Stop everyone at 500 (fixed screen) | live + held-out | saves 63-73%; misses close winners |
+| Round 2 from 500-it feedback | live, 2 trials | works mechanically; quality gain unproven |
 | Fixed checkpoints 100-1,500 | held-out | 1,000 keeps 0.992 at 0.50 compute |
 | Successive halving | held-out | did not beat fixed@500 |
-| Hyperband (resumable / as published) | held-out | resumable ≈ others; as published costs 3× (collapses at ≤12 candidates) |
-| Human-reference threshold, ratio-bound racing | held-out | keep ~0.997 at 0.54-0.62 compute |
-| P / PI / PD / PID controllers | held-out | PID 0.991 at 0.41; PI 0.997 at 0.48; transfers to Humanoid |
-| Bayesian pruning, Thompson best-arm, MPC | held-out | 0.995-0.996 at 0.42-0.45 |
-| **VoI (expected improvement per cost)** | held-out + live | **best: 0.997 at 0.425; live 32% compute** |
-| ORSO bandit allocation | rebuilt baseline | 0.990 at 0.475; beaten by VoI, tied by PID |
-| VoI + PID hybrid / cold-start gate | discussed, not built | VoI's Humanoid failure explained by library; PID already ties VoI |
-| Reward-structure (component, proxy-gap) signals | offline probe | no improvement |
-| More seeds instead of longer screens | offline probe | small gain at full budget only |
-| Batch 4 rewards per call | actual, 4 tasks, 3 LLMs | 2.6-5.5× cheaper (MiniMax), also cheaper for Gemini/Qwen |
-| Four named strategies per call | actual | lower validity, no better best |
-| Strategy hints, "think briefly" | actual | worse rewards (and hints 5× costlier) |
-| Zero-token constant edit (desaturation) | actual, 4 seeds | +1.47 points; not significant after correction |
-| LLM blind pre-ranking (code only) | earlier, actual | failed (best reward ranked last) |
-| LLM judge with early logs | actual (pre-registered), 105 held-out sets | better than fixed@500 at equal compute (0.987 vs 0.975, winner 74% vs 56%), p = 0.057: not significant |
+| Hyperband (resumable / published) | held-out | resumable ≈ others; published 3× cost |
+| Threshold, ratio-bound racing | held-out | 0.997 at 0.54-0.62 compute |
+| P / PI / PD / PID | held-out | PID 0.991 at 0.41; transfers to Humanoid |
+| Bayesian, Thompson, MPC | held-out | 0.995-0.996 at 0.42-0.45 |
+| **VoI** | held-out + live | **best on Ant**; needs same-task library |
+| ORSO (bandit chunks) | rebuilt baseline | beaten by VoI, tied by PID at lower compute |
+| VoI + PID hybrid / cold-start trust gate | discussed, not built | not justified by data |
+| Reward-structure signals | probe | no improvement |
+| More seeds instead of longer screens | probe | small gain at full budget |
+| Batch 4 per call | 4 tasks, 3 LLMs | 2.6-5.5× cheaper |
+| Named strategies / hints / "think briefly" | actual | no better or worse |
+| Zero-token constant edit | actual, 4 seeds | +1.47, not significant after correction |
+| LLM blind ranking (code only) | earlier | failed |
+| LLM judge with early logs | pre-registered | promising, not significant |
 | Generate-vs-train joint allocation | simulation | no gain at measured prices |
-| Other LLMs (Gemini 2.5 Flash, Qwen-3-32B) | actual | weaker on average; Qwen's best reward 11.32 = best of the project |
-| Generalisation to Cartpole/BallBalance/Humanoid | actual | easy tasks saturate; Humanoid LLM rewards weak |
-| H100 / CMP 170HX / 6 runs per GPU / more boxes | tested or audited | no gain, or not worth it |
+| Other LLMs | actual | weaker on average; Qwen best single reward 11.32 |
+| Other robots | actual | easy tasks saturate; Humanoid LLM rewards weak |
+| H100, CMP 170HX, 6 runs per GPU, more boxes | tried / audited | no gain or not worth it |
+
+---
+
+## 8. Infrastructure and incidents
+
+**Code built this session:** `live.py` (live search, seeds, resume, packing), `live_task.py` (any task), `gen_task.py`
+(generation for any task/LLM), `live_prune.py` (live pruning with SIGSTOP/SIGKILL + replay check), `pruning/heldout.py`
+(frozen-rule held-out scoring), `pruning/run_pool_cv.py`, `orso_baseline.py`, `structure_probe.py`, `seed_allocation.py`,
+`final_analysis.py`, `exploratory_analysis.py`, `llm_judge.py`, `analyze_live.py`, `analyze_seeds.py`; `vast/runner.sh`
+(queue + spend cap), `backup.sh` (append-only, sha256-verified), `provenance.sh`, `ledger.py`, `setup_box.sh`,
+`restart_runner.sh`. Every run keeps reward code, LLM request/response, raw `train.log` (first line = full command incl. seed),
+Hydra config, tensorboard events, `run_info.txt`; final checkpoints in `~/MSThesis_checkpoints/`.
+
+| Incident | Handling |
+| --- | --- |
+| 16k-token cap → empty replies | 32k cap via env var |
+| Quest queue ~600 deep; SSH socket died | moved to Vast |
+| `tkinter` missing on Ubuntu Python | apt package |
+| shell pitfalls (zsh splitting, `pkill -f` self-match, exec bit, no `timeout`) | wrappers, PID kills, `chmod`, `setsid -f` |
+| runner restarts mid-batch | runner waits for running packs; batches idempotent |
+| box 3 pip stall; inter-box key blocked by safety check | user shut it off |
+| box 2 port down | Vast proxy |
+| live batch picked up late | moved to the other box |
+| backup mismatches on files being written | manifest on settled files only |
+| Humanoid reward crashes | counted as failed candidates |
+| resume-control strict rule failed on 1 seed | reported; resumed numbers labelled |
+| doc errors (run counts, H3 n, "best reward" attribution) | corrected in later commits |
+| statistical over-confidence (overlapping sets) | conservative re-analysis; claims scoped |
 
 ---
 
 ## 9. Costs and compute
 
-- **PPO:** 376 completed training phases (280 from scratch, 96 resumed), ~431,000 PPO iterations ≈ 2.8 × 10^10 environment
-  steps (`results/LEDGER.json`), plus the live-pruning run and the final Gemini/Qwen resumes.
-- **Vast:** ~$18.5 estimated from wall time across 3 boxes (credit $21). Quest compute was free.
-- **LLM calls this session:** MiniMax 50 ($0.47) + LLM judge 105 ($0.74) + Gemini 10 ($0.18) + Qwen 10 ($0.04) + a few cent-level
-  connectivity probes.
+- PPO: 384 completed training phases (280 from scratch, 104 resumed), ~451,000 iterations ≈ 3.0 × 10^10 environment steps,
+  plus the live pruning run (`results/LEDGER.json`).
+- Vast: ~$18.5 estimated (credit $21); Quest free. LLM this session: MiniMax $1.22 (trial 0.26 + generalisation 0.21 + judge
+  0.74), Gemini $0.18, Qwen $0.04.
 
 ---
 
-## 10. Incidents and how they were handled
+## 10. Open items
 
-| Incident | Handling |
-| --- | --- |
-| 16k-token cap → empty LLM replies | cap 32k via env var; truncations counted as failures |
-| Quest queue ~600 deep | H100 lane tried; moved to Vast |
-| Quest SSH socket died | stopped Quest work; Vast replaced it |
-| `tkinter` missing on Vast | apt package; documented in setup script |
-| zsh word-splitting / `pkill -f` matching its own SSH / missing exec bit / no `timeout` on macOS | wrappers, PID-based kills, `chmod`, `setsid -f` |
-| Runner restarts mid-batch | runner v2 waits for any running pack; batches are idempotent |
-| Box 3 pip stall; inter-box key blocked | user shut it off; cost folded into estimate |
-| Box 2 direct port down | Vast proxy; wrapper rewrites host |
-| Live-test batch picked up late by box 1 | moved to box 2 |
-| Backup mismatches on files still being written | manifest restricted to settled files |
-| Humanoid reward runtime crashes | counted as failed candidates |
-| Resume control strict criterion failed on 1 seed | reported, resumed numbers labelled |
-| Errors I corrected in docs | manifest run counts, H3 n, "best reward" attribution after Qwen's 11.32 |
+1. **Fresh-reward replication (~$3.5):** new batched LLM rounds, each reward trained fully once, rules frozen, a pre-registered
+   reward-and-seed-level test (the only way to support H1 for new rewards). Rent an A100 PCIe 40GB, rebuild with `vast/setup_box.sh`.
+2. More seeds for H4/H5 (~$3); a hard second task with an in-task library (Humanoid, ShadowHand); H3 with ~3× more rewards.
+3. Any LLM-judge follow-up only as a new pre-registered replication on fresh rewards.
+4. Rotate the API key that was pasted in chat. Destroy the Vast instances (all data is on the Mac).
 
 ---
 
-## 11. Open items and next steps
-
-1. LLM judge: concluded not significant (p = 0.057; 0.17 seed-level). Any follow-up must be a new pre-registered replication on fresh rewards, not an extension of this test.
-2. A fresh from-scratch robustness test on new rewards (~$3.5 on a rented A100 rebuilt with `vast/setup_box.sh`): ~4 new batched
-   rounds of 8 rewards trained fully once, all rules replayed frozen, to remove the "same 7 rewards" limitation.
-3. More seeds for H4/H5 (~$3); a hard second task with real reward variation (Humanoid with more seeds and an in-task library, or
-   ShadowHand); H3 with ~3× more rewards per arm.
-4. Write-up framing: empirical/methodological contribution; cite ORSO, learning-curve extrapolation, PASHA, LC-PFN, BOHB, batch
-   prompting.
-5. Rotate the API key that was pasted in chat.
-
----
-
-## 12. File index
+## 11. Files
 
 | Purpose | Files |
 | --- | --- |
-| Live search, seeds, resume | `live.py`, `live_task.py`, `analyze_live.py`, `analyze_seeds.py` |
-| Live pruning | `live_prune.py`, `results/exp_j_live_prune` |
-| Generation | `eureka_ab.py`, `gen_task.py`, `llm_efficiency/` |
-| Pruning simulator and tests | `pruning/` (`heldout.py`, `policies.py`, `configs.py`, `run_pool_cv.py`, `structure_probe.py`, `seed_allocation.py`, `orso_baseline.py`) |
-| Analyses | `final_analysis.py`, `exploratory_analysis.py`, `llm_judge.py`, `results/final/` |
-| GPU operations | `vast/` (runner, queue batches, backup, provenance, ledger, setup, logs) |
-| Pre-registration | `STATS_PLAN.md`, `results/pruning/frozen_rules.json`, `best_rule_criterion.md`, `llm_judge_prereg.md` |
-| Write-ups | `THESIS_EXPERIMENT_SUMMARY.md`, `PRUNING_COMPARISON.md`, `LLM_EFFICIENCY_RESULTS.md`, `GENERALIZATION_RESULTS.md`, `EXPERIMENT_MANIFEST.md`, this file |
+| Write-ups | `THESIS_EXPERIMENT_SUMMARY.md`, `PRUNING_COMPARISON.md`, `LLM_EFFICIENCY_RESULTS.md`, `GENERALIZATION_RESULTS.md`, `EXPERIMENT_MANIFEST.md`, `STATS_PLAN.md`, this file, earlier `REPORT.md`, `LLM_EFFICIENCY_FEASIBILITY.md` |
+| Results | `results/exp_*` (per run), `results/pruning/`, `results/final/`, `results/LEDGER.json` |
+| Provenance | `provenance/`, `backups/`, `vast/box_logs/`, `vast/queue_batches/` |
