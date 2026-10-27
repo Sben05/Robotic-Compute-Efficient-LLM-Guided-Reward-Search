@@ -1,0 +1,39 @@
+{
+  "model_used": "minimax/minimax-m3.1-flash",
+  "provider": "vercel ai gateway",
+  "arm": "D_indep_strategy",
+  "call": 11,
+  "function": null,
+  "functions_in_reply": 1,
+  "usage": {
+    "prompt_tokens": 1265,
+    "completion_tokens": 32768,
+    "total_tokens": 34033,
+    "cost": 0.01968342,
+    "is_byok": false,
+    "prompt_tokens_details": {
+      "cached_tokens": 1238,
+      "audio_tokens": 0,
+      "video_tokens": 0
+    },
+    "cost_details": {
+      "upstream_inference_cost": null,
+      "upstream_inference_prompt_cost": 0,
+      "upstream_inference_completions_cost": 0
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 32699,
+      "image_tokens": 0
+    },
+    "cache_creation_input_tokens": 0,
+    "market_cost": 0.01968342,
+    "gateway_cost": 0.01968342
+  },
+  "finish_reason": "length",
+  "generation_seconds": 204.0815200805664,
+  "response_text": "```python\nfrom typing import Dict, Tuple\n\nimport torch\n\n\n@torch.jit.script\ndef compute_reward(root_states: torch.Tensor) -> Tuple[torch.Tensor, Dict[str, torch.Tensor]]:\n    \"\"\"\n    Reward for making the ant run forward as fast as possible.\n\n    root_states: [N, 13] =",
+  "validation": {
+    "valid": false,
+    "error": "Upstream cannot parse function signature: SyntaxError('EOF while scanning triple-quoted string literal', ('<unknown>', 5, 99, '    \"\"\"\\n    Reward for making the ant run forward as fast as possible.\\n\\n    root_states: [N, 13] =\\n'))"
+  }
+}

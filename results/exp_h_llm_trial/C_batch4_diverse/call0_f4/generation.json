@@ -1,0 +1,47 @@
+{
+  "model_used": "minimax/minimax-m3.1-flash",
+  "provider": "vercel ai gateway",
+  "arm": "C_batch4_diverse",
+  "call": 0,
+  "function": 4,
+  "functions_in_reply": 4,
+  "usage": {
+    "prompt_tokens": 1367,
+    "completion_tokens": 23962,
+    "total_tokens": 25329,
+    "cost": 0.01455714,
+    "is_byok": false,
+    "prompt_tokens_details": {
+      "cached_tokens": 186,
+      "audio_tokens": 0,
+      "video_tokens": 0
+    },
+    "cost_details": {
+      "upstream_inference_cost": null,
+      "upstream_inference_prompt_cost": 0,
+      "upstream_inference_completions_cost": 0
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 20026,
+      "image_tokens": 0
+    },
+    "cache_creation_input_tokens": 0,
+    "market_cost": 0.01455714,
+    "gateway_cost": 0.01455714
+  },
+  "finish_reason": "stop",
+  "generation_seconds": 177.25032305717468,
+  "response_text": "```python\n\nfrom typing import Dict, Tuple\nimport torch\n\n\ndef _cross3_4(a: torch.Tensor, b: torch.Tensor) -> torch.Tensor:\n    return torch.stack((a[:, 1] * b[:, 2] - a[:, 2] * b[:, 1],\n                        a[:, 2] * b[:, 0] - a[:, 0] * b[:, 2],\n                        a[:, 0] * b[:, 1] - a[:, 1] * b[:, 0]), dim=-1)\n\n\ndef _body_axis_4(q: torch.Tensor, axis: int) -> torch.Tensor:\n    v = torch.zeros_like(q[:, 0:3])\n    v[:, axis] = 1.0\n    qw = q[:, 0:1]\n    qv = q[:, 1:4]\n    t = 2.0 * _cross3_4(qv, v)\n    return v + qw * t + _cross3_4(qv, t)\n\n\n@torch.jit.script\ndef compute_reward(root_states: torch.Tensor, targets: torch.Tensor,\n                     dof_vel: torch.Tensor,\n                     actions: torch.Tensor) -> Tuple[torch.Tensor, Dict[str, torch.Tensor]]:\n    \"\"\"Strategy 4 - exponential shaping.\n\n    exp(-gap / tau) of the shortfall between the current forward speed and a\n    desired target speed (so the reward is ~1 at the target speed and decays\n    smoothly when too slow), plus a linear bonus for exceeding the target\n    speed and an exponential heading-alignment term toward the target.\n    \"\"\"\n    quat = root_states[:, 3:7]\n    lin_vel = root_states[:, 7:10]\n    ang_vel = root_states[:, 10:13]\n\n    fwd = _body_axis_4(quat, 0)\n    up = _body_axis_4(quat, 2)\n\n    fwd_xy = torch.stack((fwd[:, 0], fwd[:, 1]), dim=-1)\n    vel_xy = torch.stack((lin_vel[:, 0], lin_vel[:, 1]), dim=-1)\n    fwd_hat = fwd_xy / torch.norm(fwd_xy, dim=-1, keepdim=True).clamp_min(1e-6)\n    v_fwd = torch.sum(vel_xy * fwd_hat, dim=-1)\n\n    # heading alignment with the direction to the target\n    to_target_xy = targets[:, 0:2] - root_states[:, 0:2]\n    to_target_hat = to_target_xy / torch.norm(to_target_xy, dim=-1, keepdim=True).clamp_min(1e-6)\n    align = torch.sum(fwd_hat * to_target_hat, dim=-1)      # in [-1, 1]\n\n    # ---------------- temperatures / targets ---------------------------------\n    v_target_speed = 5.0     # desired forward speed (m/s)\n    tau_speed = 1.0          # temperature of the speed shaping\n    tau_head = 0.5           # temperature of the heading shaping\n\n    # ---------------- exponential shaping ------------------------------------\n    gap = torch.clamp(v_target_speed - v_fwd, min=0.0)\n    speed_exp = torch.exp(-gap / tau_speed)\n    overspeed = torch.clamp(v_fwd - v_target_speed, min=0.0)\n    heading = torch.exp(-(1.0 - align) / tau_head)\n\n    # ---------------- survival + regularisers --------------------------------\n    alive = torch.ones_like(v_fwd)\n    upright_penalty = -0.05 * torch.clamp(1.0 - up[:, 2], min=0.0)\n    ang_vel_penalty = -0.001 * torch.sum(torch.square(ang_vel), dim=-1)\n    dof_vel_penalty = -0.00005 * torch.sum(torch.square(dof_vel), dim=-1)\n    action_penalty = -0.002 * torch.sum(torch.square(actions), dim=-1)\n\n    reward = (2.0 * speed_exp + 0.05 * overspeed + 0.5 * heading + 0.5 * alive +\n              upright_penalty + ang_vel_penalty + dof_vel_penalty + action_penalty)\n\n    components = {\n        \"speed_exp\": 2.0 * speed_exp,\n        \"speed_gap\": gap,\n        \"overspeed_bonus\": 0.05 * overspeed,\n        \"heading_alignment\": 0.5 * heading,\n        \"alive_bonus\": 0.5 * alive,\n        \"upright_penalty\": upright_penalty,\n        \"ang_vel_penalty\": ang_vel_penalty,\n        \"dof_vel_penalty\": dof_vel_penalty,\n        \"action_penalty\": action_penalty,\n    }\n    return reward, components\n\n```",
+  "validation": {
+    "valid": false,
+    "suffix": "GPTMHCbatch4diversecall0f4",
+    "environment_call": "compute_reward(self.root_states, self.targets, self.dof_vel, self.actions)",
+    "inputs": [
+      "root_states",
+      "targets",
+      "dof_vel",
+      "actions"
+    ],
+    "error": "TorchScript compilation failed:\nTraceback (most recent call last):\n  File \"/root/MSThesis/eureka_ab.py\", line 191, in build_candidate\n    spec.loader.exec_module(importlib.util.module_from_spec(spec))\n  File \"<frozen importlib._bootstrap_external>\", line 848, in exec_module\n  File \"<frozen importlib._bootstrap>\", line 219, in _call_with_frames_removed\n  File \"/root/MSThesis/results/exp_h_llm_trial/C_batch4_diverse/call0_f4/_torchscript_check.py\", line 6, in <module>\n    def compute_reward(root_states: torch.Tensor, targets: torch.Tensor,\n  File \"/root/MSThesis/.env/lib/python3.8/site-packages/torch/jit/_script.py\", line 1341, in script\n    fn = torch._C._jit_script_compile(\nRuntimeError: \nundefined value _body_axis_4:\n  File \"/root/MSThesis/results/exp_h_llm_trial/C_batch4_diverse/call0_f4/_torchscript_check.py\", line 20\n    ang_vel = root_states[:, 10:13]\n\n    fwd = _body_axis_4(quat, 0)\n          ~~~~~~~~~~~~ <--- HERE\n    up = _body_axis_4(quat, 2)\n\n"
+  }
+}

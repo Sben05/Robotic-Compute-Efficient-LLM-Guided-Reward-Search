@@ -1,0 +1,46 @@
+{
+  "model_used": "minimax/minimax-m3.1-flash",
+  "provider": "vercel ai gateway",
+  "arm": "C_batch4_diverse",
+  "call": 0,
+  "function": 1,
+  "functions_in_reply": 4,
+  "usage": {
+    "prompt_tokens": 1367,
+    "completion_tokens": 23962,
+    "total_tokens": 25329,
+    "cost": 0.01455714,
+    "is_byok": false,
+    "prompt_tokens_details": {
+      "cached_tokens": 186,
+      "audio_tokens": 0,
+      "video_tokens": 0
+    },
+    "cost_details": {
+      "upstream_inference_cost": null,
+      "upstream_inference_prompt_cost": 0,
+      "upstream_inference_completions_cost": 0
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 20026,
+      "image_tokens": 0
+    },
+    "cache_creation_input_tokens": 0,
+    "market_cost": 0.01455714,
+    "gateway_cost": 0.01455714
+  },
+  "finish_reason": "stop",
+  "generation_seconds": 177.25032305717468,
+  "response_text": "```python\n\nfrom typing import Dict, Tuple\nimport torch\n\n\ndef _cross3_1(a: torch.Tensor, b: torch.Tensor) -> torch.Tensor:\n    return torch.stack((a[:, 1] * b[:, 2] - a[:, 2] * b[:, 1],\n                        a[:, 2] * b[:, 0] - a[:, 0] * b[:, 2],\n                        a[:, 0] * b[:, 1] - a[:, 1] * b[:, 0]), dim=-1)\n\n\ndef _body_axis_1(q: torch.Tensor, axis: int) -> torch.Tensor:\n    # world-frame direction of a body axis, q given as (w, x, y, z)\n    v = torch.zeros_like(q[:, 0:3])\n    v[:, axis] = 1.0\n    qw = q[:, 0:1]\n    qv = q[:, 1:4]\n    t = 2.0 * _cross3_1(qv, v)\n    return v + qw * t + _cross3_1(qv, t)\n\n\n@torch.jit.script\ndef compute_reward(root_states: torch.Tensor, dof_vel: torch.Tensor,\n                     actions: torch.Tensor) -> Tuple[torch.Tensor, Dict[str, torch.Tensor]]:\n    \"\"\"Strategy 1 - speed centric.\n\n    Main term: a smooth, deliberately *wide* forward-speed term (tanh with a\n    large scale + a log1p term that never saturates) so that running speeds of\n    5-8 m/s are still in the active region of the reward.  Small regularisers\n    (uprightness, lateral drift, angular / joint velocity, action energy) keep\n    the gait sane without dominating the speed signal.\n    \"\"\"\n    quat = root_states[:, 3:7]\n    lin_vel = root_states[:, 7:10]\n    ang_vel = root_states[:, 10:13]\n\n    fwd = _body_axis_1(quat, 0)   # ant forward (body +x) in world frame\n    up = _body_axis_1(quat, 2)    # ant up (body +z) in world frame\n\n    fwd_xy = torch.stack((fwd[:, 0], fwd[:, 1]), dim=-1)\n    vel_xy = torch.stack((lin_vel[:, 0], lin_vel[:, 1]), dim=-1)\n    fwd_hat = fwd_xy / torch.norm(fwd_xy, dim=-1, keepdim=True).clamp_min(1e-6)\n    lat_hat = torch.stack((-fwd_hat[:, 1], fwd_hat[:, 0]), dim=-1)\n\n    v_fwd = torch.sum(vel_xy * fwd_hat, dim=-1)\n    v_lat = torch.sum(vel_xy * lat_hat, dim=-1)\n    up_z = up[:, 2]\n\n    # ---------------- speed term (wide, non-saturating) -----------------------\n    v_scale = 10.0                                   # far beyond normal ant running speeds\n    speed_tanh = torch.tanh(torch.clamp(v_fwd, min=-1.0, max=40.0) / v_scale)\n    speed_log = torch.log1p(torch.clamp(v_fwd, min=0.0)) / 2.4   # ~log(1+v)/log(11), unbounded\n    forward_speed = 0.6 * speed_tanh + 0.8 * speed_log\n\n    # ---------------- small regularisers --------------------------------------\n    alive = torch.ones_like(v_fwd)\n    upright_penalty = -0.05 * torch.clamp(1.0 - up_z, min=0.0)\n    lateral_penalty = -0.02 * torch.abs(v_lat)\n    ang_vel_penalty = -0.001 * torch.sum(torch.square(ang_vel), dim=-1)\n    dof_vel_penalty = -0.00005 * torch.sum(torch.square(dof_vel), dim=-1)\n    action_penalty = -0.002 * torch.sum(torch.square(actions), dim=-1)\n\n    reward = (forward_speed + 0.5 * alive + upright_penalty + lateral_penalty +\n              ang_vel_penalty + dof_vel_penalty + action_penalty)\n\n    components = {\n        \"forward_speed\": forward_speed,\n        \"speed_tanh\": 0.6 * speed_tanh,\n        \"speed_log\": 0.8 * speed_log,\n        \"alive_bonus\": 0.5 * alive,\n        \"upright_penalty\": upright_penalty,\n        \"lateral_penalty\": lateral_penalty,\n        \"ang_vel_penalty\": ang_vel_penalty,\n        \"dof_vel_penalty\": dof_vel_penalty,\n        \"action_penalty\": action_penalty,\n    }\n    return reward, components\n\n```",
+  "validation": {
+    "valid": false,
+    "suffix": "GPTMHCbatch4diversecall0f1",
+    "environment_call": "compute_reward(self.root_states, self.dof_vel, self.actions)",
+    "inputs": [
+      "root_states",
+      "dof_vel",
+      "actions"
+    ],
+    "error": "TorchScript compilation failed:\nTraceback (most recent call last):\n  File \"/root/MSThesis/eureka_ab.py\", line 191, in build_candidate\n    spec.loader.exec_module(importlib.util.module_from_spec(spec))\n  File \"<frozen importlib._bootstrap_external>\", line 848, in exec_module\n  File \"<frozen importlib._bootstrap>\", line 219, in _call_with_frames_removed\n  File \"/root/MSThesis/results/exp_h_llm_trial/C_batch4_diverse/call0_f1/_torchscript_check.py\", line 6, in <module>\n    def compute_reward(root_states: torch.Tensor, dof_vel: torch.Tensor,\n  File \"/root/MSThesis/.env/lib/python3.8/site-packages/torch/jit/_script.py\", line 1341, in script\n    fn = torch._C._jit_script_compile(\nRuntimeError: \nundefined value _body_axis_1:\n  File \"/root/MSThesis/results/exp_h_llm_trial/C_batch4_diverse/call0_f1/_torchscript_check.py\", line 20\n    ang_vel = root_states[:, 10:13]\n\n    fwd = _body_axis_1(quat, 0)   # ant forward (body +x) in world frame\n          ~~~~~~~~~~~~ <--- HERE\n    up = _body_axis_1(quat, 2)    # ant up (body +z) in world frame\n\n"
+  }
+}

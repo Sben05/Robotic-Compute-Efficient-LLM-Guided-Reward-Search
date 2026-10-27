@@ -1,0 +1,46 @@
+{
+  "model_used": "minimax/minimax-m3.1-flash",
+  "provider": "vercel ai gateway",
+  "arm": "B_batch4",
+  "call": 1,
+  "function": 1,
+  "functions_in_reply": 4,
+  "usage": {
+    "prompt_tokens": 1267,
+    "completion_tokens": 19047,
+    "total_tokens": 20314,
+    "cost": 0.01144734,
+    "is_byok": false,
+    "prompt_tokens_details": {
+      "cached_tokens": 1266,
+      "audio_tokens": 0,
+      "video_tokens": 0
+    },
+    "cost_details": {
+      "upstream_inference_cost": null,
+      "upstream_inference_prompt_cost": 0,
+      "upstream_inference_completions_cost": 0
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 16578,
+      "image_tokens": 0
+    },
+    "cache_creation_input_tokens": 0,
+    "market_cost": 0.01144734,
+    "gateway_cost": 0.01144734
+  },
+  "finish_reason": "stop",
+  "generation_seconds": 138.23679780960083,
+  "response_text": "```python\n\nimport torch\nfrom typing import Dict, Tuple\n\n\n@torch.jit.script\ndef compute_reward(root_states: torch.Tensor,\n                     up_vec: torch.Tensor,\n                     actions: torch.Tensor,\n                     dof_vel: torch.Tensor) -> Tuple[torch.Tensor, Dict[str, torch.Tensor]]:\n    \"\"\"\n    Reward 1 - dense \"run forward\" reward.\n\n      * linear reward on the forward (world +x) linear velocity of the torso\n      * bonus for keeping the torso upright (up_vec[:, 2] ~ cos(tilt))\n      * bonus for keeping the torso at a healthy height (nominal ~0.5-0.8 m)\n      * small penalty on control effort and joint speeds for smooth gaits\n\n    root_states layout (Isaac Gym): pos[0:3], quat[3:7] (xyzw), lin_vel[7:10], ang_vel[10:13]\n    \"\"\"\n    # forward running speed (m/s)\n    forward_speed = root_states[:, 7]\n    speed_reward = torch.clamp(forward_speed, min=-1.0, max=10.0)\n\n    # stay upright\n    upright_reward = torch.clamp(up_vec[:, 2], min=0.0, max=1.0)\n\n    # keep the torso lifted off the ground\n    height_reward = torch.clamp(root_states[:, 2] - 0.25, min=0.0, max=1.0)\n\n    # control / joint velocity energy\n    action_energy = torch.sum(torch.square(actions), dim=-1)\n    joint_energy = torch.sum(torch.square(dof_vel), dim=-1)\n    energy_penalty = -0.001 * action_energy - 0.00001 * joint_energy\n\n    total = speed_reward + 0.5 * upright_reward + 0.5 * height_reward + energy_penalty\n\n    components: Dict[str, torch.Tensor] = {\n        \"forward_speed\": speed_reward,\n        \"upright\": upright_reward,\n        \"torso_height\": height_reward,\n        \"energy\": energy_penalty,\n    }\n    return total, components\n\n```",
+  "validation": {
+    "valid": true,
+    "suffix": "GPTMHBbatch4call1f1",
+    "environment_call": "compute_reward(self.root_states, self.up_vec, self.actions, self.dof_vel)",
+    "inputs": [
+      "root_states",
+      "up_vec",
+      "actions",
+      "dof_vel"
+    ]
+  }
+}

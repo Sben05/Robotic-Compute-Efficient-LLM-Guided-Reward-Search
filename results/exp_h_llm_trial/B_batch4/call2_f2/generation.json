@@ -1,0 +1,46 @@
+{
+  "model_used": "minimax/minimax-m3.1-flash",
+  "provider": "vercel ai gateway",
+  "arm": "B_batch4",
+  "call": 2,
+  "function": 2,
+  "functions_in_reply": 4,
+  "usage": {
+    "prompt_tokens": 1267,
+    "completion_tokens": 18991,
+    "total_tokens": 20258,
+    "cost": 0.01141374,
+    "is_byok": false,
+    "prompt_tokens_details": {
+      "cached_tokens": 1266,
+      "audio_tokens": 0,
+      "video_tokens": 0
+    },
+    "cost_details": {
+      "upstream_inference_cost": null,
+      "upstream_inference_prompt_cost": 0,
+      "upstream_inference_completions_cost": 0
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 16602,
+      "image_tokens": 0
+    },
+    "cache_creation_input_tokens": 0,
+    "market_cost": 0.01141374,
+    "gateway_cost": 0.01141374
+  },
+  "finish_reason": "stop",
+  "generation_seconds": 135.761864900589,
+  "response_text": "```python\n\nimport torch\nfrom typing import Dict, Tuple\n\n\n@torch.jit.script\ndef compute_reward(root_states: torch.Tensor, dof_vel: torch.Tensor, dof_vel_scale: float,\n                     actions: torch.Tensor) -> Tuple[torch.Tensor, Dict[str, torch.Tensor]]:\n    \"\"\"\n    Variant 2 - Dense linear speed reward with stability / energy penalties.\n    The (clipped) forward velocity is rewarded linearly, which gives a strong\n    constant gradient for every extra m/s.  Stability is enforced with a torso\n    tilt penalty, an angular-velocity penalty and a (scaled) joint-velocity\n    energy penalty, plus a small motor-control cost.\n    \"\"\"\n    max_speed: float = 10.0      # speeds above this give no extra reward\n    tilt_coeff: float = 1.0\n    ang_coeff: float = 0.05\n    joint_coeff: float = 0.05\n    ctrl_coeff: float = 0.005\n\n    lin_vel = root_states[:, 7:10]\n    ang_vel = root_states[:, 10:13]\n\n    # forward running speed (never rewarded for moving backwards)\n    fwd_vel = torch.clamp(lin_vel[:, 0], min=0.0, max=max_speed)\n\n    # torso tilt (0 when perfectly vertical)\n    qx = root_states[:, 4]\n    qy = root_states[:, 5]\n    up_z = 1.0 - 2.0 * (qx * qx + qy * qy)\n    tilt_pen = torch.square(1.0 - torch.clamp(up_z, min=-1.0, max=1.0))\n\n    # body spinning / shaking\n    ang_pen = torch.sum(torch.square(ang_vel), dim=-1)\n\n    # joint movement energy (using the env's normalisation scale)\n    scaled_dof_vel = dof_vel * dof_vel_scale\n    joint_pen = torch.sum(torch.square(scaled_dof_vel), dim=-1)\n\n    ctrl_pen = torch.sum(torch.square(actions), dim=-1)\n\n    total = (fwd_vel\n             - tilt_coeff * tilt_pen\n             - ang_coeff * ang_pen\n             - joint_coeff * joint_pen\n             - ctrl_coeff * ctrl_pen)\n    return total, {\"fwd_speed\": fwd_vel, \"tilt_pen\": tilt_pen, \"ang_pen\": ang_pen,\n                   \"joint_pen\": joint_pen, \"ctrl_pen\": ctrl_pen}\n\n```",
+  "validation": {
+    "valid": true,
+    "suffix": "GPTMHBbatch4call2f2",
+    "environment_call": "compute_reward(self.root_states, self.dof_vel, self.dof_vel_scale, self.actions)",
+    "inputs": [
+      "root_states",
+      "dof_vel",
+      "dof_vel_scale",
+      "actions"
+    ]
+  }
+}

@@ -1,0 +1,51 @@
+{
+  "model_used": "minimax/minimax-m3.1-flash",
+  "provider": "vercel ai gateway",
+  "arm": "C_batch4_diverse",
+  "call": 1,
+  "function": 3,
+  "functions_in_reply": 4,
+  "usage": {
+    "prompt_tokens": 1367,
+    "completion_tokens": 22037,
+    "total_tokens": 23404,
+    "cost": 0.01324284,
+    "is_byok": false,
+    "prompt_tokens_details": {
+      "cached_tokens": 1366,
+      "audio_tokens": 0,
+      "video_tokens": 0
+    },
+    "cost_details": {
+      "upstream_inference_cost": null,
+      "upstream_inference_prompt_cost": 0,
+      "upstream_inference_completions_cost": 0
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 19221,
+      "image_tokens": 0
+    },
+    "cache_creation_input_tokens": 0,
+    "market_cost": 0.01324284,
+    "gateway_cost": 0.01324284
+  },
+  "finish_reason": "stop",
+  "generation_seconds": 146.78048491477966,
+  "response_text": "```python\n\nfrom typing import Dict, Tuple\n\nimport torch\n\n\n@torch.jit.script\ndef compute_reward(\n    root_states: torch.Tensor,\n    up_vec: torch.Tensor,\n    heading_vec: torch.Tensor,\n    targets: torch.Tensor,\n    potentials: torch.Tensor,\n    prev_potentials: torch.Tensor,\n    dof_vel: torch.Tensor,\n    actions: torch.Tensor,\n    dt: float,\n) -> Tuple[torch.Tensor, Dict[str, torch.Tensor]]:\n    \"\"\"Strategy 3 - progress (potential difference) based.\n\n    The environment already stores ``potentials = -||to_target|| / dt`` and the\n    previous step value, so ``potentials - prev_potentials`` is exactly the\n    average speed (m/s) with which the ant closed the distance to the target\n    during the last step.  This is used as the main reward; it is complemented\n    by survival terms (alive bonus, upright bonus, anti-tumble penalties).\n    \"\"\"\n    # ---------------- progress towards the target ---------------------------\n    progress_speed = potentials - prev_potentials     # m/s towards the target\n    progress_reward = progress_speed                  # linear, no saturation\n\n    # ---------------- survival terms ----------------------------------------\n    alive_bonus = torch.ones_like(progress_speed) * 0.10\n    up_z = torch.clamp(up_vec[:, 2], min=0.0, max=1.0)\n    upright_bonus = 0.5 * up_z\n    upside_down_penalty = -0.5 * torch.clamp(-up_vec[:, 2], min=0.0, max=1.0)\n    ang_vel = root_states[:, 10:13]\n    ang_vel_penalty = -0.01 * torch.sum(torch.square(ang_vel), dim=-1)\n    joint_vel_penalty = -0.0005 * torch.mean(torch.abs(dof_vel), dim=-1)\n    action_penalty = -0.005 * torch.mean(torch.square(actions), dim=-1)\n\n    # ---------------- small tie breaker: keep pushing forward --------------\n    lin_vel = root_states[:, 7:10]\n    heading_len = torch.norm(heading_vec, dim=-1, keepdim=True).clamp_min(1e-6)\n    heading_unit = heading_vec / heading_len\n    forward_speed = torch.sum(lin_vel * heading_unit, dim=-1)\n    speed_bonus = 0.1 * forward_speed\n\n    reward = (progress_reward + alive_bonus + upright_bonus + upside_down_penalty\n              + ang_vel_penalty + joint_vel_penalty + action_penalty + speed_bonus)\n\n    components = {\n        \"progress_reward\": progress_reward,\n        \"alive_bonus\": alive_bonus,\n        \"upright_bonus\": upright_bonus,\n        \"upside_down_penalty\": upside_down_penalty,\n        \"ang_vel_penalty\": ang_vel_penalty,\n        \"joint_vel_penalty\": joint_vel_penalty,\n        \"action_penalty\": action_penalty,\n        \"speed_bonus\": speed_bonus,\n    }\n    return reward, components\n\n```",
+  "validation": {
+    "valid": true,
+    "suffix": "GPTMHCbatch4diversecall1f3",
+    "environment_call": "compute_reward(self.root_states, self.up_vec, self.heading_vec, self.targets, self.potentials, self.prev_potentials, self.dof_vel, self.actions, self.dt)",
+    "inputs": [
+      "root_states",
+      "up_vec",
+      "heading_vec",
+      "targets",
+      "potentials",
+      "prev_potentials",
+      "dof_vel",
+      "actions",
+      "dt"
+    ]
+  }
+}

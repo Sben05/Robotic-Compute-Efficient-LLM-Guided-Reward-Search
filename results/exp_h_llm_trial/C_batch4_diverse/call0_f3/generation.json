@@ -1,0 +1,50 @@
+{
+  "model_used": "minimax/minimax-m3.1-flash",
+  "provider": "vercel ai gateway",
+  "arm": "C_batch4_diverse",
+  "call": 0,
+  "function": 3,
+  "functions_in_reply": 4,
+  "usage": {
+    "prompt_tokens": 1367,
+    "completion_tokens": 23962,
+    "total_tokens": 25329,
+    "cost": 0.01455714,
+    "is_byok": false,
+    "prompt_tokens_details": {
+      "cached_tokens": 186,
+      "audio_tokens": 0,
+      "video_tokens": 0
+    },
+    "cost_details": {
+      "upstream_inference_cost": null,
+      "upstream_inference_prompt_cost": 0,
+      "upstream_inference_completions_cost": 0
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 20026,
+      "image_tokens": 0
+    },
+    "cache_creation_input_tokens": 0,
+    "market_cost": 0.01455714,
+    "gateway_cost": 0.01455714
+  },
+  "finish_reason": "stop",
+  "generation_seconds": 177.25032305717468,
+  "response_text": "```python\n\nfrom typing import Dict, Tuple\nimport torch\n\n\ndef _cross3_3(a: torch.Tensor, b: torch.Tensor) -> torch.Tensor:\n    return torch.stack((a[:, 1] * b[:, 2] - a[:, 2] * b[:, 1],\n                        a[:, 2] * b[:, 0] - a[:, 0] * b[:, 2],\n                        a[:, 0] * b[:, 1] - a[:, 1] * b[:, 0]), dim=-1)\n\n\ndef _body_axis_3(q: torch.Tensor, axis: int) -> torch.Tensor:\n    v = torch.zeros_like(q[:, 0:3])\n    v[:, axis] = 1.0\n    qw = q[:, 0:1]\n    qv = q[:, 1:4]\n    t = 2.0 * _cross3_3(qv, v)\n    return v + qw * t + _cross3_3(qv, t)\n\n\n@torch.jit.script\ndef compute_reward(root_states: torch.Tensor, targets: torch.Tensor,\n                     potentials: torch.Tensor, prev_potentials: torch.Tensor,\n                     dof_vel: torch.Tensor, actions: torch.Tensor,\n                     dt: float) -> Tuple[torch.Tensor, Dict[str, torch.Tensor]]:\n    \"\"\"Strategy 3 - progress (potential difference) based.\n\n    The env stores potentials = -||target - torso|| / dt, so the potential\n    difference times dt is exactly the distance closed towards the target\n    during the step.  That progress is the dominant reward; survival terms\n    (alive bonus + uprightness) keep the ant alive, and a small velocity\n    tie-breaker avoids stalling.\n    \"\"\"\n    quat = root_states[:, 3:7]\n    lin_vel = root_states[:, 7:10]\n    ang_vel = root_states[:, 10:13]\n\n    # ---------------- potential difference (progress) -------------------------\n    progress = (potentials - prev_potentials) * dt          # metres gained, + = closer\n    progress_clipped = torch.clamp(progress, min=-0.25, max=0.25)\n    progress_reward = 8.0 * progress_clipped\n\n    # ---------------- survival terms -----------------------------------------\n    alive = torch.ones_like(progress)\n    up = _body_axis_3(quat, 2)\n    up_z = torch.clamp(up[:, 2], min=0.0, max=1.0)\n    upright_survival = 0.5 * up_z\n\n    # ---------------- velocity tie-breaker toward the target ------------------\n    to_target_xy = targets[:, 0:2] - root_states[:, 0:2]\n    to_target_hat = to_target_xy / torch.norm(to_target_xy, dim=-1, keepdim=True).clamp_min(1e-6)\n    vel_xy = torch.stack((lin_vel[:, 0], lin_vel[:, 1]), dim=-1)\n    v_to_target = torch.sum(vel_xy * to_target_hat, dim=-1)\n    speed_bonus = 0.05 * torch.clamp(v_to_target, min=0.0)\n\n    # ---------------- regularisers -------------------------------------------\n    ang_vel_penalty = -0.001 * torch.sum(torch.square(ang_vel), dim=-1)\n    dof_vel_penalty = -0.00005 * torch.sum(torch.square(dof_vel), dim=-1)\n    action_penalty = -0.002 * torch.sum(torch.square(actions), dim=-1)\n\n    reward = (progress_reward + 0.5 * alive + upright_survival + speed_bonus +\n              ang_vel_penalty + dof_vel_penalty + action_penalty)\n\n    components = {\n        \"progress_reward\": progress_reward,\n        \"raw_progress\": progress,\n        \"alive_bonus\": 0.5 * alive,\n        \"upright_survival\": upright_survival,\n        \"speed_bonus\": speed_bonus,\n        \"ang_vel_penalty\": ang_vel_penalty,\n        \"dof_vel_penalty\": dof_vel_penalty,\n        \"action_penalty\": action_penalty,\n    }\n    return reward, components\n\n```",
+  "validation": {
+    "valid": false,
+    "suffix": "GPTMHCbatch4diversecall0f3",
+    "environment_call": "compute_reward(self.root_states, self.targets, self.potentials, self.prev_potentials, self.dof_vel, self.actions, self.dt)",
+    "inputs": [
+      "root_states",
+      "targets",
+      "potentials",
+      "prev_potentials",
+      "dof_vel",
+      "actions",
+      "dt"
+    ],
+    "error": "TorchScript compilation failed:\nTraceback (most recent call last):\n  File \"/root/MSThesis/eureka_ab.py\", line 191, in build_candidate\n    spec.loader.exec_module(importlib.util.module_from_spec(spec))\n  File \"<frozen importlib._bootstrap_external>\", line 848, in exec_module\n  File \"<frozen importlib._bootstrap>\", line 219, in _call_with_frames_removed\n  File \"/root/MSThesis/results/exp_h_llm_trial/C_batch4_diverse/call0_f3/_torchscript_check.py\", line 6, in <module>\n    def compute_reward(root_states: torch.Tensor, targets: torch.Tensor,\n  File \"/root/MSThesis/.env/lib/python3.8/site-packages/torch/jit/_script.py\", line 1341, in script\n    fn = torch._C._jit_script_compile(\nRuntimeError: \nundefined value _body_axis_3:\n  File \"/root/MSThesis/results/exp_h_llm_trial/C_batch4_diverse/call0_f3/_torchscript_check.py\", line 29\n    # ---------------- survival terms -----------------------------------------\n    alive = torch.ones_like(progress)\n    up = _body_axis_3(quat, 2)\n         ~~~~~~~~~~~~ <--- HERE\n    up_z = torch.clamp(up[:, 2], min=0.0, max=1.0)\n    upright_survival = 0.5 * up_z\n\n"
+  }
+}

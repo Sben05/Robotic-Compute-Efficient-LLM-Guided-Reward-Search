@@ -1,0 +1,48 @@
+{
+  "model_used": "minimax/minimax-m3.1-flash",
+  "provider": "vercel ai gateway",
+  "arm": "B_batch4",
+  "call": 1,
+  "function": 3,
+  "functions_in_reply": 4,
+  "usage": {
+    "prompt_tokens": 1267,
+    "completion_tokens": 19047,
+    "total_tokens": 20314,
+    "cost": 0.01144734,
+    "is_byok": false,
+    "prompt_tokens_details": {
+      "cached_tokens": 1266,
+      "audio_tokens": 0,
+      "video_tokens": 0
+    },
+    "cost_details": {
+      "upstream_inference_cost": null,
+      "upstream_inference_prompt_cost": 0,
+      "upstream_inference_completions_cost": 0
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 16578,
+      "image_tokens": 0
+    },
+    "cache_creation_input_tokens": 0,
+    "market_cost": 0.01144734,
+    "gateway_cost": 0.01144734
+  },
+  "finish_reason": "stop",
+  "generation_seconds": 138.23679780960083,
+  "response_text": "```python\n\nimport torch\nfrom typing import Dict, Tuple\n\n\n@torch.jit.script\ndef compute_reward(root_states: torch.Tensor,\n                     heading_vec: torch.Tensor,\n                     dof_pos: torch.Tensor,\n                     dof_limits_lower: torch.Tensor,\n                     dof_limits_upper: torch.Tensor,\n                     dof_vel: torch.Tensor) -> Tuple[torch.Tensor, Dict[str, torch.Tensor]]:\n    \"\"\"\n    Reward 3 - saturating (exponential) speed reward with posture / joint regularisation.\n\n      * speed term 1 - exp(-v / T) : monotone in speed but bounded, so that very fast\n        running does not dominate all other terms (T = speed_temperature)\n      * uprightness computed directly from the torso quaternion (xyzw):\n        up_z = 1 - 2 (qx^2 + qy^2) = cos(tilt)\n      * penalty on joint limit violations and on joint velocities (smooth, cheap gait)\n    \"\"\"\n    speed_temperature = 2.0\n    limit_penalty_weight = 0.05\n    joint_vel_penalty_weight = 0.0005\n\n    # forward speed along the heading direction\n    vel_xy = root_states[:, 7:9]\n    heading_xy = heading_vec[:, 0:2]\n    heading_xy = heading_xy / (torch.norm(heading_xy, p=2, dim=-1, keepdim=True) + 1.0e-6)\n    forward_speed = torch.sum(vel_xy * heading_xy, dim=-1)\n\n    # saturating speed reward (monotonically increasing, upper bounded by 1)\n    speed_reward = 1.0 - torch.exp(-forward_speed / speed_temperature)\n\n    # uprightness from the root quaternion (Isaac Gym stores xyzw)\n    q = root_states[:, 3:7]\n    qw = q[:, 3]\n    qx = q[:, 0]\n    qy = q[:, 1]\n    qz = q[:, 2]\n    up_z = 1.0 - 2.0 * (qx * qx + qy * qy)\n    upright_reward = torch.clamp(up_z, min=0.0, max=1.0)\n\n    # joint limit violations\n    upper_violation = torch.clamp(dof_pos - dof_limits_upper, min=0.0)\n    lower_violation = torch.clamp(dof_limits_lower - dof_pos, min=0.0)\n    limit_penalty = -limit_penalty_weight * torch.sum(\n        torch.square(upper_violation) + torch.square(lower_violation), dim=-1)\n\n    # joint velocity smoothness\n    joint_vel_penalty = -joint_vel_penalty_weight * torch.sum(torch.square(dof_vel), dim=-1)\n\n    total = 3.0 * speed_reward + 0.5 * upright_reward + limit_penalty + joint_vel_penalty\n\n    components: Dict[str, torch.Tensor] = {\n        \"forward_speed\": 3.0 * speed_reward,\n        \"upright\": 0.5 * upright_reward,\n        \"joint_limits\": limit_penalty,\n        \"joint_velocity\": joint_vel_penalty,\n    }\n    return total, components\n\n```",
+  "validation": {
+    "valid": true,
+    "suffix": "GPTMHBbatch4call1f3",
+    "environment_call": "compute_reward(self.root_states, self.heading_vec, self.dof_pos, self.dof_limits_lower, self.dof_limits_upper, self.dof_vel)",
+    "inputs": [
+      "root_states",
+      "heading_vec",
+      "dof_pos",
+      "dof_limits_lower",
+      "dof_limits_upper",
+      "dof_vel"
+    ]
+  }
+}

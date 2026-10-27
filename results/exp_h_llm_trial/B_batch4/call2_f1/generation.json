@@ -1,0 +1,44 @@
+{
+  "model_used": "minimax/minimax-m3.1-flash",
+  "provider": "vercel ai gateway",
+  "arm": "B_batch4",
+  "call": 2,
+  "function": 1,
+  "functions_in_reply": 4,
+  "usage": {
+    "prompt_tokens": 1267,
+    "completion_tokens": 18991,
+    "total_tokens": 20258,
+    "cost": 0.01141374,
+    "is_byok": false,
+    "prompt_tokens_details": {
+      "cached_tokens": 1266,
+      "audio_tokens": 0,
+      "video_tokens": 0
+    },
+    "cost_details": {
+      "upstream_inference_cost": null,
+      "upstream_inference_prompt_cost": 0,
+      "upstream_inference_completions_cost": 0
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 16602,
+      "image_tokens": 0
+    },
+    "cache_creation_input_tokens": 0,
+    "market_cost": 0.01141374,
+    "gateway_cost": 0.01141374
+  },
+  "finish_reason": "stop",
+  "generation_seconds": 135.761864900589,
+  "response_text": "```python\n\nimport torch\nfrom typing import Dict, Tuple\n\n\n@torch.jit.script\ndef compute_reward(root_states: torch.Tensor, actions: torch.Tensor) -> Tuple[torch.Tensor, Dict[str, torch.Tensor]]:\n    \"\"\"\n    Variant 1 - Smooth exponential speed reward.\n    The forward (+x world) running speed is turned into a bounded, strictly\n    increasing reward with exp(v / vel_temp).  A small upright bonus keeps the\n    torso vertical (computed from the torso quaternion) and a quadratic control\n    cost discourages jittery actuator behaviour.\n    \"\"\"\n    vel_temp: float = 4.0        # temperature of the exponential speed shaping\n    upright_coeff: float = 0.5   # weight of the \"stay vertical\" bonus\n    ctrl_coeff: float = 0.01     # quadratic penalty on the motor commands\n\n    lin_vel = root_states[:, 7:10]\n    fwd_vel = lin_vel[:, 0]\n\n    # running speed reward (increasing, saturating function of forward speed)\n    run_reward = torch.exp(fwd_vel / vel_temp)\n\n    # torso up-vector z-component from the quaternion (w, x, y, z)\n    qx = root_states[:, 4]\n    qy = root_states[:, 5]\n    up_z = 1.0 - 2.0 * (qx * qx + qy * qy)\n    upright = torch.clamp(up_z, min=0.0, max=1.0)\n\n    # control effort\n    ctrl_cost = torch.sum(torch.square(actions), dim=-1)\n\n    total = run_reward + upright_coeff * upright - ctrl_coeff * ctrl_cost\n    return total, {\"run_speed\": run_reward, \"upright\": upright, \"ctrl_cost\": ctrl_cost}\n\n```",
+  "validation": {
+    "valid": true,
+    "suffix": "GPTMHBbatch4call2f1",
+    "environment_call": "compute_reward(self.root_states, self.actions)",
+    "inputs": [
+      "root_states",
+      "actions"
+    ]
+  }
+}
