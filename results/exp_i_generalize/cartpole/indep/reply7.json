@@ -1,0 +1,145 @@
+{
+  "call": 7,
+  "attempts": 1,
+  "errors": [],
+  "seconds": 23.236783084,
+  "request": {
+    "model": "minimax/minimax-m3.1-flash",
+    "messages": [
+      {
+        "role": "system",
+        "content": "You are a reward engineer trying to write reward functions to solve reinforcement learning tasks as effective as possible.\nYour goal is to write a reward function for the environment that will help the agent learn the task described in text. \nYour reward function should use useful variables from the environment as inputs. As an example,\nthe reward function signature can be: @torch.jit.script\ndef compute_reward(object_pos: torch.Tensor, goal_pos: torch.Tensor) -> Tuple[torch.Tensor, Dict[str, torch.Tensor]]:\n    ...\n    return reward, {}\n\nSince the reward function will be decorated with @torch.jit.script,\nplease make sure that the code is compatible with TorchScript (e.g., use torch tensor instead of numpy array). \nMake sure any new tensor or variable you introduce is on the same device as the input tensors. The output of the reward function should consist of two items:\n    (1) the total reward,\n    (2) a dictionary of each individual reward component.\nThe code output should be formatted as a python code string: \"```python ... ```\".\n\nSome helpful tips for writing the reward function code:\n    (1) You may find it helpful to normalize the reward to a fixed range by applying transformations like torch.exp to the overall reward or its components\n    (2) If you choose to transform a reward component, then you must also introduce a temperature parameter inside the transformation function; this parameter must be a named variable in the reward function and it must not be an input variable. Each transformed reward component should have its own temperature variable\n    (3) Make sure the type of each input variable is correctly specified; a float input variable should not be specified as torch.Tensor\n    (4) Most importantly, the reward code's input variables must contain only attributes of the provided environment class definition (namely, variables that have prefix self.). Under no circumstance can you introduce new input variables.\n"
+      },
+      {
+        "role": "user",
+        "content": "The Python environment is class Cartpole(VecTask):\n    \"\"\"Rest of the environment definition omitted.\"\"\"\n    def compute_observations(self, env_ids=None):\n        if env_ids is None:\n            env_ids = np.arange(self.num_envs)\n\n        self.gym.refresh_dof_state_tensor(self.sim)\n\n        self.obs_buf[env_ids, 0] = self.dof_pos[env_ids, 0].squeeze()\n        self.obs_buf[env_ids, 1] = self.dof_vel[env_ids, 0].squeeze()\n        self.obs_buf[env_ids, 2] = self.dof_pos[env_ids, 1].squeeze()\n        self.obs_buf[env_ids, 3] = self.dof_vel[env_ids, 1].squeeze()\n\n        return self.obs_buf\n. Write a reward function for the following task: to balance a pole on a cart so that the pole stays upright."
+      }
+    ],
+    "temperature": 1.0,
+    "n": 1,
+    "max_tokens": 32768
+  },
+  "response": {
+    "id": "gen_01M5XV32R36ZC7GZ2SPJZ6PNPR",
+    "object": "chat.completion",
+    "created": 1793076618,
+    "model": "minimax/minimax-m3.1-flash",
+    "choices": [
+      {
+        "index": 0,
+        "message": {
+          "role": "assistant",
+          "content": "```python\nfrom typing import Dict, Tuple\n\nimport torch\n\n\n@torch.jit.script\ndef compute_reward(\n    dof_pos: torch.Tensor,\n    dof_vel: torch.Tensor,\n) -> Tuple[torch.Tensor, Dict[str, torch.Tensor]]:\n    # Cart DOF: 0; pole hinge DOF: 1.\n    cart_pos = dof_pos[:, 0]\n    cart_vel = dof_vel[:, 0]\n    pole_angle = dof_pos[:, 1]\n    pole_vel = dof_vel[:, 1]\n\n    # Separate temperatures allow each shaped component to be tuned independently.\n    upright_temperature: float = 0.5\n    angular_velocity_temperature: float = 0.5\n    cart_position_temperature: float = 2.0\n    cart_velocity_temperature: float = 2.0\n\n    # Strongly reward keeping the pole near the vertical (zero-angle) position.\n    upright_reward = torch.exp(-pole_angle.square() / upright_temperature)\n\n    # Damp excessive pole motion and discourage unnecessary cart motion.\n    angular_damping_reward = torch.exp(\n        -pole_vel.square() / angular_velocity_temperature\n    )\n    cart_center_reward = torch.exp(\n        -cart_pos.square() / cart_position_temperature\n    )\n    cart_stillness_reward = torch.exp(\n        -cart_vel.square() / cart_velocity_temperature\n    )\n\n    # A small constant bonus favors remaining balanced for longer.\n    alive_bonus = torch.ones_like(upright_reward)\n\n    total_reward = (\n        2.0 * upright_reward\n        + 0.25 * angular_damping_reward\n        + 0.10 * cart_center_reward\n        + 0.05 * cart_stillness_reward\n        + 0.10 * alive_bonus\n    )\n\n    components = {\n        \"upright_reward\": upright_reward,\n        \"angular_damping_reward\": angular_damping_reward,\n        \"cart_center_reward\": cart_center_reward,\n        \"cart_stillness_reward\": cart_stillness_reward,\n        \"alive_bonus\": alive_bonus,\n    }\n\n    return total_reward, components\n```",
+          "reasoning": "We need answer reward function only code python string likely inputs only env attributes. Need infer Cartpole(VecTask) likely Isaac Gym. Need reward based on pole upright and cart balance? Observations dof_pos[0] cart x, dof_vel[0], dof_pos[1] pole angle, dof_vel[1]. Need reward encouraging pole upright. Input can be dof_pos, dof_vel? Attributes environment. Signature perhaps dof_pos: Tensor, dof_vel: Tensor. Need account indexing shapes. Reward total and components.\n\nTask balance pole on cart so pole stays upright. Good reward: exp(-k angle^2), alive bonus, perhaps cart center regularization exp(-k x^2), action penalties impossible because no action_pos input unless action? Input attributes only self variables; action could be self.actions perhaps, but uncertain. Could use dof_pos, dof_vel. Need know tensor dimensions likely [num_envs, 2]. Pole angle perhaps hinge angle where 0 upright. Reward upright based angle. Cart stays centered. Penalize angular velocity maybe. Avoid huge negative. Reward transformed components with named temperature each. Could return total bounded perhaps weighted sum. We need carefully TorchScript compatibility and dict typing.\n\nCould define:\n@torch.jit.script\ndef compute_reward(dof_pos: torch.Tensor, dof_vel: torch.Tensor) -> Tuple[torch.Tensor, Dict[str, torch.Tensor]]:\n    cart_pos = dof_pos[:,0]\n    pole_angle = dof_pos[:,1]\n    cart_vel = dof_vel[:,0]\n    pole_vel = dof_vel[:,1]\n    upright_temperature: float = 0.25? transformed exp(-angle^2/temp). Named temperature.\n    angle_squared = pole_angle.square()\n    upright_reward = torch.exp(-angle_squared / upright_temperature)\n...\nTotal = 2*upright + 0.25 cart_center + 0.25 still maybe these transformed components temps. Individual reward components. Reward should encourage staying upright, perhaps angle tolerance and angular velocity damping. Pole angle measured maybe rad. exp(-angle^2 / 0.1) strong. Total scale.\n\nQuestion asks reward function likely expected custom. Could mention assumptions but final only code. Need ensure total same device naturally. Dictionary syntax TorchScript. Tuple imported? In Torch script, typing `Tuple` perhaps recognized if `from typing import Tuple, Dict`; code block needs imports. Typical examples use Tuple[torch.Tensor, Dict[str, torch.Tensor]] without import, but should include from typing import Tuple, Dict. Decorator script compile may not accept local annotation float? Fine.\n\nInput variables must only attrs env class, dof_pos and dof_vel yes. Could maybe reward signature expected objects like `dof_pos`, `dof_vel`. The environment obs contains these. Use angle wrapping? Pole angle potentially values [-pi, pi], upright 0. Squared okay but at pi is bad. No need.\n\nPotential issue tensor can be 1D if num_envs=1? `dof_pos` shape [num_envs, num_dofs], so 2D. Squeeze could turn observation weird but dof_pos remains 2D.\n\nShould we use cart center criterion? Task says balance pole on cart so pole stays upright. It doesn't explicitly require cart center, but \"balance a pole on a cart\" perhaps cart can move. Cart center regularizer helps stability but may conflict? Usually reward:\n- pole angle reward exp(-angle^2 / sigma)\n- cart position reward exp(-cart pos^2 / sigma)\n- alive bonus\n- penalties action / angular velocity.\nCould omit action because no action input. Penalize pole angular velocity to settle.\nPotential direct dense terms:\nupright = exp(-angle^2 / temp)\ndamping = exp(-pole_vel^2/temp)\ncart centering = exp(-cart_pos^2/temp)\ncart velocity damping maybe unnecessary.\ntotal = 2 upright + 0.25 damping + 0.1 centering + alive 0.1. Each transformed component own temp. Alive is not transformed; okay. Total max 2.45. Reward sparse? Dense sufficient.\n\nCould also penalize |angle| linearly to robustly distinguish at e.g. 1 rad. exp gives .0003 at angle 1 with temp .1, gradient tiny\u2014a problem. exp(-abs angle / temperature) has stronger gradient. But tip suggests exp; squared common. Temperature 0.25 means at 1 rad .018, at .5 .37. Could add direct penalty. But transformed component own named temperature. The total could use `upright_reward = exp(-abs(angle)/temperature)`, cusp but gives gradient. Squared smooth but vanishing. We can use `torch.exp(-pole_angle.square() / upright_temperature)` with temp 0.5. At 0.5=.607, 1=.135. Nice. Could use cos? `cos(angle)` ranges negative, but exp. Use angle_sq.\n\nPole angular velocity damping component may encourage not only upright but stationary pole, which may conflict with balancing moving cart? Usually pole should remain upright and can move slowly. Weight low.\n\nCart position regularization perhaps weight low.\n\nShould we include survival bonus each step, no termination data available. Constant alive bonus always. This encourages episode length but if termination ends, still gets bonus per computed step; okay. Weight .2.\n\nDo we need terminal handling? No.\n\nNeed ensure no unsupported `Dict` issue. Include:\nfrom typing import Dict, Tuple\nimport torch\n\n@torch.jit.script\ndef compute_reward(...):\n    cart_pos: torch.Tensor = dof_pos[:, 0]\n...\n    upright_temperature: float = 0.5\n...\n    upright = torch.exp(-pole_angle.square() / upright_temperature)\n...\ntotal = 2.0 * upright + ...\nreturn total, {...}\nTorchScript typing dictionary values okay. `float` literal annotation okay.\nCould avoid abs. Components names.\n\nQuestion likely benchmark expects function maybe reward computed from observations. Inputs should perhaps be `pole_pos`, etc. Environment class omitted but `self.dof_pos`, `self.dof_vel` are known. Use those exactly.\n\nPotential distinction Isaac Gym articulation DOF order: In Cartpole, dof 0 cart x, dof 1 pole angle. Correct.\n\nShould account angle zero upright? In Isaac Gym cartpole, initial pole may angle 0.03 and upright at zero. yes.\n\nA good reward:\nr = exp(-theta^2 / 0.25) - 0.01 |theta_dot| - 0.001 |x_dot| - 0.001 actions etc.\nBut output bounded and components.\n\nCould introduce `cart_temperature`, `pole_velocity_temperature`, etc. Each transformed component separate. Alive isn't transformation. Cart center encourages cart remain near origin, likely okay. Yet pure pole task may only need pole upright; cart may need move to balance. Penalizing cart pos too much can make impossible. Low weight .1.\n\nUse all reward components positive and total max 2.4. Is survival bonus needed? It is constant regardless state and doesn't affect policy gradient except episode length. Good.\n\nShould total perhaps not include all dict components exactly due weighting? Dictionary each individual reward component; could store weighted or raw? Usually components raw and total weighted. We can make dict raw. They ask dictionary of each individual reward component. Fine. But total then weighted.\n\nPotential benchmark checks no reward hacking. no issue.\n\nNeed output exactly code block, perhaps no explanation per instruction. Let's formulate.\n\nCould use `torch.square(pole_angle)` supported. `torch.exp`.\n\nMaybe `Dict[str, torch.Tensor]` imported. TorchScript can compile `from typing import Dict, Tuple`; yes.\n\nOne concern TorchScript decorator is applied at import and typing aliases? Fine.\n\nTemperature variables named and not inputs. Each transformed component own. We have:\nupright_temperature\nangular_velocity_temperature\ncart_position_temperature\ncart_velocity_temperature perhaps transform velocity.\nComponents:\nupright_reward\nangular_damping_reward\ncart_center_reward\ncart_stillness_reward\nalive_bonus.\nWeights: 2, .25, .1, .05, .1. Total max 2.5. A policy can get upright and no movement.\n\nCould cart stillness be counterproductive when balancing? Low weight .05. Fine.\nCould alive bonus constant not useful but supports staying up.\n\nMaybe reward should reward *angle tolerance* and direct angle penalty to avoid exponential vanishing. At angle \u03c0, exp tiny. Fine.\n\nCould use `angle_error = torch.remainder(pole_angle + pi, 2*pi)-pi`; not needed and risk.\n\nNeed perhaps account cart pole angle relative to vertical but actual dof angle may have offset? Typically 0 upright.\n\nNo action variable means no control effort regularization, but could use `self.actions` attribute? Not shown; don't assume. Good.\n\nLet's answer code only.",
+          "reasoning_details": [
+            {
+              "type": "reasoning.text",
+              "text": "We need answer reward function only code python string likely inputs only env attributes. Need infer Cartpole(VecTask) likely Isaac Gym. Need reward based on pole upright and cart balance? Observations dof_pos[0] cart x, dof_vel[0], dof_pos[1] pole angle, dof_vel[1]. Need reward encouraging pole upright. Input can be dof_pos, dof_vel? Attributes environment. Signature perhaps dof_pos: Tensor, dof_vel: Tensor. Need account indexing shapes. Reward total and components.\n\nTask balance pole on cart so pole stays upright. Good reward: exp(-k angle^2), alive bonus, perhaps cart center regularization exp(-k x^2), action penalties impossible because no action_pos input unless action? Input attributes only self variables; action could be self.actions perhaps, but uncertain. Could use dof_pos, dof_vel. Need know tensor dimensions likely [num_envs, 2]. Pole angle perhaps hinge angle where 0 upright. Reward upright based angle. Cart stays centered. Penalize angular velocity maybe. Avoid huge negative. Reward transformed components with named temperature each. Could return total bounded perhaps weighted sum. We need carefully TorchScript compatibility and dict typing.\n\nCould define:\n@torch.jit.script\ndef compute_reward(dof_pos: torch.Tensor, dof_vel: torch.Tensor) -> Tuple[torch.Tensor, Dict[str, torch.Tensor]]:\n    cart_pos = dof_pos[:,0]\n    pole_angle = dof_pos[:,1]\n    cart_vel = dof_vel[:,0]\n    pole_vel = dof_vel[:,1]\n    upright_temperature: float = 0.25? transformed exp(-angle^2/temp). Named temperature.\n    angle_squared = pole_angle.square()\n    upright_reward = torch.exp(-angle_squared / upright_temperature)\n...\nTotal = 2*upright + 0.25 cart_center + 0.25 still maybe these transformed components temps. Individual reward components. Reward should encourage staying upright, perhaps angle tolerance and angular velocity damping. Pole angle measured maybe rad. exp(-angle^2 / 0.1) strong. Total scale.\n\nQuestion asks reward function likely expected custom. Could mention assumptions but final only code. Need ensure total same device naturally. Dictionary syntax TorchScript. Tuple imported? In Torch script, typing `Tuple` perhaps recognized if `from typing import Tuple, Dict`; code block needs imports. Typical examples use Tuple[torch.Tensor, Dict[str, torch.Tensor]] without import, but should include from typing import Tuple, Dict. Decorator script compile may not accept local annotation float? Fine.\n\nInput variables must only attrs env class, dof_pos and dof_vel yes. Could maybe reward signature expected objects like `dof_pos`, `dof_vel`. The environment obs contains these. Use angle wrapping? Pole angle potentially values [-pi, pi], upright 0. Squared okay but at pi is bad. No need.\n\nPotential issue tensor can be 1D if num_envs=1? `dof_pos` shape [num_envs, num_dofs], so 2D. Squeeze could turn observation weird but dof_pos remains 2D.\n\nShould we use cart center criterion? Task says balance pole on cart so pole stays upright. It doesn't explicitly require cart center, but \"balance a pole on a cart\" perhaps cart can move. Cart center regularizer helps stability but may conflict? Usually reward:\n- pole angle reward exp(-angle^2 / sigma)\n- cart position reward exp(-cart pos^2 / sigma)\n- alive bonus\n- penalties action / angular velocity.\nCould omit action because no action input. Penalize pole angular velocity to settle.\nPotential direct dense terms:\nupright = exp(-angle^2 / temp)\ndamping = exp(-pole_vel^2/temp)\ncart centering = exp(-cart_pos^2/temp)\ncart velocity damping maybe unnecessary.\ntotal = 2 upright + 0.25 damping + 0.1 centering + alive 0.1. Each transformed component own temp. Alive is not transformed; okay. Total max 2.45. Reward sparse? Dense sufficient.\n\nCould also penalize |angle| linearly to robustly distinguish at e.g. 1 rad. exp gives .0003 at angle 1 with temp .1, gradient tiny\u2014a problem. exp(-abs angle / temperature) has stronger gradient. But tip suggests exp; squared common. Temperature 0.25 means at 1 rad .018, at .5 .37. Could add direct penalty. But transformed component own named temperature. The total could use `upright_reward = exp(-abs(angle)/temperature)`, cusp but gives gradient. Squared smooth but vanishing. We can use `torch.exp(-pole_angle.square() / upright_temperature)` with temp 0.5. At 0.5=.607, 1=.135. Nice. Could use cos? `cos(angle)` ranges negative, but exp. Use angle_sq.\n\nPole angular velocity damping component may encourage not only upright but stationary pole, which may conflict with balancing moving cart? Usually pole should remain upright and can move slowly. Weight low.\n\nCart position regularization perhaps weight low.\n\nShould we include survival bonus each step, no termination data available. Constant alive bonus always. This encourages episode length but if termination ends, still gets bonus per computed step; okay. Weight .2.\n\nDo we need terminal handling? No.\n\nNeed ensure no unsupported `Dict` issue. Include:\nfrom typing import Dict, Tuple\nimport torch\n\n@torch.jit.script\ndef compute_reward(...):\n    cart_pos: torch.Tensor = dof_pos[:, 0]\n...\n    upright_temperature: float = 0.5\n...\n    upright = torch.exp(-pole_angle.square() / upright_temperature)\n...\ntotal = 2.0 * upright + ...\nreturn total, {...}\nTorchScript typing dictionary values okay. `float` literal annotation okay.\nCould avoid abs. Components names.\n\nQuestion likely benchmark expects function maybe reward computed from observations. Inputs should perhaps be `pole_pos`, etc. Environment class omitted but `self.dof_pos`, `self.dof_vel` are known. Use those exactly.\n\nPotential distinction Isaac Gym articulation DOF order: In Cartpole, dof 0 cart x, dof 1 pole angle. Correct.\n\nShould account angle zero upright? In Isaac Gym cartpole, initial pole may angle 0.03 and upright at zero. yes.\n\nA good reward:\nr = exp(-theta^2 / 0.25) - 0.01 |theta_dot| - 0.001 |x_dot| - 0.001 actions etc.\nBut output bounded and components.\n\nCould introduce `cart_temperature`, `pole_velocity_temperature`, etc. Each transformed component separate. Alive isn't transformation. Cart center encourages cart remain near origin, likely okay. Yet pure pole task may only need pole upright; cart may need move to balance. Penalizing cart pos too much can make impossible. Low weight .1.\n\nUse all reward components positive and total max 2.4. Is survival bonus needed? It is constant regardless state and doesn't affect policy gradient except episode length. Good.\n\nShould total perhaps not include all dict components exactly due weighting? Dictionary each individual reward component; could store weighted or raw? Usually components raw and total weighted. We can make dict raw. They ask dictionary of each individual reward component. Fine. But total then weighted.\n\nPotential benchmark checks no reward hacking. no issue.\n\nNeed output exactly code block, perhaps no explanation per instruction. Let's formulate.\n\nCould use `torch.square(pole_angle)` supported. `torch.exp`.\n\nMaybe `Dict[str, torch.Tensor]` imported. TorchScript can compile `from typing import Dict, Tuple`; yes.\n\nOne concern TorchScript decorator is applied at import and typing aliases? Fine.\n\nTemperature variables named and not inputs. Each transformed component own. We have:\nupright_temperature\nangular_velocity_temperature\ncart_position_temperature\ncart_velocity_temperature perhaps transform velocity.\nComponents:\nupright_reward\nangular_damping_reward\ncart_center_reward\ncart_stillness_reward\nalive_bonus.\nWeights: 2, .25, .1, .05, .1. Total max 2.5. A policy can get upright and no movement.\n\nCould cart stillness be counterproductive when balancing? Low weight .05. Fine.\nCould alive bonus constant not useful but supports staying up.\n\nMaybe reward should reward *angle tolerance* and direct angle penalty to avoid exponential vanishing. At angle \u03c0, exp tiny. Fine.\n\nCould use `angle_error = torch.remainder(pole_angle + pi, 2*pi)-pi`; not needed and risk.\n\nNeed perhaps account cart pole angle relative to vertical but actual dof angle may have offset? Typically 0 upright.\n\nNo action variable means no control effort regularization, but could use `self.actions` attribute? Not shown; don't assume. Good.\n\nLet's answer code only.",
+              "signature": "a9ea648e5edd9dfeb6d02881e4226cb1e6e01f1ef96a4b57ceb4ee61958d768e",
+              "format": "anthropic-claude-v1",
+              "index": 0
+            }
+          ],
+          "provider_metadata": {
+            "anthropic": {
+              "usage": {
+                "input_tokens": 650,
+                "output_tokens": 2277,
+                "output_tokens_details": {
+                  "thinking_tokens": 1835
+                },
+                "cache_creation_input_tokens": 0,
+                "cache_read_input_tokens": 128
+              },
+              "cacheCreationInputTokens": 0,
+              "stopSequence": null,
+              "iterations": null,
+              "container": null,
+              "contextManagement": null
+            },
+            "gateway": {
+              "routing": {
+                "originalModelId": "minimax/minimax-m3.1-flash",
+                "resolvedProvider": "fireworks",
+                "fallbacksAvailable": [
+                  "minimax",
+                  "novita",
+                  "togetherai",
+                  "nebius",
+                  "parasail",
+                  "gmicloud",
+                  "inference-net"
+                ],
+                "planningReasoning": "System credentials planned for: fireworks, minimax, novita, togetherai, nebius, parasail, gmicloud, inference-net. Total execution order: fireworks(system) \u2192 minimax(system) \u2192 novita(system) \u2192 togetherai(system) \u2192 nebius(system) \u2192 parasail(system) \u2192 gmicloud(system) \u2192 inference-net(system)",
+                "canonicalSlug": "minimax/minimax-m3.1-flash",
+                "finalProvider": "minimax",
+                "modelAttemptCount": 1,
+                "modelAttempts": [
+                  {
+                    "canonicalSlug": "minimax/minimax-m3.1-flash",
+                    "success": true,
+                    "providerAttemptCount": 1,
+                    "providerAttempts": [
+                      {
+                        "provider": "minimax",
+                        "credentialType": "system",
+                        "success": true,
+                        "startTime": 1793076595727,
+                        "endTime": 1793076618401,
+                        "providerRequestId": "4f741f2fefa868c51cdfab5d0d1dcdb0",
+                        "statusCode": 200,
+                        "providerResponseId": "072f60731a47a9881b99642433e84554"
+                      }
+                    ]
+                  }
+                ],
+                "totalProviderAttemptCount": 1,
+                "affinity": {
+                  "outcome": "no_pin"
+                },
+                "clientSessionId": "d844451cad7c67ac33b05d3911b55766",
+                "clientSessionIdSource": "fingerprint"
+              },
+              "cost": "0.00146562",
+              "marketCost": "0.00146562",
+              "surchargeCost": "0",
+              "gatewayCost": "0.00146562",
+              "inferenceCost": "0.00146562",
+              "inputInferenceCost": "0.00009942",
+              "outputInferenceCost": "0.0013662",
+              "generationId": "gen_01M5XV32R36ZC7GZ2SPJZ6PNPR"
+            }
+          }
+        },
+        "logprobs": null,
+        "finish_reason": "stop"
+      }
+    ],
+    "usage": {
+      "prompt_tokens": 778,
+      "completion_tokens": 2277,
+      "total_tokens": 3055,
+      "cost": 0.00146562,
+      "is_byok": false,
+      "prompt_tokens_details": {
+        "cached_tokens": 128,
+        "audio_tokens": 0,
+        "video_tokens": 0
+      },
+      "cost_details": {
+        "upstream_inference_cost": null,
+        "upstream_inference_prompt_cost": 0,
+        "upstream_inference_completions_cost": 0
+      },
+      "completion_tokens_details": {
+        "reasoning_tokens": 1835,
+        "image_tokens": 0
+      },
+      "cache_creation_input_tokens": 0,
+      "market_cost": 0.00146562,
+      "gateway_cost": 0.00146562
+    },
+    "system_fingerprint": "fp_ivu1gf37lf",
+    "generationId": "gen_01M5XV32R36ZC7GZ2SPJZ6PNPR"
+  }
+}
