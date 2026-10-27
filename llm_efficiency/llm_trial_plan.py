@@ -61,11 +61,21 @@ if __name__ == "__main__":
         key, spent = open(a.key_file).read().strip(), 0.0
         for arm, reqs in ARMS.items():
             for i, m in enumerate(reqs):
+                f = OUT / "trial_plan" / f"result_{arm}_{i}.json"
+                if f.exists():  # resumable: never pay twice for the same request
+                    u = json.loads(f.read_text()).get("response", {}).get("usage") or {}
+                    spent += u.get("prompt_tokens", 0) * P_IN + u.get("completion_tokens", 0) * P_OUT
+                    continue
                 t0 = time.time()
                 req = urllib.request.Request("https://ai-gateway.vercel.sh/v1/chat/completions", data=json.dumps(payload(m)).encode(),
                                              headers={"Content-Type": "application/json", "Authorization": "Bearer " + key})
-                raw = json.loads(urllib.request.urlopen(req, timeout=900).read().decode())
+                try:
+                    raw = json.loads(urllib.request.urlopen(req, timeout=900).read().decode())
+                except Exception as e:  # recorded, not retried; rerun the script to retry only the missing calls
+                    print(f"{arm} {i}: request failed: {e!r}"[:300], flush=True)
+                    continue
                 u = raw["usage"]; spent += u["prompt_tokens"] * P_IN + u["completion_tokens"] * P_OUT
-                (OUT / "trial_plan" / f"result_{arm}_{i}.json").write_text(json.dumps(dict(seconds=time.time() - t0, response=raw)))
+                f.write_text(json.dumps(dict(seconds=time.time() - t0, response=raw)))
+                print(f"{arm} {i}: {u['completion_tokens']} completion tokens, {time.time() - t0:.0f}s, spent ${spent:.3f}", flush=True)
                 if spent > a.max_usd:
                     raise SystemExit(f"budget exceeded: ${spent:.3f}")
