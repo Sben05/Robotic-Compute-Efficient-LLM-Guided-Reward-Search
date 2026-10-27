@@ -40,6 +40,16 @@ Pre-registered reading (from the G1 plan): tau=10 mean >= 9.0 means the edit exp
 **H5. The best reward found (p3) outperforms the human reward across seeds.**
 Outcome = 3,000-it peak, seeds 0-5 (n = 6 each, same seeds). Test = one-sided paired t-test over seeds (paired by seed).
 
+## Amendment 1 (2026-10-27 ~05:20 UTC, before any seed-4/5 result was seen; seeds 4-5 still training)
+
+- H1's held-out set is extended, unconditionally, to Ant seeds 4, 5, 7, 8 and 9 (same 8 rewards, same 500 + resume protocol).
+  Seeds 7-9 are run whatever seeds 4-5 show, so there is no optional stopping. Seed 6 is reserved for the live confirmation.
+  The H1 test uses all five held-out seeds; a seeds-4-5-only result is reported as interim.
+- New exploratory robustness study (no significance claims): the Ant generation comparison (one reward per call vs four per call)
+  repeated with two other LLMs, DeepSeek V4.1 Flash and Qwen 3.8 Flash (Vercel AI Gateway, same prompts, temperature 1.0):
+  8 independent calls + 2 batched calls each, 500-it screens of every valid reward, top 4 per LLM resumed to 3,000.
+  Reported per LLM next to MiniMax; H2/H3 stay defined on the MiniMax data.
+
 ## Secondary / exploratory (no significance claims)
 
 Live early stopping (n = 2 search trials, 4 rounds): descriptive. Round-2 vs round-1 quality from 500-it feedback: descriptive
