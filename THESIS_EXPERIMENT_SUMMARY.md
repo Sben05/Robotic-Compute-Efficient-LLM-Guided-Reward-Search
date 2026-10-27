@@ -20,7 +20,7 @@ PPO, which is the expensive part. The thesis asks two things:
 | --- | --- | --- | --- | ---: | ---: | --- |
 | H1 | VoI pruning beats fixed@500 on held-out curves | retained 0.997 vs 0.972 (+0.025 [0.006, 0.046]); winner 86% vs 59%; compute 0.42 vs 0.375 | 175 sets, 5 held-out seeds | 0.0019 | 0.0076 | **significant** |
 | H2 | 4-per-call is cheaper per valid reward | 2.7×, 3.7×, 2.6×, 5.5× fewer tokens | 4 tasks, 70 calls | <0.0001 | <0.0001 | **significant** |
-| H3 | 4-per-call rewards are no worse (margin 10%) | −0.023 [−0.120, +0.073] | 4 tasks, 132 runs | 0.064 | 0.128 | inconclusive |
+| H3 | 4-per-call rewards are no worse (margin 10%) | −0.023 [−0.120, +0.073] | 4 tasks, 112 runs | 0.064 | 0.128 | inconclusive |
 | H4 | zero-token edit recovers the refinement gain | 7.57 → 9.04 (+1.47) | 4 vs 4 seeds | 0.025 | 0.075 | not significant after correction |
 | H5 | best reward found (p3) beats the human reward | +0.86 points | 6 seeds, paired | 0.073 | 0.128 | not significant |
 
