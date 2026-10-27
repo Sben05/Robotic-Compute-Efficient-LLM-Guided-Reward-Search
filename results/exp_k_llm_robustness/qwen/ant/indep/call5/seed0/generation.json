@@ -1,0 +1,52 @@
+{
+  "task_spec": {
+    "task": "Ant",
+    "env": "ant",
+    "num_envs": 4096
+  },
+  "task": "ant",
+  "arm": "indep",
+  "call": 5,
+  "model_requested": "minimaxai/minimax-m3.1-flash",
+  "function": null,
+  "model_used": "alibaba/qwen-3-32b",
+  "usage": {
+    "prompt_tokens": 1030,
+    "completion_tokens": 8445,
+    "total_tokens": 9475,
+    "cost": 0.002447,
+    "is_byok": false,
+    "prompt_tokens_details": {
+      "cached_tokens": 0,
+      "audio_tokens": 0,
+      "video_tokens": 0
+    },
+    "cost_details": {
+      "upstream_inference_cost": null,
+      "upstream_inference_prompt_cost": 0,
+      "upstream_inference_completions_cost": 0
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 9399,
+      "reasoning_tokens_estimated": true,
+      "image_tokens": 0
+    },
+    "cache_creation_input_tokens": 0,
+    "market_cost": 0.002447,
+    "gateway_cost": 0.002447
+  },
+  "finish_reason": "stop",
+  "functions_in_reply": 1,
+  "generation_seconds": 260.21088725,
+  "response_text": "\n\n```python\n@torch.jit.script\ndef compute_reward(\n    root_states: torch.Tensor,\n    heading_vec: torch.Tensor,\n    up_vec: torch.Tensor\n) -> Tuple[torch.Tensor, Dict[str, torch.Tensor]]:\n    # Extract linear and angular velocity from root states\n    velocity = root_states[:, 7:10]  # Linear velocity in world space\n    angular_vel = root_states[:, 10:13]  # Angular velocity in world space\n\n    # Calculate forward velocity in the heading direction\n    forward_vel = torch.sum(velocity * heading_vec, dim=-1)\n\n    # Penalize angular velocity around the heading axis (yaw)\n    angular_vel_yaw = torch.sum(angular_vel * heading_vec, dim=-1)\n    angular_penalty = 0.005 * torch.abs(angular_vel_yaw)\n\n    # Penalize not being upright by checking the z-component of up vector\n    # Assumes up axis is z (index 2)\n    up_proj = up_vec[:, 2]\n    upright_penalty = 0.5 * (1.0 - up_proj)\n\n    # Total reward: forward velocity - penalties\n    total_reward = forward_vel - angular_penalty - upright_penalty\n\n    reward_components = {\n        \"forward_velocity\": forward_vel,\n        \"angular_penalty\": angular_penalty,\n        \"upright_penalty\": upright_penalty\n    }\n\n    return total_reward, reward_components\n```",
+  "validation": {
+    "valid": true,
+    "suffix": "GPTMIqwenantindepcall5",
+    "environment_call": "compute_reward(self.root_states, self.heading_vec, self.up_vec)",
+    "inputs": [
+      "root_states",
+      "heading_vec",
+      "up_vec"
+    ]
+  }
+}

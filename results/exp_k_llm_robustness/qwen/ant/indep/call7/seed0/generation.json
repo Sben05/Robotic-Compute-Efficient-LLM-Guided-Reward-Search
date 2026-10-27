@@ -1,0 +1,50 @@
+{
+  "task_spec": {
+    "task": "Ant",
+    "env": "ant",
+    "num_envs": 4096
+  },
+  "task": "ant",
+  "arm": "indep",
+  "call": 7,
+  "model_requested": "minimaxai/minimax-m3.1-flash",
+  "function": null,
+  "model_used": "alibaba/qwen-3-32b",
+  "usage": {
+    "prompt_tokens": 1030,
+    "completion_tokens": 7585,
+    "total_tokens": 8615,
+    "cost": 0.0022062,
+    "is_byok": false,
+    "prompt_tokens_details": {
+      "cached_tokens": 0,
+      "audio_tokens": 0,
+      "video_tokens": 0
+    },
+    "cost_details": {
+      "upstream_inference_cost": null,
+      "upstream_inference_prompt_cost": 0,
+      "upstream_inference_completions_cost": 0
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 7992,
+      "reasoning_tokens_estimated": true,
+      "image_tokens": 0
+    },
+    "cache_creation_input_tokens": 0,
+    "market_cost": 0.0022062,
+    "gateway_cost": 0.0022062
+  },
+  "finish_reason": "stop",
+  "functions_in_reply": 1,
+  "generation_seconds": 237.00846608400002,
+  "response_text": "\n\n```python\n@torch.jit.script\ndef compute_reward(root_states: torch.Tensor) -> Tuple[torch.Tensor, Dict[str, torch.Tensor]]:\n    # Extract velocity and rotation from root_states\n    velocity = root_states[:, 7:10]\n    rotation = root_states[:, 3:7]\n    \n    # Unpack quaternion components\n    x = rotation[:, 0]\n    y = rotation[:, 1]\n    z = rotation[:, 2]\n    w = rotation[:, 3]\n    \n    # Calculate forward vector components based on rotation\n    forward_x = 1 - 2 * y * y - 2 * z * z\n    forward_y = 2 * x * y + 2 * w * z\n    forward_z = 2 * x * z - 2 * w * y\n    \n    # Compute forward velocity as dot product between global velocity and forward vector\n    forward_velocity = (\n        velocity[:, 0] * forward_x + \n        velocity[:, 1] * forward_y + \n        velocity[:, 2] * forward_z\n    )\n    \n    # Use forward velocity as the reward\n    reward = forward_velocity\n    \n    return reward, {'forward_velocity': reward}\n```",
+  "validation": {
+    "valid": true,
+    "suffix": "GPTMIqwenantindepcall7",
+    "environment_call": "compute_reward(self.root_states)",
+    "inputs": [
+      "root_states"
+    ]
+  }
+}
