@@ -103,7 +103,9 @@ as fixed@500.
 | fixed@500 (keep the leader at 500) | 0.975 | 56% |
 | LLM judge (code + 500-it logs) | 0.987 | 74% |
 
-Difference +0.013 [95% CI −0.001, +0.032], p = 0.057: **promising but not significant** under the pre-registered threshold.
+Difference +0.013 [95% CI −0.001, +0.032], p = 0.057: **promising but not significant** under the pre-registered threshold;
+with each seed as one observation (the 105 sets reuse 7 rewards, so they are not independent) p = 0.17. This test is closed;
+it will not be extended on the same curves.
 All 105 replies were parseable; cost $0.74. VoI and PID reach 0.997 on these seeds with ~12% more compute. The earlier blind
 ranking (code only, no logs) failed badly, so the training logs are what make the LLM useful as a judge.
 

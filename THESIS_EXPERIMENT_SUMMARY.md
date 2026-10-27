@@ -30,6 +30,11 @@ decisions identical to replay). Against the closest published method, ORSO (ICLR
 the held-out results were known, tuned on training seeds only), VoI keeps +0.7% more of the best reward (p = 0.012) with 5%
 less compute, and PID ties it with 6% less compute.
 
+**Caveat on H1 (conservative re-analysis).** The held-out sets reuse the same 7 rewards, so they are not independent. With each
+seed as one observation, H1 gives p = 0.041 uncorrected and 0.21 after Holm (not significant); the direction is consistent
+(VoI ≥ fixed@500 on every held-out seed and after dropping any one reward). Claim: a consistent improvement on this reward pool,
+not yet a demonstrated result for new rewards. H2 is unaffected (its units are independent LLM calls).
+
 ## Other findings (exploratory, with uncertainty)
 
 - **Live early stopping** saved 73% of PPO iterations in 2 real searches, but 4 of 12 stopped runs would have won
@@ -40,8 +45,8 @@ less compute, and PID ties it with 6% less compute.
 - **Other LLMs**: Gemini 2.5 Flash and Qwen-3-32B wrote weaker Ant rewards than MiniMax on average, yet Qwen's best reward
   reached 11.32 (single seed), the best of the project; batching was again cheaper for both.
 - **LLM as judge**: shown each reward's code plus its first 500 training iterations, MiniMax picked the eventual winner 74% of
-  the time vs 56% for "keep the leader at 500" at equal compute (retained 0.987 vs 0.975, p = 0.057, pre-registered;
-  not significant). Code alone had failed badly, so the logs are what help.
+  the time vs 56% for "keep the leader at 500" at equal compute (retained 0.987 vs 0.975, p = 0.057 pre-registered, p = 0.17 with seed as the unit;
+  not significant; not to be extended on the same curves). Code alone had failed badly, so the logs are what help.
 - **Generalisation**: Cartpole and BallBalance are too easy (every reward hits the ceiling); on Humanoid all LLM rewards were
   far below the human reward and the Ant-tuned VoI forecaster did not transfer (0.81 retained), while PID-style rules did (0.97).
 - **Generate vs train** [simulation]: at measured prices (one LLM call ≈ 60-230 PPO iterations of A100 time) adaptive
@@ -62,7 +67,9 @@ uninterrupted runs within 0.3.
 
 ## Next steps (in order of value per dollar)
 
-1. Re-run H5 and H4 with 4-6 more seeds each (~$3): both are one seed-set away from surviving correction.
+1. Fresh, independently generated rewards (new batched LLM rounds, each reward trained fully once), with all rules frozen
+   and a pre-registered reward-and-seed-level test: the only way to show the pruning result holds for new rewards (~$3.5).
+   Re-running H4/H5 with more seeds is the next priority (~$3).
 2. A hard second task with real reward variation (Humanoid with 5 seeds and an in-task library, or ShadowHand) to test
    whether VoI pruning generalises when the forecaster is built on that task (~$8-10).
 3. H3 with ~3× more rewards per arm on Ant to settle non-inferiority (~$4 of GPU, <$0.5 of LLM).

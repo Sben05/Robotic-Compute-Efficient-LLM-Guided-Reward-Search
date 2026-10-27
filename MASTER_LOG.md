@@ -199,7 +199,7 @@ All on Vast boxes 1-2, in batches (`vast/queue_batches/`). Key milestones:
 
 | | Result | Holm p | Verdict |
 | --- | --- | ---: | --- |
-| H1 | VoI 0.997 vs fixed@500 0.972 retained (+0.025 [0.006, 0.046]); winner 86% vs 59%; compute 0.42 vs 0.375; 175 held-out sets | 0.0076 | **significant** |
+| H1 | VoI 0.997 vs fixed@500 0.972 retained (+0.025 [0.006, 0.046]); winner 86% vs 59%; compute 0.42 vs 0.375; 175 held-out sets | 0.0076 | **significant** as pre-registered; **not** under the stricter seed-level test added later (p = 0.041, Holm 0.21) |
 | H2 | four-per-call 2.6-5.5× fewer tokens per valid reward on 4/4 tasks | <0.0001 | **significant** |
 | H3 | batch − one-per-call quality −0.023 [−0.12, +0.07] | 0.128 | inconclusive |
 | H4 | τ 4→10: 7.57 → 9.04 (+1.47), n = 4 vs 4 | 0.075 | not significant after correction (pre-registered reading met) |
@@ -256,6 +256,15 @@ pre-registered, held-out, multi-seed and live evaluation of compute allocation f
 batched generation is much cheaper) and documented negative results.
 
 ---
+
+### Statistical correction after a reviewer-style critique (27 Oct ~08:30)
+
+The held-out "sets" recombine the same 7 rewards, so they are not independent. Re-analysed with each seed as one observation
+plus drop-one-reward sensitivity (`results/pruning/conservative_reanalysis.json`): H1 p = 0.041 uncorrected (n = 5 seeds),
+0.21 after Holm, so not significant under the stricter test though the direction is consistent (never negative per seed or
+per dropped reward); clean seeds 7-9 p = 0.095; PID vs fixed@500 p = 0.030 uncorrected; LLM judge p = 0.17. Decisions: report
+both analyses; scope H1 to this reward pool; do not extend the LLM-judge test on the same curves (optional stopping); spend
+remaining credit on fresh rewards with a pre-registered reward-and-seed-level test.
 
 ## 8. Every idea considered, and what happened to it
 
@@ -319,7 +328,7 @@ batched generation is much cheaper) and documented negative results.
 
 ## 11. Open items and next steps
 
-1. LLM judge: a follow-up with more held-out sets (it missed significance narrowly, p = 0.057) is cheap (~$1 per 100 sets).
+1. LLM judge: concluded not significant (p = 0.057; 0.17 seed-level). Any follow-up must be a new pre-registered replication on fresh rewards, not an extension of this test.
 2. A fresh from-scratch robustness test on new rewards (~$3.5 on a rented A100 rebuilt with `vast/setup_box.sh`): ~4 new batched
    rounds of 8 rewards trained fully once, all rules replayed frozen, to remove the "same 7 rewards" limitation.
 3. More seeds for H4/H5 (~$3); a hard second task with real reward variation (Humanoid with more seeds and an in-task library, or

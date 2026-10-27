@@ -34,6 +34,15 @@ for H1 was then picked by the pre-registered criterion (`results/pruning/best_ru
   0.0127], p = 0.012, with 5% less compute; PID − ORSO = +0.001 [−0.010, +0.011], with 6% less compute.
   `results/pruning/orso_baseline.json`.
 
+**Conservative re-analysis (added after a reviewer-style critique; `results/pruning/conservative_reanalysis.json`).** The 175
+held-out sets are built from the same 7 rewards (each reward appears in 20 of the 35 sets per seed), so they are not 175
+independent tests, and a cluster bootstrap over 5 seeds understates uncertainty. Treating each seed as one observation
+(one-sample t-test over per-seed mean differences): VoI − fixed@500 per seed = +0.057, +0.002, +0.029, 0.000, +0.037;
+**p = 0.041 uncorrected (n = 5 seeds), 0.21 after Holm across H1-H5: not significant under this stricter test.** Dropping any one
+reward keeps the difference positive (+0.017 to +0.033); PID − fixed@500 behaves the same (p = 0.030 uncorrected). Reading:
+the improvement is consistent (never negative on any seed or reward subset) but statistically modest, and it is established
+only for this reward pool on new seeds, not for new rewards.
+
 ## 2. Every frozen rule on the same held-out sets [held-out, n = 175 sets, 5 seeds]
 
 | Rule (frozen config) | Compute | Retained [95% CI] | Winner picked | Mean peak vs human (same seed) |
