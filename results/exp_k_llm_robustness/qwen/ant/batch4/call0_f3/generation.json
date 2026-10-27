@@ -1,0 +1,52 @@
+{
+  "task_spec": {
+    "task": "Ant",
+    "env": "ant",
+    "num_envs": 4096
+  },
+  "task": "ant",
+  "arm": "batch4",
+  "call": 0,
+  "model_requested": "minimaxai/minimax-m3.1-flash",
+  "function": 3,
+  "model_used": "alibaba/qwen-3-32b",
+  "usage": {
+    "prompt_tokens": 1060,
+    "completion_tokens": 4746,
+    "total_tokens": 5806,
+    "cost": 0.00141368,
+    "is_byok": false,
+    "prompt_tokens_details": {
+      "cached_tokens": 0,
+      "audio_tokens": 0,
+      "video_tokens": 0
+    },
+    "cost_details": {
+      "upstream_inference_cost": null,
+      "upstream_inference_prompt_cost": 0,
+      "upstream_inference_completions_cost": 0
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 4675,
+      "reasoning_tokens_estimated": true,
+      "image_tokens": 0
+    },
+    "cache_creation_input_tokens": 0,
+    "market_cost": 0.00141368,
+    "gateway_cost": 0.00141368
+  },
+  "finish_reason": "stop",
+  "functions_in_reply": 4,
+  "generation_seconds": 130.757300917,
+  "response_text": "```python\n\n@torch.jit.script\ndef compute_reward(prev_potentials: torch.Tensor, potentials: torch.Tensor, root_states: torch.Tensor) -> Tuple[torch.Tensor, Dict[str, torch.Tensor]]:\n    pot_diff = prev_potentials - potentials  # Progress toward goal\n    ang_vel = root_states[:, 10:13]  # Angular velocity\n    ang_vel_cost = 0.1 * torch.sum(ang_vel ** 2, dim=1)\n    reward = pot_diff - ang_vel_cost\n    return reward, {\"potential_diff\": pot_diff, \"angular_vel_penalty\": ang_vel_cost}\n\n```",
+  "validation": {
+    "valid": true,
+    "suffix": "GPTMIqwenantbatch4call0f3",
+    "environment_call": "compute_reward(self.prev_potentials, self.potentials, self.root_states)",
+    "inputs": [
+      "prev_potentials",
+      "potentials",
+      "root_states"
+    ]
+  }
+}

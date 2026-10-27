@@ -1,0 +1,51 @@
+{
+  "task_spec": {
+    "task": "Ant",
+    "env": "ant",
+    "num_envs": 4096
+  },
+  "task": "ant",
+  "arm": "indep",
+  "call": 3,
+  "model_requested": "minimaxai/minimax-m3.1-flash",
+  "function": null,
+  "model_used": "alibaba/qwen-3-32b",
+  "usage": {
+    "prompt_tokens": 1030,
+    "completion_tokens": 5516,
+    "total_tokens": 6546,
+    "cost": 0.00162688,
+    "is_byok": false,
+    "prompt_tokens_details": {
+      "cached_tokens": 0,
+      "audio_tokens": 0,
+      "video_tokens": 0
+    },
+    "cost_details": {
+      "upstream_inference_cost": null,
+      "upstream_inference_prompt_cost": 0,
+      "upstream_inference_completions_cost": 0
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 5481,
+      "reasoning_tokens_estimated": true,
+      "image_tokens": 0
+    },
+    "cache_creation_input_tokens": 0,
+    "market_cost": 0.00162688,
+    "gateway_cost": 0.00162688
+  },
+  "finish_reason": "stop",
+  "functions_in_reply": 1,
+  "generation_seconds": 253.42263520900002,
+  "response_text": "\n\n```python\n@torch.jit.script\ndef compute_reward(obs_buf: torch.Tensor, actions: torch.Tensor) -> Tuple[torch.Tensor, Dict[str, torch.Tensor]]:\n    # Extract relevant components from obs_buf\n    forward_vel = obs_buf[:, 1]  # Forward velocity in local frame\n    lateral_vel = obs_buf[:, 2]  # Lateral velocity in local frame\n    spin_vel = obs_buf[:, 6]     # Angular velocity around z-axis (spin)\n    up_proj = obs_buf[:, 10]     # Upright projection\n    \n    # Temperature parameters for transformations\n    temp_forward = 0.1\n    temp_lateral = 1.0\n    temp_spin = 1.0\n    temp_upright = 1.0\n    energy_scale = 0.001\n    \n    # Compute individual reward components\n    reward_forward = torch.tanh(forward_vel * temp_forward)\n    reward_lateral = - (lateral_vel ** 2) * temp_lateral\n    reward_spin = - (spin_vel ** 2) * temp_spin\n    reward_upright = up_proj * temp_upright\n    reward_energy = - energy_scale * torch.sum(actions ** 2, dim=1)\n    \n    # Total reward\n    total_reward = reward_forward + reward_lateral + reward_spin + reward_upright + reward_energy\n    \n    # Dictionary of individual components\n    reward_components = {\n        \"forward\": reward_forward,\n        \"lateral\": reward_lateral,\n        \"spin\": reward_spin,\n        \"upright\": reward_upright,\n        \"energy\": reward_energy\n    }\n    \n    return total_reward, reward_components\n```",
+  "validation": {
+    "valid": true,
+    "suffix": "GPTMIqwenantindepcall3",
+    "environment_call": "compute_reward(self.obs_buf, self.actions)",
+    "inputs": [
+      "obs_buf",
+      "actions"
+    ]
+  }
+}

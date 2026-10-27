@@ -1,0 +1,53 @@
+{
+  "task_spec": {
+    "task": "Ant",
+    "env": "ant",
+    "num_envs": 4096
+  },
+  "task": "ant",
+  "arm": "batch4",
+  "call": 0,
+  "model_requested": "minimaxai/minimax-m3.1-flash",
+  "function": 2,
+  "model_used": "google/gemini-2.5-flash",
+  "usage": {
+    "prompt_tokens": 1285,
+    "completion_tokens": 8455,
+    "total_tokens": 9740,
+    "cost": 0.021523,
+    "is_byok": false,
+    "prompt_tokens_details": {
+      "cached_tokens": 0,
+      "audio_tokens": 0,
+      "video_tokens": 0
+    },
+    "cost_details": {
+      "upstream_inference_cost": null,
+      "upstream_inference_prompt_cost": 0,
+      "upstream_inference_completions_cost": 0
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 5668,
+      "image_tokens": 0
+    },
+    "cache_creation_input_tokens": 0,
+    "market_cost": 0.021523,
+    "gateway_cost": 0.021523
+  },
+  "finish_reason": "stop",
+  "functions_in_reply": 4,
+  "generation_seconds": 33.678877584,
+  "response_text": "```python\n\nimport torch\nfrom typing import Tuple, Dict\n\n@torch.jit.script\ndef compute_reward(root_states: torch.Tensor, actions: torch.Tensor, heading_vec: torch.Tensor, up_vec: torch.Tensor, up_axis_idx: int) -> Tuple[torch.Tensor, Dict[str, torch.Tensor]]:\n    # Extract linear and angular velocity from root_states\n    linear_velocity = root_states[:, 7:10]  # shape (num_envs, 3)\n    angular_velocity = root_states[:, 10:13] # shape (num_envs, 3)\n    device = root_states.device\n\n    # 1. Forward velocity reward: Reward for positive velocity in the heading direction.\n    forward_velocity = torch.sum(linear_velocity * heading_vec, dim=1)\n    forward_reward_temp = 0.5\n    forward_reward = torch.exp(forward_velocity * forward_reward_temp)\n\n    # 2. Action penalty: Penalize large control efforts.\n    action_penalty_temp = 0.1\n    action_penalty = torch.sum(torch.square(actions), dim=-1)\n    action_reward = -torch.exp(action_penalty * action_penalty_temp)\n\n    # 3. Uprightness reward: Reward for the ant's torso being upright.\n    # up_vec is the torso's up vector in the global frame. Global up vector is (0,0,1) for Z-up.\n    global_up_vec = torch.zeros_like(up_vec, device=device)\n    global_up_vec[:, up_axis_idx] = 1.0\n    upright_proj = torch.sum(up_vec * global_up_vec, dim=1) # Dot product between torso up and global up\n    upright_reward_temp = 2.0\n    # Reward for being perfectly upright (upright_proj = 1.0). Penalize deviation.\n    upright_reward = torch.exp((upright_proj - 1.0) * upright_reward_temp) \n\n    # 4. Angular velocity penalty: Penalize any significant angular velocity to encourage stable locomotion.\n    angular_velocity_magnitude = torch.norm(angular_velocity, dim=1)\n    ang_vel_penalty_temp = 0.05\n    ang_vel_reward = -torch.exp(angular_velocity_magnitude * ang_vel_penalty_temp)\n\n    total_reward = forward_reward + action_reward + upright_reward + ang_vel_reward\n\n    rewards = {\n        \"forward_reward\": forward_reward,\n        \"action_reward\": action_reward,\n        \"upright_reward\": upright_reward,\n        \"angular_velocity_reward\": ang_vel_reward,\n    }\n    return total_reward, rewards\n\n```",
+  "validation": {
+    "valid": true,
+    "suffix": "GPTMIgeminiantbatch4call0f2",
+    "environment_call": "compute_reward(self.root_states, self.actions, self.heading_vec, self.up_vec, self.up_axis_idx)",
+    "inputs": [
+      "root_states",
+      "actions",
+      "heading_vec",
+      "up_vec",
+      "up_axis_idx"
+    ]
+  }
+}

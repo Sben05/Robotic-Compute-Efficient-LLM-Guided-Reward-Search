@@ -1,0 +1,54 @@
+{
+  "task_spec": {
+    "task": "Ant",
+    "env": "ant",
+    "num_envs": 4096
+  },
+  "task": "ant",
+  "arm": "batch4",
+  "call": 0,
+  "model_requested": "minimaxai/minimax-m3.1-flash",
+  "function": 4,
+  "model_used": "google/gemini-2.5-flash",
+  "usage": {
+    "prompt_tokens": 1285,
+    "completion_tokens": 8455,
+    "total_tokens": 9740,
+    "cost": 0.021523,
+    "is_byok": false,
+    "prompt_tokens_details": {
+      "cached_tokens": 0,
+      "audio_tokens": 0,
+      "video_tokens": 0
+    },
+    "cost_details": {
+      "upstream_inference_cost": null,
+      "upstream_inference_prompt_cost": 0,
+      "upstream_inference_completions_cost": 0
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 5668,
+      "image_tokens": 0
+    },
+    "cache_creation_input_tokens": 0,
+    "market_cost": 0.021523,
+    "gateway_cost": 0.021523
+  },
+  "finish_reason": "stop",
+  "functions_in_reply": 4,
+  "generation_seconds": 33.678877584,
+  "response_text": "```python\n\nimport torch\nfrom typing import Tuple, Dict\n\n@torch.jit.script\ndef compute_reward(root_states: torch.Tensor, actions: torch.Tensor, heading_vec: torch.Tensor, up_vec: torch.Tensor, dof_vel: torch.Tensor, up_axis_idx: int) -> Tuple[torch.Tensor, Dict[str, torch.Tensor]]:\n    # Extract necessary state variables\n    linear_velocity = root_states[:, 7:10]\n    angular_velocity = root_states[:, 10:13]\n    torso_position_z = root_states[:, up_axis_idx]\n    device = root_states.device\n\n    # Reward component scaling factors (replacing 'temperature' for linear/quadratic components)\n    forward_vel_scale = 1.0 \n    action_cost_scale = 0.005\n    dof_vel_cost_scale = 0.001\n    upright_alignment_scale = 0.5 \n    angular_vel_cost_scale = 0.01\n    height_deviation_cost_scale = 1.0\n    survival_bonus = 0.1 \n\n    # Target parameters\n    target_height = 0.6 \n\n    # 1. Forward velocity reward: Reward for positive velocity in the heading direction.\n    forward_velocity = torch.sum(linear_velocity * heading_vec, dim=1)\n    forward_reward = forward_vel_scale * forward_velocity\n\n    # 2. Action penalty: Penalize large control efforts using a quadratic penalty.\n    action_penalty = torch.sum(torch.square(actions), dim=-1)\n    action_reward = -action_cost_scale * action_penalty\n\n    # 3. DOF velocity penalty: Penalize large joint velocities (jerky movements) using a quadratic penalty.\n    dof_vel_penalty = torch.sum(torch.square(dof_vel), dim=-1)\n    dof_vel_reward = -dof_vel_cost_scale * dof_vel_penalty\n\n    # 4. Uprightness reward: Reward for torso's up vector aligning with global up.\n    global_up_vec = torch.zeros_like(up_vec, device=device)\n    global_up_vec[:, up_axis_idx] = 1.0\n    upright_proj = torch.sum(up_vec * global_up_vec, dim=1)\n    # Reward is higher when upright_proj is close to 1.0. A linear reward component.\n    upright_reward = upright_alignment_scale * (upright_proj - 0.7) # Encourage proj > 0.7\n    upright_reward = torch.clamp(upright_reward, min=-0.5, max=0.5) # Clamp to prevent extreme values\n\n    # 5. Angular velocity penalty: Penalize excessive rotational velocity.\n    angular_velocity_magnitude = torch.norm(angular_velocity, dim=1)\n    angular_vel_reward = -angular_vel_cost_scale * angular_velocity_magnitude\n\n    # 6. Height maintenance reward/penalty: Encourage staying near target_height with a quadratic penalty.\n    height_deviation = torch.square(torso_position_z - target_height)\n    height_reward = -height_deviation_cost_scale * height_deviation\n\n    # 7. Survival bonus: Constant positive reward per step.\n    survival_reward = torch.ones_like(forward_reward, device=device) * survival_bonus\n\n    total_reward = forward_reward + action_reward + dof_vel_reward + upright_reward + angular_vel_reward + height_reward + survival_reward\n\n    rewards = {\n        \"forward_reward\": forward_reward,\n        \"action_reward\": action_reward,\n        \"dof_vel_reward\": dof_vel_reward,\n        \"upright_reward\": upright_reward,\n        \"angular_velocity_reward\": angular_vel_reward,\n        \"height_reward\": height_reward,\n        \"survival_reward\": survival_reward,\n    }\n    return total_reward, rewards\n\n```",
+  "validation": {
+    "valid": true,
+    "suffix": "GPTMIgeminiantbatch4call0f4",
+    "environment_call": "compute_reward(self.root_states, self.actions, self.heading_vec, self.up_vec, self.dof_vel, self.up_axis_idx)",
+    "inputs": [
+      "root_states",
+      "actions",
+      "heading_vec",
+      "up_vec",
+      "dof_vel",
+      "up_axis_idx"
+    ]
+  }
+}

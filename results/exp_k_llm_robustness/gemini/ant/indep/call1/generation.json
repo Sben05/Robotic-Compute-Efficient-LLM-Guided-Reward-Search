@@ -1,0 +1,52 @@
+{
+  "task_spec": {
+    "task": "Ant",
+    "env": "ant",
+    "num_envs": 4096
+  },
+  "task": "ant",
+  "arm": "indep",
+  "call": 1,
+  "model_requested": "minimaxai/minimax-m3.1-flash",
+  "function": null,
+  "model_used": "google/gemini-2.5-flash",
+  "usage": {
+    "prompt_tokens": 1253,
+    "completion_tokens": 5431,
+    "total_tokens": 6684,
+    "cost": 0.0139534,
+    "is_byok": false,
+    "prompt_tokens_details": {
+      "cached_tokens": 0,
+      "audio_tokens": 0,
+      "video_tokens": 0
+    },
+    "cost_details": {
+      "upstream_inference_cost": null,
+      "upstream_inference_prompt_cost": 0,
+      "upstream_inference_completions_cost": 0
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 4657,
+      "image_tokens": 0
+    },
+    "cache_creation_input_tokens": 0,
+    "market_cost": 0.0139534,
+    "gateway_cost": 0.0139534
+  },
+  "finish_reason": "stop",
+  "functions_in_reply": 1,
+  "generation_seconds": 25.495816292,
+  "response_text": "```python\nimport torch\nfrom typing import Tuple, Dict\n\n@torch.jit.script\ndef compute_reward(root_states: torch.Tensor, heading_vec: torch.Tensor, up_axis_idx: int) -> Tuple[torch.Tensor, Dict[str, torch.Tensor]]:\n    \"\"\"\n    Reward function for making the Ant run forward as fast as possible.\n\n    Args:\n        root_states (torch.Tensor): Tensor containing the root states of the Ant.\n                                    Specifically, root_states[:, 7:10] contains the linear velocity.\n        heading_vec (torch.Tensor): Tensor representing the Ant's forward heading vector in the global frame.\n        up_axis_idx (int): The index corresponding to the 'up' axis (e.g., 2 for Z-axis).\n\n    Returns:\n        Tuple[torch.Tensor, Dict[str, torch.Tensor]]: A tuple containing:\n            - total_reward (torch.Tensor): The total reward for each environment.\n            - reward_components (Dict[str, torch.Tensor]): A dictionary of individual reward components.\n    \"\"\"\n    # Extract linear velocity from root_states.\n    # root_states[:, 7:10] contains (vx, vy, vz) in the global frame for each ant.\n    velocity = root_states[:, 7:10]\n\n    # Create a horizontally projected heading vector to define \"forward\" movement\n    # primarily in the horizontal plane. This avoids rewarding vertical movement\n    # if the ant is pitched up or down.\n    heading_vec_horz = heading_vec.clone()\n    # Set the vertical component to zero. For the Ant environment, up_axis_idx is typically 2 (Z-axis).\n    heading_vec_horz[:, up_axis_idx] = 0.0\n    \n    # Normalize the horizontal heading vector.\n    # Add a small epsilon to prevent division by zero in case of a (0,0,0) vector,\n    # though the heading vector should generally not be zero or have a zero horizontal projection.\n    heading_vec_horz_norm = torch.nn.functional.normalize(heading_vec_horz, p=2, dim=-1, eps=1e-6)\n\n    # Calculate the forward velocity component.\n    # This is the projection of the actual linear velocity onto the normalized\n    # horizontal forward direction of the ant.\n    # A positive value means the ant is moving forward, a negative value means it's moving backward.\n    forward_velocity_reward = torch.sum(velocity * heading_vec_horz_norm, dim=-1)\n\n    # For the task \"run forward as fast as possible\", directly maximizing the forward velocity\n    # is the most straightforward and effective reward. A linear reward ensures that\n    # faster forward movement gets proportionally higher reward, and backward movement\n    # receives a proportional penalty (negative reward).\n    # No exponential transformation is applied here, as applying `torch.exp` would\n    # make negative velocities (backward movement) yield a positive reward, which\n    # is contrary to the goal of encouraging *forward* movement.\n    \n    # The total reward for this task is solely based on the forward velocity.\n    total_reward = forward_velocity_reward\n\n    # Store individual reward components for debugging and analysis.\n    reward_components = {\n        \"forward_velocity_reward\": forward_velocity_reward,\n    }\n\n    return total_reward, reward_components\n```",
+  "validation": {
+    "valid": false,
+    "suffix": "GPTMIgeminiantindepcall1",
+    "environment_call": "compute_reward(self.root_states, self.heading_vec, self.up_axis_idx)",
+    "inputs": [
+      "root_states",
+      "heading_vec",
+      "up_axis_idx"
+    ],
+    "error": "TorchScript compilation failed:\nTraceback (most recent call last):\n  File \"gen_task.py\", line 123, in build_one\n    sp.loader.exec_module(importlib.util.module_from_spec(sp))\n  File \"<frozen importlib._bootstrap_external>\", line 848, in exec_module\n  File \"<frozen importlib._bootstrap>\", line 219, in _call_with_frames_removed\n  File \"/root/MSThesis/results/exp_k_llm_robustness/gemini/ant/indep/call1/_torchscript_check.py\", line 6, in <module>\n    def compute_reward(root_states: torch.Tensor, heading_vec: torch.Tensor, up_axis_idx: int) -> Tuple[torch.Tensor, Dict[str, torch.Tensor]]:\n  File \"/root/MSThesis/.env/lib/python3.8/site-packages/torch/jit/_script.py\", line 1341, in script\n    fn = torch._C._jit_script_compile(\nRuntimeError: \n\nnormalize(Tensor input, float p=2., int dim=1, float eps=9.9999999999999998e-13, Tensor? out=None) -> Tensor:\nExpected a value of type 'float' for argument 'p' but instead found type 'int'.\n:\n  File \"/root/MSThesis/results/exp_k_llm_robustness/gemini/ant/indep/call1/_torchscript_check.py\", line 35\n    # Add a small epsilon to prevent division by zero in case of a (0,0,0) vector,\n    # though the heading vector should generally not be zero or have a zero horizontal projection.\n    heading_vec_horz_norm = torch.nn.functional.normalize(heading_vec_horz, p=2, dim=-1, eps=1e-6)\n                            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ <--- HERE\n\n    # Calculate the forward velocity component.\n\n"
+  }
+}
