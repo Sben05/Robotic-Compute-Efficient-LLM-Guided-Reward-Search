@@ -10,7 +10,7 @@ PPO, which is the expensive part. The thesis asks two things:
    compute of training everything, against 59% for the simple rule "train everything 500 iterations, keep the leader". This was
    tested on data the rule had never seen, and once more live, where the rule really killed training processes.
 2. **Can we spend less on the LLM?** Yes for cost: asking for four rewards in one call costs 2.6-5.5× fewer tokens per usable
-   reward on all four tasks tested, and produced the best reward of the whole project. Whether the batched rewards are equally
+   reward on all four tasks tested and produced MiniMax's best reward. Whether the batched rewards are equally
    good is not settled. One LLM "refinement" turned out to be mostly a single constant (a speed scale) that can be edited
    without any LLM call.
 
