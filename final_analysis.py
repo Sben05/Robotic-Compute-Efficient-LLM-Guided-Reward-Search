@@ -34,7 +34,8 @@ def curve(p):
     p = Path(p)
     if not p.exists():
         return None
-    return np.asarray(load(p)["consecutive_successes"], float)
+    y = load(p).get("consecutive_successes")  # absent when the run crashed
+    return np.asarray(y, float) if y else None
 
 
 def peak(p, k=None):
