@@ -1,0 +1,70 @@
+@torch.jit.script
+def compute_reward(root_states: torch.Tensor,
+                   actions: torch.Tensor,
+                   dof_pos: torch.Tensor,
+                   dof_limits_lower: torch.Tensor,
+                   dof_limits_upper: torch.Tensor,
+                   up_vec: torch.Tensor) -> Tuple[torch.Tensor, Dict[str, torch.Tensor]]:
+    """
+    Reward the Ant for running forward (+x world frame) as fast as possible
+    while staying upright, straight and within its joint limits.
+    """
+
+    # Temperature of the smooth forward-speed shaping (m/s).
+    forward_speed_temperature = 4.0
+
+    # Component weights.
+    forward_weight = 1.0
+    upright_weight = 0.25
+    control_weight = 0.02
+    lateral_velocity_weight = 0.05
+    roll_pitch_angular_velocity_weight = 0.005
+    joint_limit_weight = 0.1
+
+    # --- Extract state quantities -------------------------------------
+    lin_vel = root_states[:, 7:10]      # world-frame linear velocity (x, y, z)
+    ang_vel = root_states[:, 10:13]     # world-frame angular velocity
+    forward_vel = lin_vel[:, 0]         # forward (+x) speed
+    lateral_vel = lin_vel[:, 1]         # sideways speed
+
+    # --- Reward components --------------------------------------------
+    # Signed, smoothly saturated forward speed: positive when running forward,
+    # negative when running backwards (encourages recovering/turning around).
+    forward_reward = forward_weight * torch.tanh(forward_vel / forward_speed_temperature)
+
+    # Upright posture bonus: world-z component of the torso up axis.
+    # Falls to zero if the Ant tips over or flips.
+    upright_reward = upright_weight * torch.clamp(up_vec[:, 2], min=0.0, max=1.0)
+
+    # Control effort penalty.
+    control_cost = control_weight * torch.sum(actions * actions, dim=-1)
+
+    # Penalty for drifting sideways instead of running straight ahead.
+    lateral_velocity_cost = lateral_velocity_weight * torch.abs(lateral_vel)
+
+    # Penalty for excessive roll/pitch rates (tumbling, flipping).
+    roll_pitch_angular_velocity_cost = roll_pitch_angular_velocity_weight * (
+        ang_vel[:, 0] * ang_vel[:, 0] + ang_vel[:, 1] * ang_vel[:, 1])
+
+    # Penalty for exceeding the actuated joint limits.
+    lower_excess = torch.relu(dof_limits_lower - dof_pos)
+    upper_excess = torch.relu(dof_pos - dof_limits_upper)
+    joint_limit_cost = joint_limit_weight * torch.sum(lower_excess + upper_excess, dim=-1)
+
+    # --- Total reward --------------------------------------------------
+    total_reward = (forward_reward
+                    + upright_reward
+                    - control_cost
+                    - lateral_velocity_cost
+                    - roll_pitch_angular_velocity_cost
+                    - joint_limit_cost)
+
+    reward_components: Dict[str, torch.Tensor] = {}
+    reward_components["forward_speed"] = forward_reward
+    reward_components["upright_posture"] = upright_reward
+    reward_components["control_cost"] = -control_cost
+    reward_components["lateral_velocity_cost"] = -lateral_velocity_cost
+    reward_components["roll_pitch_angular_velocity_cost"] = -roll_pitch_angular_velocity_cost
+    reward_components["joint_limit_cost"] = -joint_limit_cost
+
+    return total_reward, reward_components

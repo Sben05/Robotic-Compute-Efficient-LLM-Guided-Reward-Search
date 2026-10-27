@@ -1,0 +1,53 @@
+{
+  "task_spec": {
+    "task": "Ant",
+    "env": "ant",
+    "num_envs": 4096
+  },
+  "task": "ant",
+  "arm": "indep",
+  "call": 4,
+  "model_requested": "minimaxai/minimax-m3.1-flash",
+  "function": null,
+  "model_used": "google/gemini-2.5-flash",
+  "usage": {
+    "prompt_tokens": 1253,
+    "completion_tokens": 3507,
+    "total_tokens": 4760,
+    "cost": 0.0091434,
+    "is_byok": false,
+    "prompt_tokens_details": {
+      "cached_tokens": 0,
+      "audio_tokens": 0,
+      "video_tokens": 0
+    },
+    "cost_details": {
+      "upstream_inference_cost": null,
+      "upstream_inference_prompt_cost": 0,
+      "upstream_inference_completions_cost": 0
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 2549,
+      "image_tokens": 0
+    },
+    "cache_creation_input_tokens": 0,
+    "market_cost": 0.0091434,
+    "gateway_cost": 0.0091434
+  },
+  "finish_reason": "stop",
+  "functions_in_reply": 1,
+  "generation_seconds": 16.913910833000003,
+  "response_text": "```python\nimport torch\nfrom typing import Tuple, Dict\n\n@torch.jit.script\ndef compute_reward(\n    root_states: torch.Tensor,\n    heading_vec: torch.Tensor,\n    up_vec: torch.Tensor,\n    up_axis_idx: int,\n    actions: torch.Tensor\n) -> Tuple[torch.Tensor, Dict[str, torch.Tensor]]:\n    \"\"\"\n    Computes the reward for the Ant agent to run forward as fast as possible.\n\n    Args:\n        root_states (torch.Tensor): Tensor containing the root state of the ant (position, rotation, velocity, ang_velocity).\n                                    Shape: (num_envs, 13)\n                                    Relevant slices:\n                                        - velocity: root_states[:, 7:10] (linear velocity in global frame)\n        heading_vec (torch.Tensor): Tensor representing the ant's forward direction in the global frame.\n                                    Shape: (num_envs, 3)\n        up_vec (torch.Tensor): Tensor representing the ant's 'up' direction in the global frame.\n                               Shape: (num_envs, 3)\n        up_axis_idx (int): The index of the global 'up' axis (e.g., 2 for Z-axis).\n        actions (torch.Tensor): Tensor containing the actions taken by the agent.\n                                Shape: (num_envs, num_actions)\n\n    Returns:\n        Tuple[torch.Tensor, Dict[str, torch.Tensor]]:\n            - total_reward (torch.Tensor): The total reward for each environment.\n            - rewards (Dict[str, torch.Tensor]): A dictionary of individual reward components.\n    \"\"\"\n\n    # --- Temperature parameters for reward shaping ---\n    # These parameters control the sensitivity and magnitude of each reward component.\n    # They should be tuned based on the learning performance.\n    forward_vel_temp: float = 0.5  # Higher temp -> flatter reward curve for forward velocity\n    upright_temp: float = 0.5      # Higher temp -> flatter reward curve for uprightness\n    action_penalty_temp: float = 0.1 # Higher temp -> less severe action penalty\n\n    # --- Extract relevant states ---\n    velocity = root_states[:, 7:10] # Linear velocity (x, y, z) in the global frame\n\n    # --- 1. Forward Velocity Reward ---\n    # Goal: Maximize velocity in the desired forward direction (heading_vec).\n    # The dot product of velocity and heading_vec gives the speed along the heading.\n    # We use an exponential function to strongly reward higher forward speeds.\n    forward_vel = (velocity * heading_vec).sum(dim=-1)\n    forward_reward = torch.exp(forward_vel / forward_vel_temp)\n\n    # --- 2. Upright Reward ---\n    # Goal: Encourage the ant to stay upright.\n    # up_vec[:, up_axis_idx] is the component of the ant's local 'up' vector\n    # that aligns with the global 'up' axis. A value close to 1 means the ant is perfectly upright.\n    # An exponential reward heavily penalizes deviation from upright.\n    upright_score = up_vec[:, up_axis_idx]\n    upright_reward = torch.exp(upright_score / upright_temp)\n\n    # --- 3. Action Penalty ---\n    # Goal: Encourage smooth and energy-efficient movements by penalizing large actions.\n    # Sum of squared actions serves as a measure of action magnitude.\n    # An exponential decay ensures a reward of 1 for zero actions and rapid decay for larger actions.\n    action_penalty = torch.sum(actions**2, dim=-1)\n    action_cost = torch.exp(-action_penalty / action_penalty_temp)\n\n    # --- Combine Reward Components ---\n    # The total reward is a sum of the individual components.\n    total_reward = forward_reward + upright_reward + action_cost\n\n    # --- Prepare rewards dictionary for logging/analysis ---\n    rewards = {\n        \"forward_reward\": forward_reward,\n        \"upright_reward\": upright_reward,\n        \"action_cost\": action_cost\n    }\n\n    return total_reward, rewards\n\n```",
+  "validation": {
+    "valid": true,
+    "suffix": "GPTMIgeminiantindepcall4",
+    "environment_call": "compute_reward(self.root_states, self.heading_vec, self.up_vec, self.up_axis_idx, self.actions)",
+    "inputs": [
+      "root_states",
+      "heading_vec",
+      "up_vec",
+      "up_axis_idx",
+      "actions"
+    ]
+  }
+}

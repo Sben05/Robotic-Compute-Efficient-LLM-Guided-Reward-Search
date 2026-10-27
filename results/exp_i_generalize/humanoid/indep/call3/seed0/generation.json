@@ -1,0 +1,53 @@
+{
+  "task_spec": {
+    "task": "Humanoid",
+    "env": "humanoid",
+    "num_envs": null
+  },
+  "task": "humanoid",
+  "arm": "indep",
+  "call": 3,
+  "function": null,
+  "model_used": "minimax/minimax-m3.1-flash",
+  "usage": {
+    "prompt_tokens": 1301,
+    "completion_tokens": 16814,
+    "total_tokens": 18115,
+    "cost": 0.010205655,
+    "is_byok": false,
+    "prompt_tokens_details": {
+      "cached_tokens": 577,
+      "audio_tokens": 0,
+      "video_tokens": 0
+    },
+    "cost_details": {
+      "upstream_inference_cost": null,
+      "upstream_inference_prompt_cost": 0,
+      "upstream_inference_completions_cost": 0
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 15327,
+      "image_tokens": 0
+    },
+    "cache_creation_input_tokens": 0,
+    "market_cost": 0.010205655,
+    "gateway_cost": 0.010205655
+  },
+  "finish_reason": "stop",
+  "functions_in_reply": 1,
+  "generation_seconds": 106.664381666,
+  "response_text": "## Reward design for \"Humanoid runs as fast as possible\"\n\n**Key ideas**\n\n1. **Main term \u2013 running speed**: the forward speed of the torso measured along its own body-forward axis (world-frame +x axis of the torso quaternion). This is saturating (`tanh` with a named temperature) so the agent keeps pushing for higher speed but the reward stays bounded.\n2. **Staying alive / upright**: a per-step alive bonus plus a reward on the torso up-axis z-component (\u22481 when upright, 0 when fallen). This prevents the degenerate \"fall forward and slide\" solution.\n3. **Task-direction shaping**: heading alignment with the direction to `self.targets` plus a potential-based progress term (`prev_potentials - potentials`, already a progress-rate) so the agent turns toward the goal instead of running in an arbitrary direction.\n4. **Regularizers**: small penalties on action magnitude, body angular velocity and joint velocity for a smooth, energy-efficient gait.\n\nAll quantities are computed from `self.root_states`, `self.actions`, `self.dof_vel`, `self.targets`, `self.potentials`, `self.prev_potentials` (all existing env attributes).\n\n```python\nfrom typing import Dict, Tuple\n\nimport torch\n\n\n@torch.jit.script\ndef compute_reward(root_states: torch.Tensor, actions: torch.Tensor, dof_vel: torch.Tensor,\n                   targets: torch.Tensor, potentials: torch.Tensor,\n                   prev_potentials: torch.Tensor) -> Tuple[torch.Tensor, Dict[str, torch.Tensor]]:\n\n    num_envs = root_states.shape[0]\n    device = root_states.device\n\n    # ---------------- parse the root state ----------------\n    torso_pos = root_states[:, 0:3]\n    quat = root_states[:, 3:7]          # (x, y, z, w)\n    lin_vel = root_states[:, 7:10]\n    ang_vel = root_states[:, 10:13]\n\n    qx = quat[:, 0:1]\n    qy = quat[:, 1:2]\n    qz = quat[:, 2:3]\n    qw = quat[:, 3:4]\n\n    one = torch.ones((num_envs, 1), device=device)\n    zero = torch.zeros((num_envs, 1), device=device)\n\n    # ---- world-frame body forward axis (+x of the torso) ----\n    tfx = 2.0 * (qy * zero - qz * zero)\n    tfy = 2.0 * (qz * one - qx * zero)\n    tfz = 2.0 * (qx * zero - qy * one)\n    fwd_x = one + qw * tfx + (qy * tfz - qz * tfy)\n    fwd_y = zero + qw * tfy + (qz * tfx - qx * tfz)\n    fwd_z = zero + qw * tfz + (qx * tfy - qy * tfx)\n    fwd_world = torch.cat((fwd_x, fwd_y, fwd_z), dim=1)\n\n    # ---- world-frame body up axis (+z of the torso) ----\n    tux = 2.0 * (qy * one - qz * zero)\n    tuy = 2.0 * (qz * zero - qx * one)\n    tuz = 2.0 * (qx * zero - qy * zero)\n    up_x = zero + qw * tux + (qy * tuz - qz * tuy)\n    up_y = zero + qw * tuy + (qz * tux - qx * tuz)\n    up_z = one + qw * tuz + (qx * tuy - qy * tux)\n    up_world = torch.cat((up_x, up_y, up_z), dim=1)\n\n    # ---------------- running speed ----------------\n    fwd_h = fwd_world[:, 0:2]\n    fwd_dir = fwd_h / (torch.norm(fwd_h, dim=1, keepdim=True) + 1e-6)\n\n    vel_h = lin_vel[:, 0:2]\n    fwd_speed = (vel_h * fwd_dir).sum(dim=1)\n    fwd_speed = torch.clamp(fwd_speed, min=0.0)\n\n    # saturating speed reward (temperature = desired max running speed, m/s)\n    speed_temperature = 6.0\n    r_speed = speed_temperature * torch.tanh(fwd_speed / speed_temperature)\n\n    # ---------------- staying alive / upright ----------------\n    r_alive = torch.ones(num_envs, device=device)\n    r_upright = torch.clamp(up_world[:, 2], min=0.0, max=1.0)\n\n    # ---------------- direction towards the goal ----------------\n    to_target = targets[:, 0:2] - torso_pos[:, 0:2]\n    to_target_dir = to_target / (torch.norm(to_target, dim=1, keepdim=True) + 1e-6)\n    r_target_align = torch.clamp((fwd_dir * to_target_dir).sum(dim=1), min=0.0, max=1.0)\n\n    # potential-based progress rate towards the goal (m/s)\n    r_progress = torch.clamp(prev_potentials - potentials, min=-speed_temperature,\n                             max=speed_temperature)\n\n    # ---------------- smoothness / energy regularizers ----------------\n    r_action_pen = -0.01 * torch.sum(actions * actions, dim=1)\n    r_angvel_pen = -0.005 * torch.sum(ang_vel * ang_vel, dim=1)\n    r_joint_pen = -0.0005 * torch.mean(torch.clamp(dof_vel * dof_vel, min=0.0, max=100.0), dim=1)\n\n    # ---------------- weights ----------------\n    w_speed = 1.0\n    w_alive = 0.5\n    w_upright = 1.0\n    w_target = 0.5\n    w_progress = 0.3\n\n    comp_speed = w_speed * r_speed\n    comp_alive = w_alive * r_alive\n    comp_upright = w_upright * r_upright\n    comp_target = w_target * r_target_align\n    comp_progress = w_progress * r_progress\n\n    total = (comp_speed + comp_alive + comp_upright + comp_target + comp_progress\n             + r_action_pen + r_angvel_pen + r_joint_pen)\n\n    components = {\n        \"run_speed\": comp_speed,\n        \"alive\": comp_alive,\n        \"upright\": comp_upright,\n        \"target_alignment\": comp_target,\n        \"progress_to_target\": comp_progress,\n        \"action_penalty\": r_action_pen,\n        \"ang_vel_penalty\": r_angvel_pen,\n        \"joint_vel_penalty\": r_joint_pen,\n    }\n\n    return total, components\n```",
+  "validation": {
+    "valid": true,
+    "suffix": "GPTMIhumanoidindepcall3",
+    "environment_call": "compute_reward(self.root_states, self.actions, self.dof_vel, self.targets, self.potentials, self.prev_potentials)",
+    "inputs": [
+      "root_states",
+      "actions",
+      "dof_vel",
+      "targets",
+      "potentials",
+      "prev_potentials"
+    ]
+  }
+}

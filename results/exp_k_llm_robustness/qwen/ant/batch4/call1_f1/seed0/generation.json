@@ -1,0 +1,53 @@
+{
+  "task_spec": {
+    "task": "Ant",
+    "env": "ant",
+    "num_envs": 4096
+  },
+  "task": "ant",
+  "arm": "batch4",
+  "call": 1,
+  "model_requested": "minimaxai/minimax-m3.1-flash",
+  "function": 1,
+  "model_used": "alibaba/qwen-3-32b",
+  "usage": {
+    "prompt_tokens": 1060,
+    "completion_tokens": 8088,
+    "total_tokens": 9148,
+    "cost": 0.00234944,
+    "is_byok": false,
+    "prompt_tokens_details": {
+      "cached_tokens": 0,
+      "audio_tokens": 0,
+      "video_tokens": 0
+    },
+    "cost_details": {
+      "upstream_inference_cost": null,
+      "upstream_inference_prompt_cost": 0,
+      "upstream_inference_completions_cost": 0
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 8102,
+      "reasoning_tokens_estimated": true,
+      "image_tokens": 0
+    },
+    "cache_creation_input_tokens": 0,
+    "market_cost": 0.00234944,
+    "gateway_cost": 0.00234944
+  },
+  "finish_reason": "stop",
+  "functions_in_reply": 4,
+  "generation_seconds": 252.478310833,
+  "response_text": "```python\n\n@torch.jit.script\ndef compute_reward(root_states: torch.Tensor, heading_vec: torch.Tensor, obs_buf: torch.Tensor, dt: float) -> Tuple[torch.Tensor, Dict[str, torch.Tensor]]:\n    velocity = root_states[:, 7:10]\n    forward_speed = torch.sum(velocity * heading_vec, dim=1) / dt  # Forward velocity in heading direction\n    upright_proj = obs_buf[:, 10]  # up_proj from obs_buf\n    upright_weight = 0.1\n    total_reward = forward_speed + upright_weight * upright_proj\n    reward_components = {\n        \"forward_speed\": forward_speed,\n        \"upright_reward\": upright_proj\n    }\n    return total_reward, reward_components\n\n```",
+  "validation": {
+    "valid": true,
+    "suffix": "GPTMIqwenantbatch4call1f1",
+    "environment_call": "compute_reward(self.root_states, self.heading_vec, self.obs_buf, self.dt)",
+    "inputs": [
+      "root_states",
+      "heading_vec",
+      "obs_buf",
+      "dt"
+    ]
+  }
+}

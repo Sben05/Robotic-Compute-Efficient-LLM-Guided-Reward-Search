@@ -1,0 +1,44 @@
+{
+  "model_requested": "minimaxai/minimax-m3.1-flash",
+  "provider": "https://integrate.api.nvidia.com/v1/chat/completions",
+  "temperature": 1.0,
+  "candidate_count": 1,
+  "round": 1,
+  "index": 1,
+  "request_attempts": 2,
+  "api_errors": [
+    {
+      "attempt": 1,
+      "http": 504,
+      "body": ""
+    }
+  ],
+  "generation_seconds": 562.9203507974744,
+  "response_text": "For the standard Isaac Gym Ant state layout, `root_states` contains `[pos(0:3), quat(3:7), lin_vel(7:10), ang_vel(10:13)]`, so the world\u2011frame forward (+x) speed is `root_states[:, 9]`. The reward below gives a smooth, signed speed term (so moving backwards is penalized), plus an upright\u2011posture bonus and small regularization penalties (control effort, sideways drift, tumbling, and joint\u2011limit violations) so the ant learns a fast, stable gait rather than diving forward.\n\n```python\nfrom typing import Dict, Tuple\n\nimport torch\n\n\n@torch.jit.script\ndef compute_reward(root_states: torch.Tensor,\n                   actions: torch.Tensor,\n                   dof_pos: torch.Tensor,\n                   dof_limits_lower: torch.Tensor,\n                   dof_limits_upper: torch.Tensor,\n                   up_vec: torch.Tensor) -> Tuple[torch.Tensor, Dict[str, torch.Tensor]]:\n    \"\"\"\n    Reward the Ant for running forward (+x world frame) as fast as possible\n    while staying upright, straight and within its joint limits.\n    \"\"\"\n\n    # Temperature of the smooth forward-speed shaping (m/s).\n    forward_speed_temperature = 4.0\n\n    # Component weights.\n    forward_weight = 1.0\n    upright_weight = 0.25\n    control_weight = 0.02\n    lateral_velocity_weight = 0.05\n    roll_pitch_angular_velocity_weight = 0.005\n    joint_limit_weight = 0.1\n\n    # --- Extract state quantities -------------------------------------\n    lin_vel = root_states[:, 7:10]      # world-frame linear velocity (x, y, z)\n    ang_vel = root_states[:, 10:13]     # world-frame angular velocity\n    forward_vel = lin_vel[:, 0]         # forward (+x) speed\n    lateral_vel = lin_vel[:, 1]         # sideways speed\n\n    # --- Reward components --------------------------------------------\n    # Signed, smoothly saturated forward speed: positive when running forward,\n    # negative when running backwards (encourages recovering/turning around).\n    forward_reward = forward_weight * torch.tanh(forward_vel / forward_speed_temperature)\n\n    # Upright posture bonus: world-z component of the torso up axis.\n    # Falls to zero if the Ant tips over or flips.\n    upright_reward = upright_weight * torch.clamp(up_vec[:, 2], min=0.0, max=1.0)\n\n    # Control effort penalty.\n    control_cost = control_weight * torch.sum(actions * actions, dim=-1)\n\n    # Penalty for drifting sideways instead of running straight ahead.\n    lateral_velocity_cost = lateral_velocity_weight * torch.abs(lateral_vel)\n\n    # Penalty for excessive roll/pitch rates (tumbling, flipping).\n    roll_pitch_angular_velocity_cost = roll_pitch_angular_velocity_weight * (\n        ang_vel[:, 0] * ang_vel[:, 0] + ang_vel[:, 1] * ang_vel[:, 1])\n\n    # Penalty for exceeding the actuated joint limits.\n    lower_excess = torch.relu(dof_limits_lower - dof_pos)\n    upper_excess = torch.relu(dof_pos - dof_limits_upper)\n    joint_limit_cost = joint_limit_weight * torch.sum(lower_excess + upper_excess, dim=-1)\n\n    # --- Total reward --------------------------------------------------\n    total_reward = (forward_reward\n                    + upright_reward\n                    - control_cost\n                    - lateral_velocity_cost\n                    - roll_pitch_angular_velocity_cost\n                    - joint_limit_cost)\n\n    reward_components: Dict[str, torch.Tensor] = {}\n    reward_components[\"forward_speed\"] = forward_reward\n    reward_components[\"upright_posture\"] = upright_reward\n    reward_components[\"control_cost\"] = -control_cost\n    reward_components[\"lateral_velocity_cost\"] = -lateral_velocity_cost\n    reward_components[\"roll_pitch_angular_velocity_cost\"] = -roll_pitch_angular_velocity_cost\n    reward_components[\"joint_limit_cost\"] = -joint_limit_cost\n\n    return total_reward, reward_components\n```",
+  "model_used": "minimaxai/minimax-m3.1-flash",
+  "usage": {
+    "prompt_tokens": 1215,
+    "completion_tokens": 8755,
+    "total_tokens": 9970,
+    "prompt_tokens_details": {
+      "cached_tokens": 1152
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 7900
+    }
+  },
+  "finish_reason": "stop",
+  "validation": {
+    "valid": true,
+    "suffix": "GPTMR1C1",
+    "environment_call": "compute_reward(self.root_states, self.actions, self.dof_pos, self.dof_limits_lower, self.dof_limits_upper, self.up_vec)",
+    "inputs": [
+      "root_states",
+      "actions",
+      "dof_pos",
+      "dof_limits_lower",
+      "dof_limits_upper",
+      "up_vec"
+    ]
+  }
+}
