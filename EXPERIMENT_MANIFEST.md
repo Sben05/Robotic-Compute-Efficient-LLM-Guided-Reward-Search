@@ -21,8 +21,8 @@ Preview 4, Eureka @9eee428); 20+10-iteration smoke runs gave identical scores to
 | pruning | Rule comparison: tuning on seeds 0-3 (frozen), held-out scoring on seeds 4,5,7,8,9; live-round replay | retrospective held-out | 175 held-out sets | results/pruning | pruning/heldout.py, pruning/run_pool_cv.py |
 | final | Pre-registered H1-H5 + exploratory E1-E5 | analysis | - | results/final | final_analysis.py, exploratory_analysis.py |
 
-Totals (results/LEDGER.json): 376 completed training phases (280 from scratch, 96 resumed), ~431,000 PPO iterations
-(2.8 × 10^10 environment steps), 2 failed phases (both LLM-reward bugs on Humanoid). LLM calls tonight: 70 ($0.69).
+Totals (results/LEDGER.json): 384 completed training phases (280 from scratch, 104 resumed), 451,000 PPO iterations
+(3.02 × 10^10 environment steps, using each task's environment count and PPO horizon), 2 failed phases (both LLM-reward bugs on Humanoid). The separate live-pruning run is not included in the ledger because it has no `result.json` phases. LLM calls tonight: 70 ($0.69).
 Vast spend: ~$17.5 estimated from wall time (credit $21).
 
 Pre-registration and provenance:

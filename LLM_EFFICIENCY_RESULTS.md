@@ -4,7 +4,7 @@ Tags: **[actual]** real LLM calls / real PPO runs, **[simulation]** curve-based 
 H2-H4 (STATS_PLAN.md, Holm across H1-H5). Prices: MiniMax M3.1 Flash and Qwen-3-32B $0.15/$0.60, Gemini 2.5 Flash $0.30/$2.50
 per million input/output tokens. All new calls tonight: MiniMax 50 calls ($0.47), Gemini 10 ($0.18), Qwen 10 ($0.04).
 
-## 1. Batching: ask for four rewards in one call (H2 significant, H3 inconclusive)
+## 1. Batching: ask for four rewards in one call (H2 savings descriptive, H3 inconclusive)
 
 **H2 - cost [actual].** Completion tokens per *valid* reward, one-per-call vs four-per-call, MiniMax, 4 tasks:
 
@@ -15,8 +15,7 @@ per million input/output tokens. All new calls tonight: MiniMax 50 calls ($0.47)
 | BallBalance | 17,148 | 6,658 | 2.6× | 8/8 vs 8/8 |
 | Humanoid | 18,374 | 3,346 | 5.5× | 5/6 vs 8/8 |
 
-Batching is cheaper on all 4 tasks; stratified permutation test p < 0.0001 (Holm p < 0.0001). **Significant.**
-(Sign test 4/4, p = 0.0625, as expected with only 4 tasks; the permutation test is the pre-registered decision test.)
+Batching is cheaper on all 4 tasks. The original stratified permutation test (reported p < 0.0001) permutes labels between one-output and four-output calls and is invalid for this outcome. The task-level sign test is 4/4, one-sided p = 0.0625. Treat the savings as descriptive until the inference is repaired; see `AUDIT_REPORT.md`.
 Why it works: ~90% of every completion is hidden reasoning, and one reasoning pass is shared by four functions.
 
 **H3 - quality [actual].** Scores normalised by the same-seed human score (Ant: 500-it screens; other tasks: full training).

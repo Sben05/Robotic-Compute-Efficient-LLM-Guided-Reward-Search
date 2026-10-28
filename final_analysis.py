@@ -62,7 +62,8 @@ def h1():
     rows, human = H.load_curves()
     train = [r for r in rows if r["seed"] not in H.TEST_SEEDS]
     test = [r for r in rows if r["seed"] in H.TEST_SEEDS]
-    W = H.worlds(test, human, H.TEST_SEEDS, 10 ** 6, np.random.default_rng(1), train)
+    human_train = {s: v for s, v in human.items() if s not in H.TEST_SEEDS}  # no test-seed human curve in the library (audit finding 3)
+    W = H.worlds(test, human_train, H.TEST_SEEDS, 10 ** 6, np.random.default_rng(1), train)
     cfg = {lab: (pol, kw) for fam, lab, pol, kw in build()}
     rule = "VoI lam=1.0 t0=250"  # chosen by best_rule_criterion.md on the interim scores (commit 90e1572)
     rec_a = H.run(*cfg[rule], W)
@@ -169,10 +170,15 @@ def h2(calls):
     p_perm = float((np.array(perm) >= obs).mean())
     wins = sum(v["ratio"] > 1 for v in per_task.values())
     p_sign = float(stats.binomtest(wins, len(tasks), 0.5, alternative="greater").pvalue)
-    out = {"label": "actual LLM calls", "per_task": per_task, "log_ratio_sum": obs, "p_one_sided_permutation": p_perm,
-           "sign_test": {"tasks_cheaper": wins, "of": len(tasks), "p_one_sided": p_sign}}
+    out = {"label": "actual LLM calls", "per_task": per_task, "log_ratio_sum": obs,
+           "p_one_sided_permutation": p_perm,
+           "permutation_test_caveat": "invalid as a primary test: relabelling a call does not resample its token/valid "
+               "counts, and indep calls (0-1 valid) and batch4 calls (0-4 valid) are not exchangeable under that "
+               "relabelling (audit finding 1). Kept only as a descriptive number.",
+           "sign_test": {"tasks_cheaper": wins, "of": len(tasks), "p_one_sided": p_sign},
+           "primary_test": "sign_test (matches STATS_PLAN's declared unit of analysis: task)"}
     json.dump(out, open(OUT / "h2.json", "w"), indent=1)
-    return out, p_perm
+    return out, p_sign
 
 
 def h3():

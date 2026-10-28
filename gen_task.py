@@ -155,7 +155,7 @@ def build(t):
                 cdir.mkdir(exist_ok=True)
                 suffix = "GPTMI" + re.sub(r"[^A-Za-z0-9]", "", f"{TAG}{t}{arm}{name}")
                 gen = {"task_spec": {"task": spec["task"], "env": spec["env"], "num_envs": spec.get("num_envs")}, "task": t, "arm": arm, "call": i,
-                       "model_requested": e.MODEL,
+                       "model_requested": rec.get("request", {}).get("model", e.MODEL),
                        "function": k, "model_used": raw.get("model"), "usage": u, "finish_reason": ch.get("finish_reason"),
                        "functions_in_reply": len(pieces(arm, text)), "generation_seconds": rec.get("seconds"), "response_text": piece}
                 gen["validation"] = build_one(spec, cdir, piece, obs, suffix)

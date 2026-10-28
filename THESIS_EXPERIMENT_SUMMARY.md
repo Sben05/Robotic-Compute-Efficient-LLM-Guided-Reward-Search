@@ -18,8 +18,8 @@ PPO, which is the expensive part. The thesis asks two things:
 
 | | Hypothesis | Effect | n | p | Holm p | Verdict |
 | --- | --- | --- | --- | ---: | ---: | --- |
-| H1 | VoI pruning beats fixed@500 on held-out curves | retained 0.997 vs 0.972 (+0.025 [0.006, 0.046]); winner 86% vs 59%; compute 0.42 vs 0.375 | 175 sets, 5 held-out seeds | 0.0019 | 0.0076 | **significant** |
-| H2 | 4-per-call is cheaper per valid reward | 2.7×, 3.7×, 2.6×, 5.5× fewer tokens | 4 tasks, 70 calls | <0.0001 | <0.0001 | **significant** |
+| H1 | VoI pruning beats fixed@500 on held-out curves | retained 0.997 vs 0.972 (+0.025 [0.006, 0.046]); winner 86% vs 59%; compute 0.42 vs 0.375 | 175 overlapping sets, 5 held-out seeds | 0.0019 (original bootstrap); 0.041 (seed level) | 0.21 (seed level) | consistent on this reward pool; not significant under conservative seed-level test |
+| H2 | 4-per-call is cheaper per valid reward | 2.7×, 3.7×, 2.6×, 5.5× fewer tokens | 4 tasks, 48 calls | permutation test invalid; task sign test 0.0625 | — | descriptive savings; significance unresolved |
 | H3 | 4-per-call rewards are no worse (margin 10%) | −0.023 [−0.120, +0.073] | 4 tasks, 112 runs | 0.064 | 0.128 | inconclusive |
 | H4 | zero-token edit recovers the refinement gain | 7.57 → 9.04 (+1.47) | 4 vs 4 seeds | 0.025 | 0.075 | not significant after correction |
 | H5 | best reward found (p3) beats the human reward | +0.86 points | 6 seeds, paired | 0.073 | 0.128 | not significant |
@@ -33,7 +33,7 @@ less compute, and PID ties it with 6% less compute.
 **Caveat on H1 (conservative re-analysis).** The held-out sets reuse the same 7 rewards, so they are not independent. With each
 seed as one observation, H1 gives p = 0.041 uncorrected and 0.21 after Holm (not significant); the direction is consistent
 (VoI ≥ fixed@500 on every held-out seed and after dropping any one reward). Claim: a consistent improvement on this reward pool,
-not yet a demonstrated result for new rewards. H2 is unaffected (its units are independent LLM calls).
+not yet a demonstrated result for new rewards. H2's descriptive ratios remain, but its original permutation significance test is invalid (see `AUDIT_REPORT.md`).
 
 ## Other findings (exploratory, with uncertainty)
 

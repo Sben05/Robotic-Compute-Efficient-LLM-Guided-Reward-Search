@@ -74,7 +74,11 @@ def load_curves():
 
 
 def worlds(rows, human, seeds, max_per_group, rng, lib_rows):
-    """Same-seed N-subsets; library = lib_rows minus every curve of the world's rewards, plus all human curves."""
+    """Same-seed N-subsets; library = lib_rows minus every curve of the world's rewards, plus the human curves the
+    caller passes in `human`. Callers must pre-filter `human` to the seeds that are legitimately visible (e.g.
+    TRAIN seeds only for both tuning and scoring): this function no longer decides that itself, since including
+    ANY test-seed human curve -- not just the world's own seed -- leaked held-out information into the library
+    (audit finding 3; tune() was the worse case, since it ran before seeds 4-5's status as held-out even mattered)."""
     hum = [np.maximum.accumulate(h) for h in human.values()]
     out = []
     for s in seeds:
@@ -115,8 +119,9 @@ def summary(recs):
 def tune():
     rows, human = load_curves()
     train = [r for r in rows if r["seed"] not in TEST_SEEDS]
+    human_train = {s: v for s, v in human.items() if s not in TEST_SEEDS}  # no test-seed curve, human or LLM, during freezing
     rng = np.random.default_rng(0)
-    W = worlds(train, human, sorted({r["seed"] for r in train}), 250, rng, train)
+    W = worlds(train, human_train, sorted({r["seed"] for r in train}), 250, rng, train)
     res = {}
     for fam, label, pol, kw in build():
         if fam == "baseline":
@@ -158,7 +163,8 @@ def score():
     train = [r for r in rows if r["seed"] not in TEST_SEEDS]
     test = [r for r in rows if r["seed"] in TEST_SEEDS]
     assert test, "no held-out curves yet"
-    W = worlds(test, human, TEST_SEEDS, 10 ** 6, np.random.default_rng(1), train)
+    human_train = {s: v for s, v in human.items() if s not in TEST_SEEDS}  # no test-seed human curve in the library
+    W = worlds(test, human_train, TEST_SEEDS, 10 ** 6, np.random.default_rng(1), train)
     cfg = {lab: (pol, kw) for fam, lab, pol, kw in build()}
     entries = {f"{fam}: {v['config']}": v["config"] for fam, v in fr["frozen"].items()}
     entries["REFERENCE fixed@500 keep-1"] = "fixed@500 keep-1"

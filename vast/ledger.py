@@ -10,10 +10,16 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 R = ROOT / "results"
+STEPS_PER_ITERATION = {
+    "ant": 4096 * 16,
+    "cartpole": 512 * 16,
+    "ballbalance": 4096 * 16,
+    "humanoid": 4096 * 32,
+}
 
 
 def main():
-    phases, iters, gpu_s, wall_s, failed = Counter(), 0, 0.0, 0.0, []
+    phases, iters, env_steps, gpu_s, wall_s, failed = Counter(), 0, 0, 0.0, 0.0, []
     full = set()
     by_exp = Counter()
     for f in sorted(R.rglob("result*.json")):
@@ -35,6 +41,8 @@ def main():
         by_exp[rel.split("/")[0]] += 1
         n = d.get("iterations_logged") or 0
         iters += n
+        task = rel.split("/")[1] if rel.startswith("exp_i_generalize/") else "ant"
+        env_steps += n * STEPS_PER_ITERATION[task]
         if d.get("training_seconds"):
             wall_s += d["training_seconds"]
             gpu_s += d["training_seconds"] / max(1, d.get("concurrent_runs_on_gpu") or 1)
@@ -42,7 +50,7 @@ def main():
             full.add(rel)
     on_vast = {p for p in full if re.match(r"exp_(f_seeds|g_|h_)", p)}
     out = {"phases_completed": dict(phases), "failed_phases": failed, "ppo_iterations": iters,
-           "env_steps": iters * 4096 * 16, "gpu_hours_shared_estimate": gpu_s / 3600, "run_wall_hours": wall_s / 3600,
+           "env_steps": env_steps, "gpu_hours_shared_estimate": gpu_s / 3600, "run_wall_hours": wall_s / 3600,
            "reward_seed_pairs_at_3000": len(full), "of_which_on_vast": len(on_vast), "phases_by_experiment": dict(by_exp)}
     (R / "LEDGER.json").write_text(json.dumps(out, indent=1) + "\n")
     print(json.dumps(out, indent=1))

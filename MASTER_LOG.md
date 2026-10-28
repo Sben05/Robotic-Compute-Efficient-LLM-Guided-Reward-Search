@@ -26,7 +26,7 @@ policy with it. Training dominates the cost. Two hypotheses: **(1) stop weak can
 | A simple PID rule is about as good as VoI | ties VoI on the clean held-out seeds; transfers to Humanoid where an Ant-tuned VoI fails | solid [held-out] |
 | VoI and PID match or beat the closest published method (ORSO, ICLR 2025, rebuilt) | VoI +0.7% kept (p = 0.012) with 5% less compute; PID ties with 6% less | [held-out, post hoc] |
 | Forecasting rules need history from the same robot | Humanoid: VoI 81% with Ant history → 97% with Humanoid history | [exploratory] |
-| Asking the LLM for 4 rewards per call is much cheaper | 2.6-5.5× fewer tokens per usable reward, 4/4 tasks (MiniMax); also cheaper for Gemini and Qwen | **significant** (p < 0.0001) |
+| Asking the LLM for 4 rewards per call is much cheaper | 2.6-5.5× fewer tokens per usable reward, 4/4 tasks (MiniMax); also cheaper for Gemini and Qwen | descriptive; original permutation p-value invalid (see AUDIT_REPORT.md) |
 | Batched rewards are as good | −2% [−12%, +7%] | inconclusive |
 | One constant edit replaces an LLM refinement | 7.57 → 9.04 (4 seeds each) | not significant after correction |
 | The best reward found beats the human reward | +0.86 over 6 seeds | not significant |
@@ -276,12 +276,12 @@ iterations per call. Measured on Vast: one MiniMax call ≈ 160 iterations of A1
 `STATS_PLAN.md` `4f7c0a1` (H1-H5, one-sided, Holm, seed as the unit of noise); amendment 1 `0a48a11` (H1 on seeds 4, 5, 7, 8, 9,
 run unconditionally; other-LLM study); substitution `4bd08b2`; LLM judge `1703d9c`.
 
-**Primary results (as pre-registered: cluster bootstrap over seeds, permutation, non-inferiority, Welch, paired t; Holm):**
+**Original primary output (historical; H1 bootstrap and H2 permutation inference are qualified below and in `AUDIT_REPORT.md`):**
 
 | | Effect | p | Holm p |
 | --- | --- | ---: | ---: |
 | H1 VoI > fixed@500 | +0.025 [0.006, 0.046] | 0.0019 | 0.0076 |
-| H2 batching cheaper | 2.6-5.5× on 4/4 tasks | <0.0001 | <0.0001 |
+| H2 batching cheaper | 2.6-5.5× on 4/4 tasks | original <0.0001 (invalid test); task sign test 0.0625 | invalid |
 | H3 batching not worse (−10% margin) | −0.023 [−0.120, +0.073] | 0.064 | 0.128 |
 | H4 τ edit | +1.47 (n 4 vs 4) | 0.025 | 0.075 |
 | H5 p3 > human | +0.86 (6 paired seeds) | 0.073 | 0.128 |
@@ -290,7 +290,7 @@ run unconditionally; other-LLM study); substitution `4bd08b2`; LLM judge `1703d9
 7 rewards, so they are not independent, and a bootstrap over 3-5 seeds is optimistic. With each seed as one observation:
 H1 per-seed differences +0.057, +0.002, +0.029, 0.000, +0.037 → **p = 0.041 uncorrected, 0.21 after Holm (not significant)**;
 dropping any one reward keeps it positive (+0.017 to +0.033); clean seeds 7-9 p = 0.095; PID vs fixed@500 p = 0.030; LLM judge
-p = 0.17. **What may be claimed:** H2 firmly; H1 as a consistent improvement on this reward pool (never negative on any seed or
+p = 0.17. **What may be claimed:** H2 as descriptive cost savings; H1 as a consistent improvement on this reward pool (never negative on any seed or
 reward subset) but not a firm statistical win and not yet for new rewards; H3-H5 and the LLM judge not established.
 
 ---
@@ -354,7 +354,7 @@ Hydra config, tensorboard events, `run_info.txt`; final checkpoints in `~/MSThes
 
 ## 9. Costs and compute
 
-- PPO: 384 completed training phases (280 from scratch, 104 resumed), ~451,000 iterations ≈ 3.0 × 10^10 environment steps,
+- PPO: 384 completed training phases (280 from scratch, 104 resumed), 451,000 iterations ≈ 3.02 × 10^10 environment steps,
   plus the live pruning run (`results/LEDGER.json`).
 - Vast: ~$18.5 estimated (credit $21); Quest free. LLM this session: MiniMax $1.22 (trial 0.26 + generalisation 0.21 + judge
   0.74), Gemini $0.18, Qwen $0.04.

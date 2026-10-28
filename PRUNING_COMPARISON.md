@@ -7,7 +7,7 @@ Task: Isaac Gym Ant, PPO (`AntPPO`, 4,096 envs, 3,000 iterations). Score = peak 
 Every number is tagged **[actual]** (training runs that really happened as described), **[held-out]** (frozen rules replayed on
 curves never used for tuning) or **[simulation]**. p-values appear only for the pre-registered H1 (STATS_PLAN.md).
 
-## 1. Main result: H1 (pre-registered, significant)
+## 1. Main result: H1 (pre-registered; conservative seed-level test not significant)
 
 Rules were tuned on 65 training curves (seeds 0-3) and frozen in commit `e868927` before any held-out curve existed. The rule
 for H1 was then picked by the pre-registered criterion (`results/pruning/best_rule_criterion.md`) on the interim seeds 4-5:
@@ -21,7 +21,7 @@ for H1 was then picked by the pre-registered criterion (`results/pruning/best_ru
 | **VoI λ=1.0, t0=250** | **0.425** | **0.997 [0.993, 0.999]** | **86%** |
 
 - VoI − fixed@500: **+0.025 retained [0.006, 0.046], one-sided p = 0.0019, Holm-adjusted p = 0.0076** (cluster bootstrap over
-  seeds). Significant.
+  seeds). This original bootstrap p-value is optimistic for the overlapping reward subsets; the conservative seed-level result below governs the write-up.
 - VoI − equal-compute fixed checkpoint: +0.015 [0.002, 0.031], p = 0.0099. The gain is not just "spend a bit more".
 - Per held-out seed (VoI / fixed@500): seed 4 0.997/0.940, seed 5 0.996/0.994, seed 7 0.991/0.962, seed 8 0.999/0.999,
   seed 9 1.000/0.963. VoI is never worse; fixed@500 loses most on seeds where two rewards are close at iteration 500.
