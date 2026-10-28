@@ -48,7 +48,8 @@ not yet a demonstrated result for new rewards. H2's descriptive ratios remain, b
   the time vs 56% for "keep the leader at 500" at equal compute (retained 0.987 vs 0.975, p = 0.057 pre-registered, p = 0.17 with seed as the unit;
   not significant; not to be extended on the same curves). Code alone had failed badly, so the logs are what help.
 - **Generalisation**: Cartpole and BallBalance are too easy (every reward hits the ceiling); on Humanoid all LLM rewards were
-  far below the human reward and the Ant-tuned VoI forecaster did not transfer (0.81 retained), while PID-style rules did (0.97).
+  far below the human reward and the Ant-tuned VoI forecaster transferred less well (0.93 retained, corrected from an earlier
+  0.81 library-leak artifact), while PID-style rules did (0.97).
 - **Generate vs train** [simulation]: at measured prices (one LLM call ≈ 60-230 PPO iterations of A100 time) adaptive
   generate-or-train rules do not beat "generate 4, screen at 500" at equal cost.
 

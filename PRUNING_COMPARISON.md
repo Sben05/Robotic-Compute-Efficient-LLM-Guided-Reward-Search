@@ -105,9 +105,10 @@ paused (SIGSTOP) at the rule's checkpoints, the rule decided from the logged pre
 
 The frozen Ant rules, applied unchanged to Cartpole, BallBalance and Humanoid curves (time rescaled, scores scaled to the
 human peak): on Cartpole/BallBalance every rule trivially retains 1.0 because nearly every reward reaches the task's score
-ceiling. **On Humanoid the transfer fails for VoI (0.81 retained vs 0.97 for fixed@500)** while PID-family rules (0.97 at 0.32
-compute) and successive halving (0.99) hold up. The VoI forecaster uses an Ant library; it does not transfer to a task with
-different learning-curve shapes (n = 11 Humanoid curves, 1 seed: exploratory).
+ceiling. **On Humanoid the transfer is weaker for VoI (0.93 retained vs 0.97 for fixed@500; corrected from an earlier 0.81, a library-leak
+artifact in `exploratory_analysis.py` -- see MASTER_LOG.md)** while PID-family rules (0.97 at 0.32 compute) and successive
+halving (0.99) hold up. The VoI forecaster uses an Ant library; it transfers less well to a task with different learning-curve
+shapes (n = 11 Humanoid curves, 1 seed: exploratory).
 
 ## 7. Caveats
 

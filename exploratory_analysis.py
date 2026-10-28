@@ -160,7 +160,7 @@ def e4():
     cfg = {lab: (pol, kw) for fam, lab, pol, kw in build()}
     rows_ant, human_ant = H.load_curves()
     train = [r for r in rows_ant if r["seed"] not in (4, 5, 7, 8, 9)]
-    hum = [np.maximum.accumulate(h) for h in human_ant.values()]
+    hum = [np.maximum.accumulate(h) for sd, h in human_ant.items() if sd not in (4, 5, 7, 8, 9)]  # match the "TRAIN curves" label above
     lib = Library([np.maximum.accumulate(r["curve"]) for r in train] + hum, hum)
     rules = {f"{fam}: {v['config']}": v["config"] for fam, v in fr["frozen"].items() if "paper" not in fam}
     rules["REFERENCE fixed@500 keep-1"] = "fixed@500 keep-1"

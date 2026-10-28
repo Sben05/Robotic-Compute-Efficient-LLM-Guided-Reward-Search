@@ -33,22 +33,28 @@ same-seed human peak = 10.48 (Ant's), library = Ant training curves. Candidate s
 | Rule | Cartpole (800 sets) compute / retained | BallBalance (800) | Humanoid (330) |
 | --- | --- | --- | --- |
 | fixed@500 keep-1 | 0.375 / 1.000 | 0.375 / 1.000 | 0.375 / 0.972 |
-| VoI λ=1.0 t0=250 (Ant winner) | 0.326 / 1.000 | 0.376 / 1.000 | 0.319 / **0.814** |
+| VoI λ=1.0 t0=250 (Ant winner) | 0.326 / 1.000 | 0.376 / 1.000 | 0.320 / **0.925** |
 | PID / PD th=0.4 | 0.347 / 1.000 | 0.349 / 1.000 | 0.322 / 0.972 |
-| Thompson best-arm | 0.323 / 1.000 | 0.322 / 1.000 | 0.354 / 0.964 |
-| MPC λ=1.0 | 0.379 / 1.000 | 0.442 / 1.000 | 0.375 / 0.805 |
-| Bayesian P(best)<0.1 | 0.390 / 1.000 | 0.452 / 1.000 | 0.408 / 0.972 |
-| successive halving t0=500 η=3 | 0.458 / 1.000 | 0.458 / 1.000 | 0.458 / 0.994 |
+| Thompson best-arm | 0.323 / 1.000 | 0.322 / 1.000 | 0.347 / 0.981 |
+| MPC λ=0.5 t0=100 | 0.379 / 1.000 | 0.442 / 1.000 | 0.323 / 0.888 |
+| Bayesian P(best)<0.2 | 0.390 / 1.000 | 0.452 / 1.000 | 0.396 / 0.968 |
+| successive halving t0=500 η=2 | 0.458 / 1.000 | 0.458 / 1.000 | 0.417 / 0.972 |
+
+Corrected 2026-10-28: the Ant library these rules forecast from was leaking the held-out Ant seeds' human curves (the same bug
+as MASTER_LOG.md's H1 fix); fixing it changed VoI from 0.814 to 0.925 and MPC from 0.805 to 0.888 on Humanoid (forecasting
+rules read that library directly), while the non-forecasting rows (PID, successive halving) were unaffected; their configs and
+Thompson's/Bayesian's shifted slightly because `frozen_rules.json` itself was retuned with the same fix. Cartpole/BallBalance
+are untouched (every rule already retains 1.0 there).
 
 - Cartpole/BallBalance: retained is 1.0 for every rule because nearly all rewards tie at the ceiling. Uninformative.
-- Humanoid: **the Ant-tuned VoI and MPC forecasters transfer badly (0.81 retained)**, because their library-based forecasts
-  assume Ant-shaped learning curves. Simpler lag-based rules (PID family) and successive halving keep 0.97-0.99 at 0.32-0.46
-  compute. Exploratory: 11 curves on one seed.
+- Humanoid: **the Ant-tuned VoI and MPC forecasters transfer less well (0.93 / 0.89 retained)**, because their library-based
+  forecasts assume Ant-shaped learning curves. Simpler lag-based rules (PID family) and successive halving keep 0.97-0.99 at
+  0.32-0.46 compute. Exploratory: 11 curves on one seed.
 
 ## 3. What this means
 
 - The cost saving from batching generalises (4 of 4 tasks).
 - Whether adaptive pruning beats fixed checkpoints off Ant is not established: two tasks are too easy to tell, and on the one
-  hard task the Ant-tuned forecaster fails. A forecasting rule needs a library from the same task.
+  hard task the Ant-tuned forecaster transfers less well. A forecasting rule does better with a library from the same task.
 - Next test (not run): Humanoid with several seeds and a Humanoid library, plus a dexterous task (e.g. ShadowHand) where LLM
   rewards are known to vary widely.

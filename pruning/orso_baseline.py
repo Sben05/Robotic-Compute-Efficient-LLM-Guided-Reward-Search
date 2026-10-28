@@ -8,10 +8,12 @@ import numpy as np
 import heldout as H
 from configs import build
 
+TEST_SEEDS = (4, 5, 7, 8, 9)
 rows, human = H.load_curves()
-train = [r for r in rows if r["seed"] not in (4, 5, 7, 8, 9)]
+train = [r for r in rows if r["seed"] not in TEST_SEEDS]
+human_train = {s: v for s, v in human.items() if s not in TEST_SEEDS}  # no test-seed human curve during TRAIN tuning
 cfg = {lab: (fam, pol, kw) for fam, lab, pol, kw in build()}
-Wtr = H.worlds(train, human, sorted({r["seed"] for r in train}), 250, np.random.default_rng(0), train)
+Wtr = H.worlds(train, human_train, sorted({r["seed"] for r in train}), 250, np.random.default_rng(0), train)
 chosen = {}
 for algo in ("d3rb", "exp3"):
     fam = f"ORSO ({algo}, post-hoc baseline)"
@@ -27,7 +29,7 @@ print("chosen on TRAIN:", chosen)
 out = {"label": "post-hoc baseline, tuned on TRAIN only; retrospective held-out", "chosen": chosen, "test": {}}
 for name, seeds in (("seeds 4,5,7,8,9", (4, 5, 7, 8, 9)), ("clean seeds 7-9", (7, 8, 9))):
     test = [r for r in rows if r["seed"] in seeds]
-    W = H.worlds(test, human, seeds, 10 ** 6, np.random.default_rng(1), train)
+    W = H.worlds(test, human_train, seeds, 10 ** 6, np.random.default_rng(1), train)  # never a held-out seed's own human curve
     out["test"][name] = {}
     for lab in [chosen["d3rb"], chosen["exp3"], "VoI lam=1.0 t0=250", "PID ki=1 kd=1 th=0.4", "fixed@500 keep-1"]:
         f, pol, kw = cfg[lab]

@@ -25,7 +25,7 @@ policy with it. Training dominates the cost. Two hypotheses: **(1) stop weak can
 | VoI (value-of-information forecasting) beats "keep the leader at 500" | 0.997 vs 0.972 of the best reward kept, winner 86% vs 59%, 5 held-out seeds; one live run at 32% compute | consistent on every seed; significant as pre-registered, **not** under the stricter seed-level test (p = 0.041, Holm 0.21) |
 | A simple PID rule is about as good as VoI | ties VoI on the clean held-out seeds; transfers to Humanoid where an Ant-tuned VoI fails | solid [held-out] |
 | VoI and PID match or beat the closest published method (ORSO, ICLR 2025, rebuilt) | VoI +0.7% kept (p = 0.012) with 5% less compute; PID ties with 6% less | [held-out, post hoc] |
-| Forecasting rules need history from the same robot | Humanoid: VoI 81% with Ant history → 97% with Humanoid history | [exploratory] |
+| Forecasting rules need history from the same robot | Humanoid: VoI 93% with Ant history (corrected; was 81%, a library-leak artifact) → 97% with Humanoid history | [exploratory] |
 | Asking the LLM for 4 rewards per call is much cheaper | 2.6-5.5× fewer tokens per usable reward, 4/4 tasks (MiniMax); also cheaper for Gemini and Qwen | descriptive; original permutation p-value invalid (see AUDIT_REPORT.md) |
 | Batched rewards are as good | −2% [−12%, +7%] | inconclusive |
 | One constant edit replaces an LLM refinement | 7.57 → 9.04 (4 seeds each) | not significant after correction |
@@ -247,10 +247,17 @@ VoI kept the best in 6/6, fixed@500 in 4/6.
 (32%), 6 runs killed at 250-850 its and 1 at 1,551, survivor r2c1 peaked 11.09; replay of the same rule on the recorded curves
 made identical decisions (overshoot ≤ 6 its per arm).
 
-**Transfer to other robots [held-out task]:** with the Ant library, on Humanoid VoI kept 0.814 and MPC 0.805 vs fixed@500 0.972,
-PID-family 0.972 at 0.32 compute, successive halving 0.994; Cartpole/BallBalance every rule 1.000 (saturated).
+**Transfer to other robots [held-out task]:** with the Ant library, on Humanoid VoI kept 0.925 and MPC 0.888 vs fixed@500 0.972,
+PID-family 0.972 at 0.32 compute, successive halving 0.994; Cartpole/BallBalance every rule 1.000 (saturated). (Corrected from an
+earlier 0.814/0.805: `exploratory_analysis.py`'s `e4()` was handing the library every Ant seed's human curve, including seeds
+4,5,7,8,9 that the "Ant TRAIN curves" label on this result claimed to exclude -- fixed to match the label; VoI's/MPC's forecasts
+use that library directly via `draws()`, so they moved substantially, while the non-forecasting rules [PID, fixed, ratio-bound,
+hyperband, human-threshold], which don't read the human-curve pool, are unchanged. Direction unchanged: same-task history still
+helps.)
 **Humanoid with a Humanoid library (leave-one-out, 11 curves) [exploratory]:** VoI 0.814 → 0.971 (winner 75% → 95%), Bayesian
-0.972 → 1.000, MPC 0.805 → 0.930; PID/fixed unchanged.
+0.972 → 1.000, MPC 0.805 → 0.930; PID/fixed unchanged. (Not yet rerun with the fix above: no script for this ad hoc comparison
+was saved in the repo, so its "0.814"/"0.805" starting points are stale pre-fix numbers; the ending numbers with a same-task
+Humanoid library are unaffected by the Ant-library leak and still stand.)
 
 ### 5.9 Novelty probes [exploratory, offline]
 

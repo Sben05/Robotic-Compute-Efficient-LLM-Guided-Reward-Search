@@ -5,32 +5,50 @@
    "n_worlds": 800,
    "n_curves": 28,
    "rules": {
-    "Bayesian pruning: P(best)<0.1 t0=500": {
-     "compute": 0.39008333333333334,
+    "Bayesian pruning: P(best)<0.2 t0=500": {
+     "compute": 0.3808125,
      "retained": 1.0,
      "retained_ci95": [
       1.0,
       1.0
      ],
-     "hit": 0.4175
+     "hit": 0.37125
     },
-    "MPC (receding horizon): MPC lam=1.0 t0=500": {
-     "compute": 0.3794687500000001,
+    "MPC (receding horizon): MPC lam=0.5 t0=100": {
+     "compute": 0.3318229166666667,
      "retained": 1.0,
      "retained_ci95": [
       1.0,
       1.0
      ],
-     "hit": 0.3975
+     "hit": 0.34375
     },
-    "PID (P): P ki=0 kd=0 th=0.25": {
-     "compute": 0.35924999999999996,
+    "ORSO (d3rb, post-hoc baseline): ORSO d3rb budget=0.3": {
+     "compute": 0.4749999999999999,
      "retained": 1.0,
      "retained_ci95": [
       1.0,
       1.0
      ],
-     "hit": 0.38625
+     "hit": 0.43875
+    },
+    "ORSO (exp3, post-hoc baseline): ORSO exp3 budget=0.6": {
+     "compute": 0.6490250000000001,
+     "retained": 1.0,
+     "retained_ci95": [
+      1.0,
+      1.0
+     ],
+     "hit": 0.57
+    },
+    "PID (P): P ki=0 kd=0 th=0.15": {
+     "compute": 0.3283541666666666,
+     "retained": 1.0,
+     "retained_ci95": [
+      1.0,
+      1.0
+     ],
+     "hit": 0.34125
     },
     "PID (PD): PD ki=0 kd=1 th=0.4": {
      "compute": 0.3477083333333333,
@@ -59,23 +77,23 @@
      ],
      "hit": 0.4125
     },
-    "Thompson BAI (TTTS): TTTS delta=0.2 budget=0.5": {
-     "compute": 0.32278125,
+    "Thompson BAI (TTTS): TTTS delta=0.2 budget=0.35": {
+     "compute": 0.3213854166666667,
      "retained": 1.0,
      "retained_ci95": [
       1.0,
       1.0
      ],
-     "hit": 0.43
+     "hit": 0.37
     },
     "VoI (expected improvement): VoI lam=1.0 t0=250": {
-     "compute": 0.3262291666666667,
+     "compute": 0.32825000000000004,
      "retained": 1.0,
      "retained_ci95": [
       1.0,
       1.0
      ],
-     "hit": 0.345
+     "hit": 0.29625
     },
     "fixed checkpoint: fixed@1000 keep-1": {
      "compute": 0.5,
@@ -86,7 +104,7 @@
      ],
      "hit": 0.36125
     },
-    "human-reference threshold: ref rho=0.8 t0=500": {
+    "human-reference threshold: ref rho=0.9 t0=500": {
      "compute": 0.375,
      "retained": 1.0,
      "retained_ci95": [
@@ -105,7 +123,7 @@
      "hit": 0.6975
     },
     "ratio-bound racing: bound q=0.75 t0=100": {
-     "compute": 0.40952083333333333,
+     "compute": 0.41061458333333334,
      "retained": 1.0,
      "retained_ci95": [
       1.0,
@@ -113,14 +131,14 @@
      ],
      "hit": 0.51625
     },
-    "successive halving: SH t0=500 eta=3": {
-     "compute": 0.45833333333333326,
+    "successive halving: SH t0=500 eta=2": {
+     "compute": 0.41666666666666674,
      "retained": 1.0,
      "retained_ci95": [
       1.0,
       1.0
      ],
-     "hit": 0.48625
+     "hit": 0.49875
     },
     "REFERENCE fixed@500 keep-1": {
      "compute": 0.375,
@@ -137,131 +155,149 @@
    "n_worlds": 800,
    "n_curves": 32,
    "rules": {
-    "Bayesian pruning: P(best)<0.1 t0=500": {
-     "compute": 0.451625,
-     "retained": 0.9999921953085653,
+    "Bayesian pruning: P(best)<0.2 t0=500": {
+     "compute": 0.44128124999999996,
+     "retained": 0.9999927219056441,
      "retained_ci95": [
-      0.9999895622728798,
-      0.9999945113550004
+      0.9999902120538396,
+      0.9999949772632974
      ],
-     "hit": 0.53
+     "hit": 0.465
     },
-    "MPC (receding horizon): MPC lam=1.0 t0=500": {
-     "compute": 0.4424791666666667,
-     "retained": 0.9999903020028779,
+    "MPC (receding horizon): MPC lam=0.5 t0=100": {
+     "compute": 0.3821666666666667,
+     "retained": 0.9999918146546495,
      "retained_ci95": [
-      0.9999851652659442,
-      0.9999941057861592
+      0.9999868508925834,
+      0.9999953491015335
      ],
-     "hit": 0.515
+     "hit": 0.47125
     },
-    "PID (P): P ki=0 kd=0 th=0.25": {
-     "compute": 0.4206770833333333,
-     "retained": 0.999997259252355,
+    "ORSO (d3rb, post-hoc baseline): ORSO d3rb budget=0.3": {
+     "compute": 0.4749999999999999,
+     "retained": 0.9999986406714246,
      "retained_ci95": [
-      0.9999957388571007,
-      0.9999986382967985
+      0.9999978467538325,
+      0.9999992931196283
      ],
-     "hit": 0.4525
+     "hit": 0.61625
     },
-    "PID (PD): PD ki=0 kd=1 th=0.4": {
-     "compute": 0.35078125,
-     "retained": 0.9999880977472422,
+    "ORSO (exp3, post-hoc baseline): ORSO exp3 budget=0.6": {
+     "compute": 0.6583156249999998,
+     "retained": 0.9999993887119574,
      "retained_ci95": [
-      0.9999806016730969,
-      0.9999940623125617
+      0.9999990663863386,
+      0.9999996706218824
      ],
-     "hit": 0.1925
+     "hit": 0.7275
     },
-    "PID (PI): PI ki=1 kd=0 th=0.25": {
-     "compute": 0.3920625,
-     "retained": 0.999991517247714,
+    "PID (P): P ki=0 kd=0 th=0.15": {
+     "compute": 0.3582395833333334,
+     "retained": 0.9999918056284228,
      "retained_ci95": [
-      0.9999865585585421,
-      0.9999951470966808
-     ],
-     "hit": 0.31125
-    },
-    "PID (PID): PID ki=1 kd=1 th=0.4": {
-     "compute": 0.34893749999999996,
-     "retained": 0.9999880977472422,
-     "retained_ci95": [
-      0.9999807751095235,
-      0.9999940959680814
-     ],
-     "hit": 0.1925
-    },
-    "Thompson BAI (TTTS): TTTS delta=0.2 budget=0.5": {
-     "compute": 0.3217604166666666,
-     "retained": 0.9999211595152966,
-     "retained_ci95": [
-      0.9998981050220441,
-      0.9999424237106821
-     ],
-     "hit": 0.2875
-    },
-    "VoI (expected improvement): VoI lam=1.0 t0=250": {
-     "compute": 0.37626041666666665,
-     "retained": 0.9999916987832873,
-     "retained_ci95": [
-      0.999986503903104,
-      0.9999953306292128
-     ],
-     "hit": 0.27625
-    },
-    "fixed checkpoint: fixed@1000 keep-1": {
-     "compute": 0.5,
-     "retained": 0.9999996300629992,
-     "retained_ci95": [
-      0.999999344396635,
-      0.9999998571668178
-     ],
-     "hit": 0.6325
-    },
-    "human-reference threshold: ref rho=0.8 t0=500": {
-     "compute": 0.5529166666666667,
-     "retained": 0.9999975002794284,
-     "retained_ci95": [
-      0.999993362900424,
-      0.9999997509925689
-     ],
-     "hit": 0.745
-    },
-    "hyperband: HB (100, 250, 500)": {
-     "compute": 0.6253645833333333,
-     "retained": 0.9999981372266358,
-     "retained_ci95": [
-      0.999996795021979,
-      0.9999992905663497
-     ],
-     "hit": 0.52125
-    },
-    "ratio-bound racing: bound q=0.75 t0=100": {
-     "compute": 0.49905208333333334,
-     "retained": 0.9999973808324786,
-     "retained_ci95": [
-      0.9999959875712663,
-      0.99999861305938
-     ],
-     "hit": 0.64125
-    },
-    "successive halving: SH t0=500 eta=3": {
-     "compute": 0.45833333333333326,
-     "retained": 0.9999982867409442,
-     "retained_ci95": [
-      0.9999971794367507,
-      0.9999992217006715
+      0.9999859642532453,
+      0.9999962878173136
      ],
      "hit": 0.27875
     },
+    "PID (PD): PD ki=0 kd=1 th=0.4": {
+     "compute": 0.3494479166666667,
+     "retained": 0.9999899003781181,
+     "retained_ci95": [
+      0.9999822553970857,
+      0.9999957535528256
+     ],
+     "hit": 0.1825
+    },
+    "PID (PI): PI ki=1 kd=0 th=0.25": {
+     "compute": 0.39299999999999996,
+     "retained": 0.999995491702671,
+     "retained_ci95": [
+      0.9999935275487565,
+      0.9999972779902107
+     ],
+     "hit": 0.3225
+    },
+    "PID (PID): PID ki=1 kd=1 th=0.4": {
+     "compute": 0.34806249999999994,
+     "retained": 0.9999899003781181,
+     "retained_ci95": [
+      0.9999825752838181,
+      0.9999955581873555
+     ],
+     "hit": 0.1825
+    },
+    "Thompson BAI (TTTS): TTTS delta=0.2 budget=0.35": {
+     "compute": 0.31638541666666664,
+     "retained": 0.9999787823569392,
+     "retained_ci95": [
+      0.9999686694330625,
+      0.9999872076026612
+     ],
+     "hit": 0.205
+    },
+    "VoI (expected improvement): VoI lam=1.0 t0=250": {
+     "compute": 0.37462499999999993,
+     "retained": 0.9999929845129601,
+     "retained_ci95": [
+      0.9999883223593335,
+      0.999996355630385
+     ],
+     "hit": 0.2875
+    },
+    "fixed checkpoint: fixed@1000 keep-1": {
+     "compute": 0.5,
+     "retained": 0.9999991172928162,
+     "retained_ci95": [
+      0.9999987106962398,
+      0.9999994872298171
+     ],
+     "hit": 0.62375
+    },
+    "human-reference threshold: ref rho=0.9 t0=500": {
+     "compute": 0.5235416666666667,
+     "retained": 0.9999984719414998,
+     "retained_ci95": [
+      0.9999974855309037,
+      0.9999993059741129
+     ],
+     "hit": 0.63125
+    },
+    "hyperband: HB (100, 250, 500)": {
+     "compute": 0.6263541666666667,
+     "retained": 0.99999804580835,
+     "retained_ci95": [
+      0.9999967293128804,
+      0.9999992062960346
+     ],
+     "hit": 0.50375
+    },
+    "ratio-bound racing: bound q=0.75 t0=100": {
+     "compute": 0.49800000000000005,
+     "retained": 0.9999981526325104,
+     "retained_ci95": [
+      0.9999969406367135,
+      0.9999991537634184
+     ],
+     "hit": 0.63125
+    },
+    "successive halving: SH t0=500 eta=2": {
+     "compute": 0.41666666666666674,
+     "retained": 0.9999964771491909,
+     "retained_ci95": [
+      0.9999948141944557,
+      0.9999979404639496
+     ],
+     "hit": 0.21875
+    },
     "REFERENCE fixed@500 keep-1": {
      "compute": 0.375,
-     "retained": 0.9999837438782176,
+     "retained": 0.9999864662911945,
      "retained_ci95": [
-      0.9999782680897105,
-      0.9999881989427604
+      0.9999831307298832,
+      0.9999896496341099
      ],
-     "hit": 0.22125
+     "hit": 0.22875
     }
    }
   },
@@ -269,8 +305,26 @@
    "n_worlds": 330,
    "n_curves": 11,
    "rules": {
-    "Bayesian pruning: P(best)<0.1 t0=500": {
-     "compute": 0.40787878787878784,
+    "Bayesian pruning: P(best)<0.2 t0=500": {
+     "compute": 0.39575757575757575,
+     "retained": 0.9678432119050445,
+     "retained_ci95": [
+      0.9518543748922055,
+      0.9815732685150899
+     ],
+     "hit": 0.9484848484848485
+    },
+    "MPC (receding horizon): MPC lam=0.5 t0=100": {
+     "compute": 0.3234848484848485,
+     "retained": 0.8878024679650368,
+     "retained_ci95": [
+      0.8482228090507632,
+      0.924947652996377
+     ],
+     "hit": 0.8818181818181818
+    },
+    "ORSO (d3rb, post-hoc baseline): ORSO d3rb budget=0.3": {
+     "compute": 0.475,
      "retained": 0.9716478481270432,
      "retained_ci95": [
       0.9565267004614659,
@@ -278,17 +332,17 @@
      ],
      "hit": 0.9545454545454546
     },
-    "MPC (receding horizon): MPC lam=1.0 t0=500": {
-     "compute": 0.375,
-     "retained": 0.805397616753085,
+    "ORSO (exp3, post-hoc baseline): ORSO exp3 budget=0.6": {
+     "compute": 0.6026136363636363,
+     "retained": 1.0,
      "retained_ci95": [
-      0.7592948327990046,
-      0.8496052099433299
+      1.0,
+      1.0
      ],
-     "hit": 0.803030303030303
+     "hit": 1.0
     },
-    "PID (P): P ki=0 kd=0 th=0.25": {
-     "compute": 0.3361363636363637,
+    "PID (P): P ki=0 kd=0 th=0.15": {
+     "compute": 0.3232323232323232,
      "retained": 0.9716478481270432,
      "retained_ci95": [
       0.9565267004614659,
@@ -323,23 +377,23 @@
      ],
      "hit": 0.9545454545454546
     },
-    "Thompson BAI (TTTS): TTTS delta=0.2 budget=0.5": {
-     "compute": 0.35414141414141415,
-     "retained": 0.963929297352179,
+    "Thompson BAI (TTTS): TTTS delta=0.2 budget=0.35": {
+     "compute": 0.34734848484848485,
+     "retained": 0.9806228402133904,
      "retained_ci95": [
-      0.9459439685781462,
-      0.980558020407658
+      0.9651666553177888,
+      0.9944813452477904
      ],
-     "hit": 0.9212121212121213
+     "hit": 0.9575757575757575
     },
     "VoI (expected improvement): VoI lam=1.0 t0=250": {
-     "compute": 0.318510101010101,
-     "retained": 0.8135407335784797,
+     "compute": 0.31957070707070706,
+     "retained": 0.924808561130543,
      "retained_ci95": [
-      0.7758926423149085,
-      0.8500483845615429
+      0.8982805751767416,
+      0.9485848358501575
      ],
-     "hit": 0.7454545454545455
+     "hit": 0.8757575757575757
     },
     "fixed checkpoint: fixed@1000 keep-1": {
      "compute": 0.5,
@@ -350,11 +404,11 @@
      ],
      "hit": 0.9545454545454546
     },
-    "human-reference threshold: ref rho=0.8 t0=500": {
+    "human-reference threshold: ref rho=0.9 t0=500": {
      "compute": 0.375,
      "retained": 0.9716478481270432,
      "retained_ci95": [
-      0.9565267004614662,
+      0.9584168439196631,
       0.984878852334423
      ],
      "hit": 0.9545454545454546
@@ -369,7 +423,7 @@
      "hit": 0.9545454545454546
     },
     "ratio-bound racing: bound q=0.75 t0=100": {
-     "compute": 0.38292929292929295,
+     "compute": 0.37868686868686874,
      "retained": 0.9716478481270432,
      "retained_ci95": [
       0.9565267004614659,
@@ -377,12 +431,12 @@
      ],
      "hit": 0.9545454545454546
     },
-    "successive halving: SH t0=500 eta=3": {
-     "compute": 0.4583333333333333,
-     "retained": 0.9944769725753076,
+    "successive halving: SH t0=500 eta=2": {
+     "compute": 0.4166666666666666,
+     "retained": 0.9716478481270432,
      "retained_ci95": [
-      0.991531357948805,
-      0.9970543853734973
+      0.9565267004614659,
+      0.984878852334423
      ],
      "hit": 0.9545454545454546
     },
